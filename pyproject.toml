@@ -1,0 +1,33 @@
+[build-system]
+requires = [
+    "setuptools",
+    "scikit-build",
+    "wheel",
+    "cmake",
+    "ninja",
+    "clang==15.*",
+    "ctypeslib2"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py-bitcoinkernel"
+version = "0.1.0"
+description = "A Python wrapper for libbitcoinkernel"
+authors = [
+    { name = "Stephan Vuylsteke", email = "stickies-v@protonmail.com" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+dependencies = [
+    "ctypeslib2",
+]
+requires-python=">3.8"
+
+[tool.setuptools]
+packages = { find = { where = ["src"] } }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",  # Add pytest as a dev dependency
+]
