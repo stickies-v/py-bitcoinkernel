@@ -98,14 +98,19 @@ class BitcoinBuildCommand(build_ext):
             raise FileNotFoundError(f"Shared library not found: {shared_library_path}")
 
         print(f"Generating bindings from {HEADER_FILE}...")
-        subprocess.run(
-            [
+        clang2py_args = [
                 "clang2py",
                 str(HEADER_FILE),
                 "-l", str(shared_library_path), 
-                # "--nm", str(ARTIFACTS_DIR.parent / "nm_patch.py"),
                 "-o", str(BINDINGS_FILE)
-             ],
+             ]
+        if sys.platform == 'darwin':
+            # See https://github.com/trolldbois/ctypeslib/issues/125#issuecomment-1552170404
+            clang2py_args.append("--nm")
+            clang2py_args.append(str(ARTIFACTS_DIR.parent / "nm_patch.py"))
+
+        subprocess.run(
+            clang2py_args,
             check=True
         )
         print(f"Bindings generated at {BINDINGS_FILE}")
