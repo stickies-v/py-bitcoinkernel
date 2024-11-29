@@ -20,14 +20,14 @@ authors = [
 license = { text = "MIT" }
 readme = "README.md"
 dependencies = [
-    "ctypeslib2",
 ]
-requires-python=">3.8"
+requires-python=">3.10"
 
 [tool.setuptools]
 packages = { find = { where = ["src"] } }
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",  # Add pytest as a dev dependency
+    "pytest>=7.0",
+    "ctypeslib2",  # to generate the language bindings
 ]

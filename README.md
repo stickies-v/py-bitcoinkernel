@@ -14,4 +14,80 @@ A Python wrapper around [libbitcoinkernel](https://github.com/bitcoin/bitcoin/is
 
 ## Installation
 
-*[TODO: Add build/installation instructions for libbitcoinkernel dependency]*
+### `libbitcoinkernel` shared library
+
+> [!WARNING]
+> While `libbitcoinkernel` and `py-bitcoinkernel` are in very early and experimental phases of
+> development, no version management is done, and you **must** install the `libbitcoinkernel`
+> version that is shipped with this library in `depend/bitcoin/`.
+
+```
+NUM_CORES=4
+cd depend/bitcoin/
+cmake -B cmake -B build -DBUILD_KERNEL_LIB=ON -DBUILD_UTIL_CHAINSTATE=ON
+cmake --build build -j $(NUM_CORES)
+cmake --install build
+```
+
+`py-bitcoinkernel` is a wrapper around the `libbitcoinkernel` C shared library.
+
+It is recommended to install `py-bitcoinkernel` in a virtual environment:
+```
+python -m venv .venv
+source .venv/bin/activate
+```
+
+The recommended way to install `py-bitcoinkernel` is with `pip`, which automatically installs dependencies too.
+```
+pip install .
+```
+
+## Usage
+
+> [!WARNING]
+> This code is highly experimental and not ready for use in production software yet.
+
+All the classes and functions that can be used are exposed in a single `pbk` package. Lifetimes are managed automatically. The application is currently not threadsafe.
+
+The entry point for most current `libbitcoinkernel` usage is the `ChainstateManager`. To create it, we'll first need to create a `Context` object.
+
+### Context
+
+```py
+def make_context(chain_type: pbk.ChainType):
+    chain_params = pbk.ChainParameters(chain_type)
+    opts = pbk.ContextOptions()
+    opts.set_chainparams(chain_params)
+    return pbk.Context(opts)
+
+context = make_context(pbk.ChainType.SIGNET)
+```
+
+### ChainstateManager
+
+```py
+A lot of the 
+```
+
+### 
+
+If you want to enable `libbitcoinkernel` built-in logging, create a `LoggingConnection()` object and keep it alive for the duration of your application:
+
+```py
+...
+if __name__ == '__main__':
+    log = pbk.LoggingConnection()  # must be kept alive for the duration of the application
+    <use py-bitcoinkernel>
+```
+
+## Configuration
+
+The library will look for libbitcoinkernel in the following locations, in order of priority:
+
+1. Path specified in `BITCOINKERNEL_LIB` environment variable
+2. `../lib/` directory relative to the Python package (tries `.dylib`, `.so`, `.dll` extensions)
+3. System library paths (using `ctypes.util.find_library`)
+
+### Examples
+
+Using environment variable:

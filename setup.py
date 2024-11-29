@@ -1,23 +1,15 @@
+import ctypes.util
+import shutil
 import subprocess
 import sys
 from pathlib import Path
-import shutil
-import os
 
+from setuptools import find_packages
 from setuptools.command.build_ext import build_ext
 from skbuild import setup
-from setuptools import find_packages
 
-# Directory constants
-ARTIFACTS_DIR = Path("artifacts").resolve()
-LIB_DIR = ARTIFACTS_DIR / "lib"
 BITCOIN_DIR = Path("depend/bitcoin").resolve()
-BUILD_DIR = Path("build") / "bitcoin"
-HEADER_FILE = BITCOIN_DIR / "src/kernel/bitcoinkernel.h"
-SRC_DIR = Path("src")
-BINDINGS_FILE = SRC_DIR / "pbk" / "capi" / "bindings.py"
 
-# Platform-specific settings
 if sys.platform.startswith('win'):
     LIB_EXTENSION = '.dll'
 elif sys.platform == 'darwin':
@@ -29,21 +21,25 @@ class BitcoinBuildCommand(build_ext):
     """Custom build command for building Bitcoin Core library and generating bindings"""
 
     def run(self):
-        ARTIFACTS_DIR.mkdir(exist_ok=True)
-        LIB_DIR.mkdir(exist_ok=True)
-
-        self.build_bitcoin_lib()
-        self.copy_library_to_package()
-        self.generate_bindings()
+        if lib_path := ctypes.util.find_library("bitcoinkernel"):
+            print(f"bitcoinkernel library already installed at {lib_path}, skipping build.")
+        else:
+            self.build_bitcoin_lib()
         super().run()
 
     def build_bitcoin_lib(self):
         """Build the Bitcoin library using CMake with Ninja"""
-        BUILD_DIR.mkdir(exist_ok=True, parents=True)
+        cmake_build_dir = Path(self.build_temp) / "bitcoin"
+        cmake_build_dir.mkdir(exist_ok=True, parents=True)
+
+        # Create the package's lib directory
+        package_lib_dir = Path(self.build_lib) / "pbk" / "lib"
+        package_lib_dir.mkdir(parents=True, exist_ok=True)
+
         cmake_args = [
             "cmake",
             str(BITCOIN_DIR.resolve()),
-            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={LIB_DIR.absolute()}",
+            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={package_lib_dir.absolute()}",
             "-DBUILD_SHARED_LIBS=ON",
             "-DBUILD_KERNEL_LIB=ON",
             "-DBUILD_BENCH=OFF",
@@ -67,84 +63,25 @@ class BitcoinBuildCommand(build_ext):
             cmake_args.append("-GNinja")
         except FileNotFoundError:
             print("Ninja not found, falling back to default generator")
-        
+
         try:
-            subprocess.run(cmake_args, cwd=BUILD_DIR, check=True)
+            subprocess.run(cmake_args, cwd=cmake_build_dir, check=True)
             subprocess.run([
                 "cmake",
                 "--build", ".",
                 "--config", "Release",
                 "-j",
-            ], cwd=BUILD_DIR, check=True)
+            ], cwd=cmake_build_dir, check=True)
             
-            print(f"Bitcoin library built successfully in {LIB_DIR}")
+            print(f"Bitcoin library built successfully in {package_lib_dir}")
             
         except subprocess.CalledProcessError as e:
             print(f"Error building Bitcoin library: {e}")
             raise
         finally:
-            if BUILD_DIR.exists():
-                shutil.rmtree(BUILD_DIR)
-                print(f"Cleaned up build directory: {BUILD_DIR}")
-
-    def copy_library_to_package(self):
-        """Copy the built library to the package directory"""
-        # Create the package's shared library directory
-        package_lib_dir = Path(self.build_lib) / "pbk" / "lib"
-        package_lib_dir.mkdir(parents=True, exist_ok=True)
-
-        # Copy the library file
-        lib_name = f"libbitcoinkernel{LIB_EXTENSION}"
-        src_lib = LIB_DIR / lib_name
-        dst_lib = package_lib_dir / lib_name
-
-        if not src_lib.exists():
-            raise FileNotFoundError(f"Library not found: {src_lib}")
-
-        shutil.copy2(src_lib, dst_lib)
-        print(f"Copied library to {dst_lib}")
-
-    def generate_bindings(self):
-        """Generate Python bindings using clang2py"""
-        try:
-            subprocess.run(["clang2py", "--version"], check=True, stdout=subprocess.PIPE)
-        except FileNotFoundError:
-            raise RuntimeError("clang2py is not installed. Please install it with 'pip install ctypeslib2'.")
-
-        if not HEADER_FILE.exists():
-            raise FileNotFoundError(f"Header file not found: {HEADER_FILE}")
-
-        shared_library_path = LIB_DIR / f"libbitcoinkernel{LIB_EXTENSION}"
-        if not shared_library_path.exists():
-            raise FileNotFoundError(f"Shared library not found: {shared_library_path}")
-
-        # Create the capi directory if it doesn't exist
-        bindings_dir = Path(self.build_lib) / "pbk" / "capi"
-        bindings_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Generate bindings to the build directory instead of source
-        bindings_file = bindings_dir / "bindings.py"
-        
-        # Use relative path for the library
-        relative_lib_path = os.path.join('lib', f'libbitcoinkernel{LIB_EXTENSION}')
-        
-        print(f"Generating bindings from {HEADER_FILE}...")
-        clang2py_args = [
-                "clang2py",
-                str(HEADER_FILE),
-                "-l", relative_lib_path,
-                "-o", str(bindings_file)
-             ]
-        if sys.platform == 'darwin':
-            clang2py_args.append("--nm")
-            clang2py_args.append(str(ARTIFACTS_DIR.parent / "nm_patch.py"))
-
-        subprocess.run(
-            clang2py_args,
-            check=True
-        )
-        print(f"Bindings generated at {bindings_file}")
-
+            if cmake_build_dir.exists():
+                shutil.rmtree(cmake_build_dir)
+                print(f"Cleaned up build directory: {cmake_build_dir}")
 
 setup(
     name="py-bitcoinkernel",

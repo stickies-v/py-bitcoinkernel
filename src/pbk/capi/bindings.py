@@ -6,6 +6,48 @@
 # LONGDOUBLE_SIZE is: 8
 #
 import ctypes
+import ctypes.util
+import os
+from pathlib import Path
+
+
+def _find_bitcoinkernel_lib():
+    if lib_path := os.getenv('BITCOINKERNEL_LIB'):
+        if Path(lib_path).exists():
+            return lib_path
+        raise RuntimeError(f"Library path specified in BITCOINKERNEL_LIB environment variable does not exist: {lib_path}")
+    
+    # Check relative ../lib/ directory
+    script_dir = Path(__file__).parent
+    relative_lib = script_dir.parent.parent.parent / 'lib' / 'libbitcoinkernel'
+    
+    # Try common extensions
+    for ext in ['.dylib', '.so', '.dll']:
+        if (relative_lib.parent / f"{relative_lib.name}{ext}").exists():
+            return str(relative_lib.parent / f"{relative_lib.name}{ext}")
+    
+    # Fall back to system library search
+    if system_lib := ctypes.util.find_library('bitcoinkernel'):
+        return system_lib
+        
+    raise RuntimeError(
+        "Could not find libbitcoinkernel. Please either:\n"
+        "1. Install it in your system library path\n"
+        "2. Place it in ../lib/ relative to the Python package\n"
+        "3. Set BITCOINKERNEL_LIB environment variable to the full path"
+    )
+
+# Replace the existing library loading code with:
+_libraries = {}
+try:
+    _libraries['libbitcoinkernel'] = ctypes.CDLL(_find_bitcoinkernel_lib())
+except Exception as e:
+    raise RuntimeError(f"Failed to load libbitcoinkernel: {e}")
+
+# Then update all references from:
+# BITCOINKERNEL_LIB
+# to:
+# _libraries['libbitcoinkernel']
 
 
 class AsDictMixin:
@@ -142,9 +184,7 @@ def char_pointer_cast(string, encoding='utf-8'):
     return ctypes.cast(string, ctypes.POINTER(ctypes.c_char))
 
 
-
-_libraries = {}
-_libraries['libbitcoinkernel.dylib'] = ctypes.CDLL('/Users/stephanvuylsteke/code/py-bitcoinkernel/artifacts/lib/libbitcoinkernel.dylib')
+BITCOINKERNEL_LIB = ctypes.CDLL(_find_bitcoinkernel_lib())
 
 
 class struct_kernel_Transaction(Structure):
@@ -438,223 +478,223 @@ struct_kernel_ByteArray._fields_ = [
 
 kernel_ByteArray = struct_kernel_ByteArray
 size_t = ctypes.c_uint64
-kernel_transaction_create = _libraries['libbitcoinkernel.dylib'].kernel_transaction_create
+kernel_transaction_create = BITCOINKERNEL_LIB.kernel_transaction_create
 kernel_transaction_create.restype = ctypes.POINTER(struct_kernel_Transaction)
 kernel_transaction_create.argtypes = [ctypes.POINTER(ctypes.c_ubyte), size_t]
-kernel_transaction_destroy = _libraries['libbitcoinkernel.dylib'].kernel_transaction_destroy
+kernel_transaction_destroy = BITCOINKERNEL_LIB.kernel_transaction_destroy
 kernel_transaction_destroy.restype = None
 kernel_transaction_destroy.argtypes = [ctypes.POINTER(struct_kernel_Transaction)]
-kernel_script_pubkey_create = _libraries['libbitcoinkernel.dylib'].kernel_script_pubkey_create
+kernel_script_pubkey_create = BITCOINKERNEL_LIB.kernel_script_pubkey_create
 kernel_script_pubkey_create.restype = ctypes.POINTER(struct_kernel_ScriptPubkey)
 kernel_script_pubkey_create.argtypes = [ctypes.POINTER(ctypes.c_ubyte), size_t]
-kernel_copy_script_pubkey_data = _libraries['libbitcoinkernel.dylib'].kernel_copy_script_pubkey_data
+kernel_copy_script_pubkey_data = BITCOINKERNEL_LIB.kernel_copy_script_pubkey_data
 kernel_copy_script_pubkey_data.restype = ctypes.POINTER(struct_kernel_ByteArray)
 kernel_copy_script_pubkey_data.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey)]
-kernel_script_pubkey_destroy = _libraries['libbitcoinkernel.dylib'].kernel_script_pubkey_destroy
+kernel_script_pubkey_destroy = BITCOINKERNEL_LIB.kernel_script_pubkey_destroy
 kernel_script_pubkey_destroy.restype = None
 kernel_script_pubkey_destroy.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey)]
 int64_t = ctypes.c_int64
-kernel_transaction_output_create = _libraries['libbitcoinkernel.dylib'].kernel_transaction_output_create
+kernel_transaction_output_create = BITCOINKERNEL_LIB.kernel_transaction_output_create
 kernel_transaction_output_create.restype = ctypes.POINTER(struct_kernel_TransactionOutput)
 kernel_transaction_output_create.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey), int64_t]
-kernel_transaction_output_destroy = _libraries['libbitcoinkernel.dylib'].kernel_transaction_output_destroy
+kernel_transaction_output_destroy = BITCOINKERNEL_LIB.kernel_transaction_output_destroy
 kernel_transaction_output_destroy.restype = None
 kernel_transaction_output_destroy.argtypes = [ctypes.POINTER(struct_kernel_TransactionOutput)]
-kernel_verify_script = _libraries['libbitcoinkernel.dylib'].kernel_verify_script
+kernel_verify_script = BITCOINKERNEL_LIB.kernel_verify_script
 kernel_verify_script.restype = ctypes.c_bool
 kernel_verify_script.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey), int64_t, ctypes.POINTER(struct_kernel_Transaction), ctypes.POINTER(ctypes.POINTER(struct_kernel_TransactionOutput)), size_t, ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(kernel_ScriptVerifyStatus)]
-kernel_disable_logging = _libraries['libbitcoinkernel.dylib'].kernel_disable_logging
+kernel_disable_logging = BITCOINKERNEL_LIB.kernel_disable_logging
 kernel_disable_logging.restype = None
 kernel_disable_logging.argtypes = []
-kernel_add_log_level_category = _libraries['libbitcoinkernel.dylib'].kernel_add_log_level_category
+kernel_add_log_level_category = BITCOINKERNEL_LIB.kernel_add_log_level_category
 kernel_add_log_level_category.restype = ctypes.c_bool
 kernel_add_log_level_category.argtypes = [kernel_LogCategory, kernel_LogLevel]
-kernel_enable_log_category = _libraries['libbitcoinkernel.dylib'].kernel_enable_log_category
+kernel_enable_log_category = BITCOINKERNEL_LIB.kernel_enable_log_category
 kernel_enable_log_category.restype = ctypes.c_bool
 kernel_enable_log_category.argtypes = [kernel_LogCategory]
-kernel_disable_log_category = _libraries['libbitcoinkernel.dylib'].kernel_disable_log_category
+kernel_disable_log_category = BITCOINKERNEL_LIB.kernel_disable_log_category
 kernel_disable_log_category.restype = ctypes.c_bool
 kernel_disable_log_category.argtypes = [kernel_LogCategory]
-kernel_logging_connection_create = _libraries['libbitcoinkernel.dylib'].kernel_logging_connection_create
+kernel_logging_connection_create = BITCOINKERNEL_LIB.kernel_logging_connection_create
 kernel_logging_connection_create.restype = ctypes.POINTER(struct_kernel_LoggingConnection)
 kernel_logging_connection_create.argtypes = [kernel_LogCallback, ctypes.POINTER(None), kernel_LoggingOptions]
-kernel_logging_connection_destroy = _libraries['libbitcoinkernel.dylib'].kernel_logging_connection_destroy
+kernel_logging_connection_destroy = BITCOINKERNEL_LIB.kernel_logging_connection_destroy
 kernel_logging_connection_destroy.restype = None
 kernel_logging_connection_destroy.argtypes = [ctypes.POINTER(struct_kernel_LoggingConnection)]
-kernel_chain_parameters_create = _libraries['libbitcoinkernel.dylib'].kernel_chain_parameters_create
+kernel_chain_parameters_create = BITCOINKERNEL_LIB.kernel_chain_parameters_create
 kernel_chain_parameters_create.restype = ctypes.POINTER(struct_kernel_ChainParameters)
 kernel_chain_parameters_create.argtypes = [kernel_ChainType]
-kernel_chain_parameters_destroy = _libraries['libbitcoinkernel.dylib'].kernel_chain_parameters_destroy
+kernel_chain_parameters_destroy = BITCOINKERNEL_LIB.kernel_chain_parameters_destroy
 kernel_chain_parameters_destroy.restype = None
 kernel_chain_parameters_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainParameters)]
-kernel_notifications_create = _libraries['libbitcoinkernel.dylib'].kernel_notifications_create
+kernel_notifications_create = BITCOINKERNEL_LIB.kernel_notifications_create
 kernel_notifications_create.restype = ctypes.POINTER(struct_kernel_Notifications)
 kernel_notifications_create.argtypes = [kernel_NotificationInterfaceCallbacks]
-kernel_notifications_destroy = _libraries['libbitcoinkernel.dylib'].kernel_notifications_destroy
+kernel_notifications_destroy = BITCOINKERNEL_LIB.kernel_notifications_destroy
 kernel_notifications_destroy.restype = None
 kernel_notifications_destroy.argtypes = [ctypes.POINTER(struct_kernel_Notifications)]
-kernel_context_options_create = _libraries['libbitcoinkernel.dylib'].kernel_context_options_create
+kernel_context_options_create = BITCOINKERNEL_LIB.kernel_context_options_create
 kernel_context_options_create.restype = ctypes.POINTER(struct_kernel_ContextOptions)
 kernel_context_options_create.argtypes = []
-kernel_context_options_set_chainparams = _libraries['libbitcoinkernel.dylib'].kernel_context_options_set_chainparams
+kernel_context_options_set_chainparams = BITCOINKERNEL_LIB.kernel_context_options_set_chainparams
 kernel_context_options_set_chainparams.restype = None
 kernel_context_options_set_chainparams.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions), ctypes.POINTER(struct_kernel_ChainParameters)]
-kernel_context_options_set_notifications = _libraries['libbitcoinkernel.dylib'].kernel_context_options_set_notifications
+kernel_context_options_set_notifications = BITCOINKERNEL_LIB.kernel_context_options_set_notifications
 kernel_context_options_set_notifications.restype = None
 kernel_context_options_set_notifications.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions), ctypes.POINTER(struct_kernel_Notifications)]
-kernel_context_options_destroy = _libraries['libbitcoinkernel.dylib'].kernel_context_options_destroy
+kernel_context_options_destroy = BITCOINKERNEL_LIB.kernel_context_options_destroy
 kernel_context_options_destroy.restype = None
 kernel_context_options_destroy.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions)]
-kernel_context_create = _libraries['libbitcoinkernel.dylib'].kernel_context_create
+kernel_context_create = BITCOINKERNEL_LIB.kernel_context_create
 kernel_context_create.restype = ctypes.POINTER(struct_kernel_Context)
 kernel_context_create.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions)]
-kernel_context_interrupt = _libraries['libbitcoinkernel.dylib'].kernel_context_interrupt
+kernel_context_interrupt = BITCOINKERNEL_LIB.kernel_context_interrupt
 kernel_context_interrupt.restype = ctypes.c_bool
 kernel_context_interrupt.argtypes = [ctypes.POINTER(struct_kernel_Context)]
-kernel_context_destroy = _libraries['libbitcoinkernel.dylib'].kernel_context_destroy
+kernel_context_destroy = BITCOINKERNEL_LIB.kernel_context_destroy
 kernel_context_destroy.restype = None
 kernel_context_destroy.argtypes = [ctypes.POINTER(struct_kernel_Context)]
-kernel_chainstate_manager_options_create = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_manager_options_create
+kernel_chainstate_manager_options_create = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_create
 kernel_chainstate_manager_options_create.restype = ctypes.POINTER(struct_kernel_ChainstateManagerOptions)
 kernel_chainstate_manager_options_create.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(ctypes.c_char)]
-kernel_chainstate_manager_options_destroy = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_manager_options_destroy
+kernel_chainstate_manager_options_destroy = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_destroy
 kernel_chainstate_manager_options_destroy.restype = None
 kernel_chainstate_manager_options_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManagerOptions)]
-kernel_block_manager_options_create = _libraries['libbitcoinkernel.dylib'].kernel_block_manager_options_create
+kernel_block_manager_options_create = BITCOINKERNEL_LIB.kernel_block_manager_options_create
 kernel_block_manager_options_create.restype = ctypes.POINTER(struct_kernel_BlockManagerOptions)
 kernel_block_manager_options_create.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(ctypes.c_char)]
-kernel_chainstate_manager_options_set_worker_threads_num = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_manager_options_set_worker_threads_num
+kernel_chainstate_manager_options_set_worker_threads_num = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_set_worker_threads_num
 kernel_chainstate_manager_options_set_worker_threads_num.restype = None
 kernel_chainstate_manager_options_set_worker_threads_num.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.c_int32]
-kernel_block_manager_options_destroy = _libraries['libbitcoinkernel.dylib'].kernel_block_manager_options_destroy
+kernel_block_manager_options_destroy = BITCOINKERNEL_LIB.kernel_block_manager_options_destroy
 kernel_block_manager_options_destroy.restype = None
 kernel_block_manager_options_destroy.argtypes = [ctypes.POINTER(struct_kernel_BlockManagerOptions)]
-kernel_chainstate_manager_create = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_manager_create
+kernel_chainstate_manager_create = BITCOINKERNEL_LIB.kernel_chainstate_manager_create
 kernel_chainstate_manager_create.restype = ctypes.POINTER(struct_kernel_ChainstateManager)
 kernel_chainstate_manager_create.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.POINTER(struct_kernel_BlockManagerOptions)]
-kernel_chainstate_manager_destroy = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_manager_destroy
+kernel_chainstate_manager_destroy = BITCOINKERNEL_LIB.kernel_chainstate_manager_destroy
 kernel_chainstate_manager_destroy.restype = None
 kernel_chainstate_manager_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_Context)]
-kernel_validation_interface_create = _libraries['libbitcoinkernel.dylib'].kernel_validation_interface_create
+kernel_validation_interface_create = BITCOINKERNEL_LIB.kernel_validation_interface_create
 kernel_validation_interface_create.restype = ctypes.POINTER(struct_kernel_ValidationInterface)
 kernel_validation_interface_create.argtypes = [kernel_ValidationInterfaceCallbacks]
-kernel_validation_interface_register = _libraries['libbitcoinkernel.dylib'].kernel_validation_interface_register
+kernel_validation_interface_register = BITCOINKERNEL_LIB.kernel_validation_interface_register
 kernel_validation_interface_register.restype = ctypes.c_bool
 kernel_validation_interface_register.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ValidationInterface)]
-kernel_validation_interface_unregister = _libraries['libbitcoinkernel.dylib'].kernel_validation_interface_unregister
+kernel_validation_interface_unregister = BITCOINKERNEL_LIB.kernel_validation_interface_unregister
 kernel_validation_interface_unregister.restype = ctypes.c_bool
 kernel_validation_interface_unregister.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ValidationInterface)]
-kernel_validation_interface_destroy = _libraries['libbitcoinkernel.dylib'].kernel_validation_interface_destroy
+kernel_validation_interface_destroy = BITCOINKERNEL_LIB.kernel_validation_interface_destroy
 kernel_validation_interface_destroy.restype = None
 kernel_validation_interface_destroy.argtypes = [ctypes.POINTER(struct_kernel_ValidationInterface)]
-kernel_chainstate_load_options_create = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_load_options_create
+kernel_chainstate_load_options_create = BITCOINKERNEL_LIB.kernel_chainstate_load_options_create
 kernel_chainstate_load_options_create.restype = ctypes.POINTER(struct_kernel_ChainstateLoadOptions)
 kernel_chainstate_load_options_create.argtypes = []
-kernel_chainstate_load_options_set_wipe_block_tree_db = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_load_options_set_wipe_block_tree_db
+kernel_chainstate_load_options_set_wipe_block_tree_db = BITCOINKERNEL_LIB.kernel_chainstate_load_options_set_wipe_block_tree_db
 kernel_chainstate_load_options_set_wipe_block_tree_db.restype = None
 kernel_chainstate_load_options_set_wipe_block_tree_db.argtypes = [ctypes.POINTER(struct_kernel_ChainstateLoadOptions), ctypes.c_bool]
-kernel_chainstate_load_options_set_wipe_chainstate_db = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_load_options_set_wipe_chainstate_db
+kernel_chainstate_load_options_set_wipe_chainstate_db = BITCOINKERNEL_LIB.kernel_chainstate_load_options_set_wipe_chainstate_db
 kernel_chainstate_load_options_set_wipe_chainstate_db.restype = None
 kernel_chainstate_load_options_set_wipe_chainstate_db.argtypes = [ctypes.POINTER(struct_kernel_ChainstateLoadOptions), ctypes.c_bool]
-kernel_chainstate_load_options_set_block_tree_db_in_memory = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_load_options_set_block_tree_db_in_memory
+kernel_chainstate_load_options_set_block_tree_db_in_memory = BITCOINKERNEL_LIB.kernel_chainstate_load_options_set_block_tree_db_in_memory
 kernel_chainstate_load_options_set_block_tree_db_in_memory.restype = None
 kernel_chainstate_load_options_set_block_tree_db_in_memory.argtypes = [ctypes.POINTER(struct_kernel_ChainstateLoadOptions), ctypes.c_bool]
-kernel_chainstate_load_options_set_chainstate_db_in_memory = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_load_options_set_chainstate_db_in_memory
+kernel_chainstate_load_options_set_chainstate_db_in_memory = BITCOINKERNEL_LIB.kernel_chainstate_load_options_set_chainstate_db_in_memory
 kernel_chainstate_load_options_set_chainstate_db_in_memory.restype = None
 kernel_chainstate_load_options_set_chainstate_db_in_memory.argtypes = [ctypes.POINTER(struct_kernel_ChainstateLoadOptions), ctypes.c_bool]
-kernel_chainstate_load_options_destroy = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_load_options_destroy
+kernel_chainstate_load_options_destroy = BITCOINKERNEL_LIB.kernel_chainstate_load_options_destroy
 kernel_chainstate_load_options_destroy.restype = None
 kernel_chainstate_load_options_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainstateLoadOptions)]
-kernel_chainstate_manager_load_chainstate = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_manager_load_chainstate
+kernel_chainstate_manager_load_chainstate = BITCOINKERNEL_LIB.kernel_chainstate_manager_load_chainstate
 kernel_chainstate_manager_load_chainstate.restype = ctypes.c_bool
 kernel_chainstate_manager_load_chainstate.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateLoadOptions), ctypes.POINTER(struct_kernel_ChainstateManager)]
-kernel_import_blocks = _libraries['libbitcoinkernel.dylib'].kernel_import_blocks
+kernel_import_blocks = BITCOINKERNEL_LIB.kernel_import_blocks
 kernel_import_blocks.restype = ctypes.c_bool
 kernel_import_blocks.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), size_t]
-kernel_chainstate_manager_process_block = _libraries['libbitcoinkernel.dylib'].kernel_chainstate_manager_process_block
+kernel_chainstate_manager_process_block = BITCOINKERNEL_LIB.kernel_chainstate_manager_process_block
 kernel_chainstate_manager_process_block.restype = ctypes.c_bool
 kernel_chainstate_manager_process_block.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_Block), ctypes.POINTER(ctypes.c_bool)]
-kernel_block_create = _libraries['libbitcoinkernel.dylib'].kernel_block_create
+kernel_block_create = BITCOINKERNEL_LIB.kernel_block_create
 kernel_block_create.restype = ctypes.POINTER(struct_kernel_Block)
 kernel_block_create.argtypes = [ctypes.POINTER(ctypes.c_ubyte), size_t]
-kernel_block_get_hash = _libraries['libbitcoinkernel.dylib'].kernel_block_get_hash
+kernel_block_get_hash = BITCOINKERNEL_LIB.kernel_block_get_hash
 kernel_block_get_hash.restype = ctypes.POINTER(struct_kernel_BlockHash)
 kernel_block_get_hash.argtypes = [ctypes.POINTER(struct_kernel_Block)]
-kernel_block_destroy = _libraries['libbitcoinkernel.dylib'].kernel_block_destroy
+kernel_block_destroy = BITCOINKERNEL_LIB.kernel_block_destroy
 kernel_block_destroy.restype = None
 kernel_block_destroy.argtypes = [ctypes.POINTER(struct_kernel_Block)]
-kernel_copy_block_data = _libraries['libbitcoinkernel.dylib'].kernel_copy_block_data
+kernel_copy_block_data = BITCOINKERNEL_LIB.kernel_copy_block_data
 kernel_copy_block_data.restype = ctypes.POINTER(struct_kernel_ByteArray)
 kernel_copy_block_data.argtypes = [ctypes.POINTER(struct_kernel_Block)]
-kernel_copy_block_pointer_data = _libraries['libbitcoinkernel.dylib'].kernel_copy_block_pointer_data
+kernel_copy_block_pointer_data = BITCOINKERNEL_LIB.kernel_copy_block_pointer_data
 kernel_copy_block_pointer_data.restype = ctypes.POINTER(struct_kernel_ByteArray)
 kernel_copy_block_pointer_data.argtypes = [ctypes.POINTER(struct_kernel_BlockPointer)]
-kernel_block_pointer_get_hash = _libraries['libbitcoinkernel.dylib'].kernel_block_pointer_get_hash
+kernel_block_pointer_get_hash = BITCOINKERNEL_LIB.kernel_block_pointer_get_hash
 kernel_block_pointer_get_hash.restype = ctypes.POINTER(struct_kernel_BlockHash)
 kernel_block_pointer_get_hash.argtypes = [ctypes.POINTER(struct_kernel_BlockPointer)]
-kernel_byte_array_destroy = _libraries['libbitcoinkernel.dylib'].kernel_byte_array_destroy
+kernel_byte_array_destroy = BITCOINKERNEL_LIB.kernel_byte_array_destroy
 kernel_byte_array_destroy.restype = None
 kernel_byte_array_destroy.argtypes = [ctypes.POINTER(struct_kernel_ByteArray)]
-kernel_get_validation_mode_from_block_validation_state = _libraries['libbitcoinkernel.dylib'].kernel_get_validation_mode_from_block_validation_state
+kernel_get_validation_mode_from_block_validation_state = BITCOINKERNEL_LIB.kernel_get_validation_mode_from_block_validation_state
 kernel_get_validation_mode_from_block_validation_state.restype = kernel_ValidationMode
 kernel_get_validation_mode_from_block_validation_state.argtypes = [ctypes.POINTER(struct_kernel_BlockValidationState)]
-kernel_get_block_validation_result_from_block_validation_state = _libraries['libbitcoinkernel.dylib'].kernel_get_block_validation_result_from_block_validation_state
+kernel_get_block_validation_result_from_block_validation_state = BITCOINKERNEL_LIB.kernel_get_block_validation_result_from_block_validation_state
 kernel_get_block_validation_result_from_block_validation_state.restype = kernel_BlockValidationResult
 kernel_get_block_validation_result_from_block_validation_state.argtypes = [ctypes.POINTER(struct_kernel_BlockValidationState)]
-kernel_get_block_index_from_tip = _libraries['libbitcoinkernel.dylib'].kernel_get_block_index_from_tip
+kernel_get_block_index_from_tip = BITCOINKERNEL_LIB.kernel_get_block_index_from_tip
 kernel_get_block_index_from_tip.restype = ctypes.POINTER(struct_kernel_BlockIndex)
 kernel_get_block_index_from_tip.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager)]
-kernel_get_block_index_from_genesis = _libraries['libbitcoinkernel.dylib'].kernel_get_block_index_from_genesis
+kernel_get_block_index_from_genesis = BITCOINKERNEL_LIB.kernel_get_block_index_from_genesis
 kernel_get_block_index_from_genesis.restype = ctypes.POINTER(struct_kernel_BlockIndex)
 kernel_get_block_index_from_genesis.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager)]
-kernel_get_block_index_from_hash = _libraries['libbitcoinkernel.dylib'].kernel_get_block_index_from_hash
+kernel_get_block_index_from_hash = BITCOINKERNEL_LIB.kernel_get_block_index_from_hash
 kernel_get_block_index_from_hash.restype = ctypes.POINTER(struct_kernel_BlockIndex)
 kernel_get_block_index_from_hash.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockHash)]
-kernel_get_block_index_from_height = _libraries['libbitcoinkernel.dylib'].kernel_get_block_index_from_height
+kernel_get_block_index_from_height = BITCOINKERNEL_LIB.kernel_get_block_index_from_height
 kernel_get_block_index_from_height.restype = ctypes.POINTER(struct_kernel_BlockIndex)
 kernel_get_block_index_from_height.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.c_int32]
-kernel_get_next_block_index = _libraries['libbitcoinkernel.dylib'].kernel_get_next_block_index
+kernel_get_next_block_index = BITCOINKERNEL_LIB.kernel_get_next_block_index
 kernel_get_next_block_index.restype = ctypes.POINTER(struct_kernel_BlockIndex)
 kernel_get_next_block_index.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockIndex)]
-kernel_get_previous_block_index = _libraries['libbitcoinkernel.dylib'].kernel_get_previous_block_index
+kernel_get_previous_block_index = BITCOINKERNEL_LIB.kernel_get_previous_block_index
 kernel_get_previous_block_index.restype = ctypes.POINTER(struct_kernel_BlockIndex)
 kernel_get_previous_block_index.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
-kernel_read_block_from_disk = _libraries['libbitcoinkernel.dylib'].kernel_read_block_from_disk
+kernel_read_block_from_disk = BITCOINKERNEL_LIB.kernel_read_block_from_disk
 kernel_read_block_from_disk.restype = ctypes.POINTER(struct_kernel_Block)
 kernel_read_block_from_disk.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockIndex)]
-kernel_read_block_undo_from_disk = _libraries['libbitcoinkernel.dylib'].kernel_read_block_undo_from_disk
+kernel_read_block_undo_from_disk = BITCOINKERNEL_LIB.kernel_read_block_undo_from_disk
 kernel_read_block_undo_from_disk.restype = ctypes.POINTER(struct_kernel_BlockUndo)
 kernel_read_block_undo_from_disk.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockIndex)]
-kernel_block_index_destroy = _libraries['libbitcoinkernel.dylib'].kernel_block_index_destroy
+kernel_block_index_destroy = BITCOINKERNEL_LIB.kernel_block_index_destroy
 kernel_block_index_destroy.restype = None
 kernel_block_index_destroy.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
 uint64_t = ctypes.c_uint64
-kernel_block_undo_size = _libraries['libbitcoinkernel.dylib'].kernel_block_undo_size
+kernel_block_undo_size = BITCOINKERNEL_LIB.kernel_block_undo_size
 kernel_block_undo_size.restype = uint64_t
 kernel_block_undo_size.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo)]
-kernel_block_undo_destroy = _libraries['libbitcoinkernel.dylib'].kernel_block_undo_destroy
+kernel_block_undo_destroy = BITCOINKERNEL_LIB.kernel_block_undo_destroy
 kernel_block_undo_destroy.restype = None
 kernel_block_undo_destroy.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo)]
-kernel_get_transaction_undo_size = _libraries['libbitcoinkernel.dylib'].kernel_get_transaction_undo_size
+kernel_get_transaction_undo_size = BITCOINKERNEL_LIB.kernel_get_transaction_undo_size
 kernel_get_transaction_undo_size.restype = uint64_t
 kernel_get_transaction_undo_size.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo), uint64_t]
-kernel_get_undo_output_by_index = _libraries['libbitcoinkernel.dylib'].kernel_get_undo_output_by_index
+kernel_get_undo_output_by_index = BITCOINKERNEL_LIB.kernel_get_undo_output_by_index
 kernel_get_undo_output_by_index.restype = ctypes.POINTER(struct_kernel_TransactionOutput)
 kernel_get_undo_output_by_index.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo), uint64_t, uint64_t]
 int32_t = ctypes.c_int32
-kernel_block_index_get_height = _libraries['libbitcoinkernel.dylib'].kernel_block_index_get_height
+kernel_block_index_get_height = BITCOINKERNEL_LIB.kernel_block_index_get_height
 kernel_block_index_get_height.restype = int32_t
 kernel_block_index_get_height.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
-kernel_block_index_get_block_hash = _libraries['libbitcoinkernel.dylib'].kernel_block_index_get_block_hash
+kernel_block_index_get_block_hash = BITCOINKERNEL_LIB.kernel_block_index_get_block_hash
 kernel_block_index_get_block_hash.restype = ctypes.POINTER(struct_kernel_BlockHash)
 kernel_block_index_get_block_hash.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
-kernel_block_hash_destroy = _libraries['libbitcoinkernel.dylib'].kernel_block_hash_destroy
+kernel_block_hash_destroy = BITCOINKERNEL_LIB.kernel_block_hash_destroy
 kernel_block_hash_destroy.restype = None
 kernel_block_hash_destroy.argtypes = [ctypes.POINTER(struct_kernel_BlockHash)]
-kernel_copy_script_pubkey_from_output = _libraries['libbitcoinkernel.dylib'].kernel_copy_script_pubkey_from_output
+kernel_copy_script_pubkey_from_output = BITCOINKERNEL_LIB.kernel_copy_script_pubkey_from_output
 kernel_copy_script_pubkey_from_output.restype = ctypes.POINTER(struct_kernel_ScriptPubkey)
 kernel_copy_script_pubkey_from_output.argtypes = [ctypes.POINTER(struct_kernel_TransactionOutput)]
-kernel_get_transaction_output_amount = _libraries['libbitcoinkernel.dylib'].kernel_get_transaction_output_amount
+kernel_get_transaction_output_amount = BITCOINKERNEL_LIB.kernel_get_transaction_output_amount
 kernel_get_transaction_output_amount.restype = int64_t
 kernel_get_transaction_output_amount.argtypes = [ctypes.POINTER(struct_kernel_TransactionOutput)]
 __all__ = \
