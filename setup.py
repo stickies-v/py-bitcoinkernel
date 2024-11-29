@@ -12,7 +12,8 @@ LIB_DIR = ARTIFACTS_DIR / "lib"
 BITCOIN_DIR = Path("depend/bitcoin").resolve()
 BUILD_DIR = Path("build") / "bitcoin"
 HEADER_FILE = BITCOIN_DIR / "src/kernel/bitcoinkernel.h"
-BINDINGS_FILE = ARTIFACTS_DIR / "bindings.py"
+SRC_DIR = Path("src")
+BINDINGS_FILE = SRC_DIR / "pbk" / "capi" / "bindings.py"
 
 # Platform-specific settings
 if sys.platform.startswith('win'):
