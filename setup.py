@@ -2,9 +2,11 @@ import subprocess
 import sys
 from pathlib import Path
 import shutil
+import os
 
 from setuptools.command.build_ext import build_ext
 from skbuild import setup
+from setuptools import find_packages
 
 # Directory constants
 ARTIFACTS_DIR = Path("artifacts").resolve()
@@ -31,6 +33,7 @@ class BitcoinBuildCommand(build_ext):
         LIB_DIR.mkdir(exist_ok=True)
 
         self.build_bitcoin_lib()
+        self.copy_library_to_package()
         self.generate_bindings()
         super().run()
 
@@ -84,6 +87,23 @@ class BitcoinBuildCommand(build_ext):
                 shutil.rmtree(BUILD_DIR)
                 print(f"Cleaned up build directory: {BUILD_DIR}")
 
+    def copy_library_to_package(self):
+        """Copy the built library to the package directory"""
+        # Create the package's shared library directory
+        package_lib_dir = Path(self.build_lib) / "pbk" / "lib"
+        package_lib_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy the library file
+        lib_name = f"libbitcoinkernel{LIB_EXTENSION}"
+        src_lib = LIB_DIR / lib_name
+        dst_lib = package_lib_dir / lib_name
+
+        if not src_lib.exists():
+            raise FileNotFoundError(f"Library not found: {src_lib}")
+
+        shutil.copy2(src_lib, dst_lib)
+        print(f"Copied library to {dst_lib}")
+
     def generate_bindings(self):
         """Generate Python bindings using clang2py"""
         try:
@@ -98,15 +118,24 @@ class BitcoinBuildCommand(build_ext):
         if not shared_library_path.exists():
             raise FileNotFoundError(f"Shared library not found: {shared_library_path}")
 
+        # Create the capi directory if it doesn't exist
+        bindings_dir = Path(self.build_lib) / "pbk" / "capi"
+        bindings_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate bindings to the build directory instead of source
+        bindings_file = bindings_dir / "bindings.py"
+        
+        # Use relative path for the library
+        relative_lib_path = os.path.join('lib', f'libbitcoinkernel{LIB_EXTENSION}')
+        
         print(f"Generating bindings from {HEADER_FILE}...")
         clang2py_args = [
                 "clang2py",
                 str(HEADER_FILE),
-                "-l", str(shared_library_path), 
-                "-o", str(BINDINGS_FILE)
+                "-l", relative_lib_path,
+                "-o", str(bindings_file)
              ]
         if sys.platform == 'darwin':
-            # See https://github.com/trolldbois/ctypeslib/issues/125#issuecomment-1552170404
             clang2py_args.append("--nm")
             clang2py_args.append(str(ARTIFACTS_DIR.parent / "nm_patch.py"))
 
@@ -114,10 +143,16 @@ class BitcoinBuildCommand(build_ext):
             clang2py_args,
             check=True
         )
-        print(f"Bindings generated at {BINDINGS_FILE}")
+        print(f"Bindings generated at {bindings_file}")
 
 
 setup(
+    name="py-bitcoinkernel",
+    packages=find_packages("src"),
+    package_dir={"": "src"},
+    package_data={
+        "pbk": ["lib/*"],  # Include all files in the lib directory
+    },
     cmake_source_dir=str(BITCOIN_DIR),
     cmdclass={
         "build_ext": BitcoinBuildCommand,
