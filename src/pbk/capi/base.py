@@ -7,15 +7,17 @@ def camel_to_snake(s):
     return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
 
 
-class KernelOpaquePtr:
+class KernelPtr:
     _as_parameter_: ctypes.c_void_p  # Underlying ctypes object
     _owns_ptr: bool = False  # If False, pointer is owned by the kernel
 
     def __init__(self, *args, **kwargs):
-        self._as_parameter_ = self._create(*args, **kwargs)
-        if not self._as_parameter_:
-            raise RuntimeError(f"Failed to create {self.__class__.__name__}")
-        self._owns_ptr = True
+        raise NotImplementedError("KernelPtr cannot be instantiated directly")
+
+    @property
+    def contents(self):
+        assert self._as_parameter_
+        return self._as_parameter_.contents  # type: ignore
 
     @classmethod
     def _from_ptr(cls, ptr: ctypes.c_void_p):
@@ -57,13 +59,15 @@ class KernelOpaquePtr:
         self._auto_kernel_fn("destroy", self)
 
 
-class KernelPtr(KernelOpaquePtr):
-    _underlying: "pbk.capi.bindings.Structure"
-
+class KernelOpaquePtr(KernelPtr):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError("KernelPtr cannot be instantiated directly")
+        self._as_parameter_ = self._create(*args, **kwargs)
+        if not self._as_parameter_:
+            raise RuntimeError(f"Failed to create {self.__class__.__name__}")
+        self._owns_ptr = True
 
     @property
     def contents(self):
-        assert self._as_parameter_
-        return self._as_parameter_.contents  # type: ignore
+        raise NotImplementedError(
+            "KernelOpaquePtr is an opaque pointer and its contents cannot be accessed directly"
+        )
