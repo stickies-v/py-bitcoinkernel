@@ -8,14 +8,14 @@ if typing.TYPE_CHECKING:
     from pbk.notifications import Notifications
     from pbk.validation import ValidationInterface
 
+
 class ContextOptions(KernelOpaquePtr):
     def set_chainparams(self, chain_parameters: "ChainParameters"):
-        k.kernel_context_options_set_chainparams(
-            self, chain_parameters)
+        k.kernel_context_options_set_chainparams(self, chain_parameters)
 
     def set_notifications(self, notifications: "Notifications"):
-        k.kernel_context_options_set_notifications(
-            self, notifications)
+        k.kernel_context_options_set_notifications(self, notifications)
+
 
 class Context(KernelOpaquePtr):
     def __init__(self, options: ContextOptions):
