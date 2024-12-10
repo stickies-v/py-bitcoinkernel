@@ -3,7 +3,7 @@ import pbk
 
 def test_block_index(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
-    
+
     genesis = chain_man.get_block_index_from_genesis()
     chain_tip = chain_man.get_block_index_from_tip()
     assert chain_tip.height > 0
@@ -19,6 +19,7 @@ def test_block_index(chainman_regtest: pbk.ChainstateManager):
     for idx in pbk.block_index_generator(chain_man, start=-1, end=-5):
         pass
 
+
 def test_read_block(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     chain_tip = chain_man.get_block_index_from_tip()
@@ -27,6 +28,7 @@ def test_read_block(chainman_regtest: pbk.ChainstateManager):
     assert block_tip.hash == chain_tip.block_hash
     copied_block = pbk.Block(block_tip.data)
     assert copied_block.hash == block_tip.hash
+
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
