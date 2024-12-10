@@ -1,0 +1,28 @@
+name: pip installer
+
+on: [ push ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libevent-dev libboost-dev libsqlite3-dev cmake ninja-build
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pytest
+      
+      - name: Run tests with pytest
+        run: |
+          pytest
