@@ -10,19 +10,22 @@ from skbuild import setup
 
 BITCOIN_DIR = Path("depend/bitcoin").resolve()
 
-if sys.platform.startswith('win'):
-    LIB_EXTENSION = '.dll'
-elif sys.platform == 'darwin':
-    LIB_EXTENSION = '.dylib'
+if sys.platform.startswith("win"):
+    LIB_EXTENSION = ".dll"
+elif sys.platform == "darwin":
+    LIB_EXTENSION = ".dylib"
 else:
-    LIB_EXTENSION = '.so'
+    LIB_EXTENSION = ".so"
+
 
 class BitcoinBuildCommand(build_ext):
     """Custom build command for building Bitcoin Core library and generating bindings"""
 
     def run(self):
         if lib_path := ctypes.util.find_library("bitcoinkernel"):
-            print(f"bitcoinkernel library already installed at {lib_path}, skipping build.")
+            print(
+                f"bitcoinkernel library already installed at {lib_path}, skipping build."
+            )
         else:
             self.build_bitcoin_lib()
         super().run()
@@ -66,15 +69,21 @@ class BitcoinBuildCommand(build_ext):
 
         try:
             subprocess.run(cmake_args, cwd=cmake_build_dir, check=True)
-            subprocess.run([
-                "cmake",
-                "--build", ".",
-                "--config", "Release",
-                "-j",
-            ], cwd=cmake_build_dir, check=True)
-            
+            subprocess.run(
+                [
+                    "cmake",
+                    "--build",
+                    ".",
+                    "--config",
+                    "Release",
+                    "-j",
+                ],
+                cwd=cmake_build_dir,
+                check=True,
+            )
+
             print(f"Bitcoin library built successfully in {package_lib_dir}")
-            
+
         except subprocess.CalledProcessError as e:
             print(f"Error building Bitcoin library: {e}")
             raise
@@ -82,6 +91,7 @@ class BitcoinBuildCommand(build_ext):
             if cmake_build_dir.exists():
                 shutil.rmtree(cmake_build_dir)
                 print(f"Cleaned up build directory: {cmake_build_dir}")
+
 
 setup(
     name="py-bitcoinkernel",

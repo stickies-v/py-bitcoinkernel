@@ -1,4 +1,3 @@
-import ctypes
 from pathlib import Path
 
 import pytest
@@ -13,12 +12,14 @@ def test_chainstate_manager_options(temp_dir: Path):
     chain_man_opts = pbk.ChainstateManagerOptions(context, str(temp_dir))
 
     # valid number
-    for num_threads in [0, 1, 5, 100]:  
+    for num_threads in [0, 1, 5, 100]:
         chain_man_opts.set_worker_threads_num(num_threads)
         pbk.ChainstateManager(context, chain_man_opts, block_man_opts)
 
     # invalid number
-    for num_threads in [-1, ]:
+    for num_threads in [
+        -1,
+    ]:
         chain_man_opts.set_worker_threads_num(num_threads)
         with pytest.raises(RuntimeError):
             pbk.ChainstateManager(context, chain_man_opts, block_man_opts)

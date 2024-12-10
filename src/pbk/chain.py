@@ -25,12 +25,12 @@ class ChainParameters(KernelOpaquePtr):
 
 class BlockManagerOptions(KernelOpaquePtr):
     def __init__(self, context: "Context", blocksdir: str):
-        super().__init__(context, blocksdir.encode('utf-8'))
+        super().__init__(context, blocksdir.encode("utf-8"))
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
     def __init__(self, context: "Context", datadir: str):
-        super().__init__(context, datadir.encode('utf-8'))
+        super().__init__(context, datadir.encode("utf-8"))
 
     def set_worker_threads_num(self, worker_threads: int):
         k.kernel_chainstate_manager_options_set_worker_threads_num(self, worker_threads)
@@ -47,27 +47,42 @@ class ChainstateLoadOptions(KernelOpaquePtr):
 class ChainstateManager(KernelOpaquePtr):
     _context: "Context"  # Persisted to ensure context is not destroyed before ChainstateManager
 
-    def __init__(self, context: "Context", chain_man_opts: ChainstateManagerOptions, block_man_opts: BlockManagerOptions, ):
+    def __init__(
+        self,
+        context: "Context",
+        chain_man_opts: ChainstateManagerOptions,
+        block_man_opts: BlockManagerOptions,
+    ):
         self._context = context
         super().__init__(context, chain_man_opts, block_man_opts)
 
     def get_block_index_from_hash(self, hash: "BlockHash"):
-        return BlockIndex._from_ptr(k.kernel_get_block_index_from_hash(self._context, self, hash))
+        return BlockIndex._from_ptr(
+            k.kernel_get_block_index_from_hash(self._context, self, hash)
+        )
 
     def get_block_index_from_height(self, height: int):
-        return BlockIndex._from_ptr(k.kernel_get_block_index_from_height(self._context, self, height))
+        return BlockIndex._from_ptr(
+            k.kernel_get_block_index_from_height(self._context, self, height)
+        )
 
     def get_block_index_from_genesis(self) -> "BlockIndex":
-        return BlockIndex._from_ptr(k.kernel_get_block_index_from_genesis(self._context, self))
+        return BlockIndex._from_ptr(
+            k.kernel_get_block_index_from_genesis(self._context, self)
+        )
 
     def get_block_index_from_tip(self) -> "BlockIndex":
-        return BlockIndex._from_ptr(k.kernel_get_block_index_from_tip(self._context, self))
+        return BlockIndex._from_ptr(
+            k.kernel_get_block_index_from_tip(self._context, self)
+        )
 
     def get_next_block_index(self, block_index: "BlockIndex") -> "BlockIndex | None":
         next = k.kernel_get_next_block_index(self._context, self, block_index)
         return BlockIndex._from_ptr(next) if next else None
 
-    def get_previous_block_index(self, block_index: "BlockIndex") -> "BlockIndex | None":
+    def get_previous_block_index(
+        self, block_index: "BlockIndex"
+    ) -> "BlockIndex | None":
         previous = k.kernel_get_previous_block_index(block_index)
         return BlockIndex._from_ptr(previous) if previous else None
 
@@ -75,8 +90,12 @@ class ChainstateManager(KernelOpaquePtr):
         return k.kernel_chainstate_manager_load_chainstate(self._context, opts, self)
 
     def process_block(self, block: Block, new_block: bool | None) -> bool:
-        new_block_ptr = ctypes.pointer(ctypes.c_bool(new_block)) if new_block is not None else None
-        return k.kernel_chainstate_manager_process_block(self._context, self, block, new_block_ptr)
+        new_block_ptr = (
+            ctypes.pointer(ctypes.c_bool(new_block)) if new_block is not None else None
+        )
+        return k.kernel_chainstate_manager_process_block(
+            self._context, self, block, new_block_ptr
+        )
 
     def read_block_from_disk(self, block_index: "BlockIndex") -> Block:
         block = k.kernel_read_block_from_disk(self._context, self, block_index)
@@ -100,7 +119,7 @@ class ChainstateManager(KernelOpaquePtr):
 def block_index_generator(
     chain_man: ChainstateManager,
     start: "BlockIndex | int | None" = None,  # default to genesis
-    end: "BlockIndex | int | None" = None     # default to chaintip
+    end: "BlockIndex | int | None" = None,  # default to chaintip
 ) -> typing.Generator[BlockIndex, typing.Any, None]:
     """Iterate over BlockIndexes from start (inclusive, defaults to genesis) to end (inclusive,
     defaults to chaintip).

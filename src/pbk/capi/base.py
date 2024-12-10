@@ -4,11 +4,12 @@ import pbk.capi.bindings
 
 
 def camel_to_snake(s):
-    return ''.join(['_'+c.lower() if c.isupper() else c for c in s]).lstrip('_')
+    return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
+
 
 class KernelOpaquePtr:
-    _as_parameter_: ctypes.c_void_p     # Underlying ctypes object
-    _owns_ptr: bool = False             # If False, pointer is owned by the kernel
+    _as_parameter_: ctypes.c_void_p  # Underlying ctypes object
+    _owns_ptr: bool = False  # If False, pointer is owned by the kernel
 
     def __init__(self, *args, **kwargs):
         self._as_parameter_ = self._create(*args, **kwargs)
@@ -47,15 +48,14 @@ class KernelOpaquePtr:
         if hasattr(pbk.capi.bindings, fn_name):
             return getattr(pbk.capi.bindings, fn_name)(*args, **kwargs)
 
-        raise NotImplementedError(
-            f"'{fn_name}' does not exists"
-        )
+        raise NotImplementedError(f"'{fn_name}' does not exists")
 
     def _create(self, *args, **kwargs):
         return self._auto_kernel_fn("create", *args, **kwargs)
 
     def _destroy(self):
         self._auto_kernel_fn("destroy", self)
+
 
 class KernelPtr(KernelOpaquePtr):
     _underlying: "pbk.capi.bindings.Structure"
