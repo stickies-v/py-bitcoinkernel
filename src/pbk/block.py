@@ -21,9 +21,12 @@ class BlockHash(KernelPtr):
             return self.bytes == other.bytes
         return False
 
+
 class BlockIndex(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError("BlockIndex needs to be constructed via its `from_*` factory methods")
+        raise NotImplementedError(
+            "BlockIndex needs to be constructed via its `from_*` factory methods"
+        )
 
     @property
     def block_hash(self) -> BlockHash:
@@ -35,14 +38,12 @@ class BlockIndex(KernelOpaquePtr):
 
     def __eq__(self, other):
         if isinstance(other, BlockIndex):
-            return (
-                self.height == other.height and
-                self.block_hash == other.block_hash
-            )
+            return self.height == other.height and self.block_hash == other.block_hash
         return False
 
     def __repr__(self):
         return f"BlockIndex(height={self.height}, hash={self.block_hash.hex})"
+
 
 class Block(KernelOpaquePtr):
     def __init__(self, raw_block: bytes):
@@ -57,9 +58,10 @@ class Block(KernelOpaquePtr):
         bytearray = pbk.util.ByteArray._from_ptr(k.kernel_copy_block_data(self))
         return bytearray.data
 
+
 class BlockUndo(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError("BlockUndo cannot be constructed directly") 
+        raise NotImplementedError("BlockUndo cannot be constructed directly")
 
     @property
     def transaction_count(self) -> int:

@@ -19,8 +19,12 @@ class TransactionOutput(KernelOpaquePtr):
         super().__init__(script_pubkey, amount)
 
     @classmethod
-    def from_undo(cls, undo: "BlockUndo", transaction_index: int, output_index: int) -> "TransactionOutput":
-        return cls._from_ptr(k.kernel_get_undo_output_by_index(undo, transaction_index, output_index))
+    def from_undo(
+        cls, undo: "BlockUndo", transaction_index: int, output_index: int
+    ) -> "TransactionOutput":
+        return cls._from_ptr(
+            k.kernel_get_undo_output_by_index(undo, transaction_index, output_index)
+        )
 
     @property
     def amount(self) -> int:
@@ -33,6 +37,7 @@ class TransactionOutput(KernelOpaquePtr):
 
 class TransactionUndo:
     """Helper class, does not exist in libbitcoinkernel"""
+
     def __init__(self, undo: "BlockUndo", transaction_index: int):
         self._undo = undo
         self._transaction_index = transaction_index

@@ -20,6 +20,7 @@ class LogCategory(IntEnum):
     VALIDATION = k.kernel_LOG_VALIDATION
     KERNEL = k.kernel_LOG_KERNEL
 
+
 class LoggingOptions(k.kernel_LoggingOptions):
     log_timestamps: bool = True
     log_time_micros: bool = False
@@ -31,11 +32,13 @@ class LoggingOptions(k.kernel_LoggingOptions):
     def _as_parameter_(self):
         return ctypes.byref(self)
 
+
 def _simple_print(message: str):
-    print(message, end='')
+    print(message, end="")
+
 
 class LoggingConnection(KernelOpaquePtr):
-    def __init__(self, cb = _simple_print, user_data = None, opts = LoggingOptions()):
+    def __init__(self, cb=_simple_print, user_data=None, opts=LoggingOptions()):
         self._cb = self._wrap_log_fn(cb)  # ensure lifetime
         self._user_data = user_data
         super().__init__(self._cb, user_data, opts)
@@ -43,6 +46,6 @@ class LoggingConnection(KernelOpaquePtr):
     @staticmethod
     def _wrap_log_fn(fn: Callable[[str], None]):
         def wrapped(user_data: None, message):
-            return fn(ctypes.string_at(message).decode('utf-8'))
+            return fn(ctypes.string_at(message).decode("utf-8"))
 
         return k.kernel_LogCallback(wrapped)
