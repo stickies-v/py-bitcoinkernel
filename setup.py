@@ -1,33 +1,42 @@
-import ctypes.util
+import os
 import shutil
 import subprocess
-import sys
+import ctypes.util
 from pathlib import Path
-
 from setuptools import find_packages
 from setuptools.command.build_ext import build_ext
 from skbuild import setup
 
 BITCOIN_DIR = Path("depend/bitcoin").resolve()
 
-if sys.platform.startswith("win"):
-    LIB_EXTENSION = ".dll"
-elif sys.platform == "darwin":
-    LIB_EXTENSION = ".dylib"
-else:
-    LIB_EXTENSION = ".so"
+
+def should_build():
+    """Check if the build should proceed based on the BITCOINKERNEL_LIB environment variable."""
+    if lib_path := os.getenv("BITCOINKERNEL_LIB"):
+        if not Path(lib_path).exists():
+            raise FileNotFoundError(
+                f"Cached bitcoinkernel library at {lib_path} does not exist"
+            )
+        print(f"Using cached bitcoinkernel library at {lib_path}")
+        return False  # Skip building
+
+    if lib_path := ctypes.util.find_library("bitcoinkernel"):
+        print(f"bitcoinkernel library already installed at {lib_path}, skipping build.")
+        return False  # Skip building
+
+    return True  # Proceed with building
 
 
 class BitcoinBuildCommand(build_ext):
     """Custom build command for building Bitcoin Core library and generating bindings"""
 
     def run(self):
-        if lib_path := ctypes.util.find_library("bitcoinkernel"):
-            print(
-                f"bitcoinkernel library already installed at {lib_path}, skipping build."
-            )
-        else:
-            self.build_bitcoin_lib()
+        # Determine if we should build the library
+        if not should_build():
+            return  # Skip the build process if conditions are not met
+
+        # Proceed to build the library if no cached library is found
+        self.build_bitcoin_lib()
         super().run()
 
     def build_bitcoin_lib(self):
@@ -93,14 +102,16 @@ class BitcoinBuildCommand(build_ext):
                 print(f"Cleaned up build directory: {cmake_build_dir}")
 
 
+cmake_source_dir = "" if not should_build() else str(BITCOIN_DIR)
+
 setup(
     name="py-bitcoinkernel",
     packages=find_packages("src"),
     package_dir={"": "src"},
     package_data={
-        "pbk": ["lib/*"],  # Include all files in the lib directory
+        "pbk": ["lib/*"],
     },
-    cmake_source_dir=str(BITCOIN_DIR),
+    cmake_source_dir=cmake_source_dir,
     cmdclass={
         "build_ext": BitcoinBuildCommand,
     },
