@@ -19,7 +19,7 @@ def _find_bitcoinkernel_lib():
     
     # Check relative ../lib/ directory
     script_dir = Path(__file__).parent
-    relative_lib = script_dir.parent.parent.parent / 'lib' / 'libbitcoinkernel'
+    relative_lib = script_dir.parent / 'lib' / 'libbitcoinkernel'
     
     # Try common extensions
     for ext in ['.dylib', '.so', '.dll']:
@@ -33,21 +33,9 @@ def _find_bitcoinkernel_lib():
     raise RuntimeError(
         "Could not find libbitcoinkernel. Please either:\n"
         "1. Install it in your system library path\n"
-        "2. Place it in ../lib/ relative to the Python package\n"
+        "2. Place it in ../lib/ relative to the installed Python package\n"
         "3. Set BITCOINKERNEL_LIB environment variable to the full path"
     )
-
-# Replace the existing library loading code with:
-_libraries = {}
-try:
-    _libraries['libbitcoinkernel'] = ctypes.CDLL(_find_bitcoinkernel_lib())
-except Exception as e:
-    raise RuntimeError(f"Failed to load libbitcoinkernel: {e}")
-
-# Then update all references from:
-# BITCOINKERNEL_LIB
-# to:
-# _libraries['libbitcoinkernel']
 
 
 class AsDictMixin:
