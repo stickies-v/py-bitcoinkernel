@@ -25,12 +25,14 @@ class ChainParameters(KernelOpaquePtr):
 
 class BlockManagerOptions(KernelOpaquePtr):
     def __init__(self, context: "Context", blocksdir: str):
-        super().__init__(context, blocksdir.encode("utf-8"))
+        blocksdir_bytes = blocksdir.encode("utf-8")
+        super().__init__(context, blocksdir_bytes, len(blocksdir_bytes))
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
     def __init__(self, context: "Context", datadir: str):
-        super().__init__(context, datadir.encode("utf-8"))
+        datadir_bytes = datadir.encode("utf-8")
+        super().__init__(context, datadir_bytes, len(datadir_bytes))
 
     def set_worker_threads_num(self, worker_threads: int):
         k.kernel_chainstate_manager_options_set_worker_threads_num(self, worker_threads)

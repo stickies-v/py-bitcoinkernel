@@ -45,7 +45,7 @@ class LoggingConnection(KernelOpaquePtr):
 
     @staticmethod
     def _wrap_log_fn(fn: Callable[[str], None]):
-        def wrapped(user_data: None, message):
-            return fn(ctypes.string_at(message).decode("utf-8"))
+        def wrapped(user_data: None, message: bytes, message_len: int):
+            return fn(ctypes.string_at(message, message_len).decode("utf-8"))
 
         return k.kernel_LogCallback(wrapped)
