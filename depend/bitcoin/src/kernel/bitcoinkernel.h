@@ -41,7 +41,9 @@ extern "C" {
 #endif // __cplusplus
 
 /**
- * ------ Context ------
+ * @page remarks Remarks
+ *
+ * @section context Context
  *
  * The library provides a built-in static constant kernel context. This static
  * context offers only limited functionality. It detects and self-checks the
@@ -53,7 +55,7 @@ extern "C" {
  * The user should create their own context for passing it to state-rich validation
  * functions and holding callbacks for kernel events.
  *
- * ------ Error handling ------
+ * @section error Error handling
  *
  * Functions communicate an error through their return types, usually returning
  * a nullptr, or false if an error is encountered. Additionally, verification
@@ -68,7 +70,7 @@ extern "C" {
  * to halt and tear down the existing kernel objects. Remediating the error may
  * require system intervention by the user.
  *
- * ------ Pointer and argument conventions ------
+ * @section pointer Pointer and argument conventions
  *
  * The user is responsible for de-allocating the memory owned by pointers
  * returned by functions. Typically pointers returned by *_create(...) functions
@@ -119,12 +121,6 @@ typedef struct kernel_LoggingConnection kernel_LoggingConnection;
  * instantiated for either mainnet, testnet, signet, or regtest.
  */
 typedef struct kernel_ChainParameters kernel_ChainParameters;
-
-/**
- * Opaque data structure for holding callbacks for reacting to events that may
- * be encountered during library operations.
- */
-typedef struct kernel_Notifications kernel_Notifications;
 
 /**
  * Opaque data structure for holding options for creating a new kernel context.
@@ -265,18 +261,18 @@ typedef enum {
  * Function signature for the global logging callback. All bitcoin kernel
  * internal logs will pass through this callback.
  */
-typedef void (*kernel_LogCallback)(void* user_data, const char* message);
+typedef void (*kernel_LogCallback)(void* user_data, const char* message, size_t message_len);
 
 /**
  * Function signatures for the kernel notifications.
  */
 typedef void (*kernel_NotifyBlockTip)(void* user_data, kernel_SynchronizationState state, const kernel_BlockIndex* index);
 typedef void (*kernel_NotifyHeaderTip)(void* user_data, kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync);
-typedef void (*kernel_NotifyProgress)(void* user_data, const char* title, int progress_percent, bool resume_possible);
-typedef void (*kernel_NotifyWarningSet)(void* user_data, kernel_Warning warning, const char* message);
+typedef void (*kernel_NotifyProgress)(void* user_data, const char* title, size_t title_len, int progress_percent, bool resume_possible);
+typedef void (*kernel_NotifyWarningSet)(void* user_data, kernel_Warning warning, const char* message, size_t message_len);
 typedef void (*kernel_NotifyWarningUnset)(void* user_data, kernel_Warning warning);
-typedef void (*kernel_NotifyFlushError)(void* user_data, const char* message);
-typedef void (*kernel_NotifyFatalError)(void* user_data, const char* message);
+typedef void (*kernel_NotifyFlushError)(void* user_data, const char* message, size_t message_len);
+typedef void (*kernel_NotifyFatalError)(void* user_data, const char* message, size_t message_len);
 
 /**
  * Function signatures for the validation interface.
@@ -439,6 +435,11 @@ typedef struct {
     size_t size;
 } kernel_ByteArray;
 
+/** @name Transaction
+ * Functions for working with transactions.
+ */
+///@{
+
 /**
  * @brief Create a new transaction from the serialized data.
  *
@@ -454,6 +455,13 @@ kernel_Transaction* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_transaction_create(
  * Destroy the transaction.
  */
 void kernel_transaction_destroy(kernel_Transaction* transaction);
+
+///@}
+
+/** @name ScriptPubkey
+ * Functions for working with script pubkeys.
+ */
+///@{
 
 /**
  * @brief Create a script pubkey from serialized data.
@@ -479,6 +487,13 @@ kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_script_pubkey_dat
  */
 void kernel_script_pubkey_destroy(kernel_ScriptPubkey* script_pubkey);
 
+///@}
+
+/** @name TransactionOutput
+ * Functions for working with transaction outputs.
+ */
+///@{
+
 /**
  * @brief Create a transaction output from a script pubkey and an amount.
  * @param[in] script_pubkey Non-null.
@@ -491,9 +506,35 @@ kernel_TransactionOutput* kernel_transaction_output_create(
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
+ * @brief Copies the script pubkey of an output in the returned script pubkey
+ * opaque object.
+ *
+ * @param[in] transaction_output Non-null.
+ * @return                       The data for the output's script pubkey.
+ */
+kernel_ScriptPubkey* kernel_copy_script_pubkey_from_output(kernel_TransactionOutput* transaction_output
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Gets the amount associated with this transaction output
+ *
+ * @param[in] transaction_output Non-null.
+ * @return                       The amount.
+ */
+int64_t kernel_get_transaction_output_amount(kernel_TransactionOutput* transaction_output
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
  * Destroy the transaction output.
  */
 void kernel_transaction_output_destroy(kernel_TransactionOutput* transaction_output);
+
+///@}
+
+/** @name Script
+ * Functions for working with scripts.
+ */
+///@{
 
 /**
  * @brief Verify if the input at input_index of tx_to spends the script pubkey
@@ -524,6 +565,13 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_verify_script(
     unsigned int flags,
     kernel_ScriptVerifyStatus* status
 ) BITCOINKERNEL_ARG_NONNULL(1, 3);
+
+///@}
+
+/** @name Logging
+ * Logging-related functions.
+ */
+///@{
 
 /**
  * @brief This disables the global internal logger. No log messages will be
@@ -584,6 +632,13 @@ kernel_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_logging_connec
  */
 void kernel_logging_connection_destroy(kernel_LoggingConnection* logging_connection);
 
+///@}
+
+/** @name ChainParameters
+ * Functions for working with chain parameters.
+ */
+///@{
+
 /**
  * @brief Creates a chain parameters struct with default parameters based on the
  * passed in chain type.
@@ -599,18 +654,12 @@ const kernel_ChainParameters* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chain_para
  */
 void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_parameters);
 
-/**
- * @brief Creates an object for holding the kernel notification callbacks.
- *
- * @param[in] callbacks Holds the callbacks that will be invoked by the kernel notifications.
- */
-kernel_Notifications* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_notifications_create(
-    kernel_NotificationInterfaceCallbacks callbacks);
+///@}
 
-/**
- * Destroy the kernel notifications.
+/** @name ContextOptions
+ * Functions for working with context options.
  */
-void kernel_notifications_destroy(kernel_Notifications* notifications);
+///@{
 
 /**
  * Creates an empty context options.
@@ -621,7 +670,7 @@ kernel_ContextOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_options_c
  * @brief Sets the chain params for the context options. The context created
  * with the options will be configured for these chain parameters.
  *
- * @param[in] context_options  Non-null, previously created with kernel_context_options_create.
+ * @param[in] context_options  Non-null, previously created by @ref kernel_context_options_create.
  * @param[in] chain_parameters Is set to the context options.
  */
 void kernel_context_options_set_chainparams(
@@ -633,18 +682,40 @@ void kernel_context_options_set_chainparams(
  * @brief Set the kernel notifications for the context options. The context
  * created with the options will be configured with these notifications.
  *
- * @param[in] context_options Non-null, previously created with kernel_context_options_create.
+ * @param[in] context_options Non-null, previously created by @ref kernel_context_options_create.
  * @param[in] notifications   Is set to the context options.
  */
 void kernel_context_options_set_notifications(
     kernel_ContextOptions* context_options,
-    const kernel_Notifications* notifications
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
+    kernel_NotificationInterfaceCallbacks notifications
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * @brief Set the validation interface callbacks for the context options. The
+ * context created with the options will be configured for these validation
+ * interface callbacks. The callbacks will then be triggered from validation
+ * events issued by the chainstate manager created from the same context.
+ *
+ * @param[in] context_options                Non-null, previously created with kernel_context_options_create.
+ * @param[in] validation_interface_callbacks The callbacks used for passing validation information to the
+ *                                           user.
+ */
+void kernel_context_options_set_validation_interface(
+    kernel_ContextOptions* context_options,
+    kernel_ValidationInterfaceCallbacks validation_interface_callbacks
+) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
  * Destroy the context options.
  */
 void kernel_context_options_destroy(kernel_ContextOptions* context_options);
+
+///@}
+
+/** @name Context
+ * Functions for working with contexts.
+ */
+///@{
 
 /**
  * @brief Create a new kernel context. If the options have not been previously
@@ -652,7 +723,7 @@ void kernel_context_options_destroy(kernel_ContextOptions* context_options);
  * context will assume mainnet chain parameters and won't attempt to call the
  * kernel notification callbacks.
  *
- * @param[in] context_options Nullable, created with kernel_context_options_create.
+ * @param[in] context_options Nullable, created by @ref kernel_context_options_create.
  * @return                    The allocated kernel context, or null on error.
  */
 kernel_Context* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_create(
@@ -674,25 +745,53 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_context_interrupt(
  */
 void kernel_context_destroy(kernel_Context* context);
 
+///@}
+
+/** @name ChainstateManagerOptions
+ * Functions for working with chainstate manager options.
+ */
+///@{
+
 /**
  * @brief Create options for the chainstate manager.
  *
  * @param[in] context        Non-null, the created options will associate with this kernel context
  *                           for the duration of their lifetime. The same context needs to be used
  *                           when instantiating the chainstate manager.
- * @param[in] data_directory Non-null, directory containing the chainstate data. If the directory
- *                           does not exist yet, it will be created.
+ * @param[in] data_directory Non-null, path string of the directory containing the chainstate data.
+ *                           If the directory does not exist yet, it will be created.
  * @return                   The allocated chainstate manager options, or null on error.
  */
 kernel_ChainstateManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_options_create(
     const kernel_Context* context,
-    const char* data_directory
+    const char* data_directory,
+    size_t data_directory_len
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
+
+/**
+ * @brief Set the number of available worker threads used during validation.
+ *
+ * @param[in] chainstate_manager_options Non-null, options to be set.
+ * @param[in] worker_threads The number of worker threads that should be spawned in the thread pool
+ *                           used for validation. When set to 0 no parallel verification is done.
+ *                           The value range is clamped internally between 0 and 15.
+ */
+void kernel_chainstate_manager_options_set_worker_threads_num(
+        kernel_ChainstateManagerOptions* chainstate_manager_options,
+        int worker_threads
+) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
  * Destroy the chainstate manager options.
  */
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* chainstate_manager_options);
+
+///@}
+
+/** @name BlockManagerOptions
+ * Functions for working with block manager options.
+ */
+///@{
 
 /**
  * @brief Create options for the block manager. The block manager is used
@@ -701,103 +800,27 @@ void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* 
  * @param[in] context          Non-null, the created options will associate with this kernel context
  *                             for the duration of their lifetime. The same context needs to be used
  *                             when instantiating the chainstate manager.
- * @param[in] blocks_directory Non-null, directory containing the block data. If the directory does
- *                             not exist yet, it will be created.
+ * @param[in] blocks_directory Non-null, path string of the directory containing the block data. If
+ *                             the directory does not exist yet, it will be created.
  * @return                     The allocated block manager options, or null on error.
  */
 kernel_BlockManagerOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_manager_options_create(
     const kernel_Context* context,
-    const char* blocks_directory
+    const char* blocks_directory,
+    size_t blocks_directory_len
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
-
-/**
- * @brief Set the number of available worker threads used during validation.
- *
- * @param[in] chainstate_manager_options Non-null, options to be set.
- * @param[in] worker_threads The number of worker threads that should be spawned in the thread pool
- *                           used for validation. The number must not be negative. When set to zero
- *                           no parallel verification is done.
- */
-void kernel_chainstate_manager_options_set_worker_threads_num(
-        kernel_ChainstateManagerOptions* chainstate_manager_options,
-        int worker_threads
-) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
  * Destroy the block manager options.
  */
 void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* block_manager_options);
 
-/**
- * @brief Create a chainstate manager. This is the main object for many
- * validation tasks as well as for retrieving data from the chain. It is only
- * valid for as long as the passed in context also remains in memory.
- *
- * @param[in] chainstate_manager_options Non-null, created by kernel_chainstate_manager_options_create.
- * @param[in] block_manager_options      Non-null, created by kernel_block_manager_options_create.
- * @param[in] context                    Non-null, the created chainstate manager will associate with this
- *                                       kernel context for the duration of its lifetime. The same context
- *                                       needs to be used for later interactions with the chainstate manager.
- * @return                               The allocated chainstate manager, or null on error.
- */
-kernel_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_create(
-    const kernel_Context* context,
-    const kernel_ChainstateManagerOptions* chainstate_manager_options,
-    const kernel_BlockManagerOptions* block_manager_options
-) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+///@}
 
-/**
- * Destroy the chainstate manager.
+/** @name ChainstateLoadOptions
+ * Functions for working with chainstate load options.
  */
-void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_manager, const kernel_Context* context);
-
-/**
- * @brief Creates a new validation interface for consuming events issued by the
- * chainstate manager. The interface should be created and registered before the
- * chainstate manager is created to avoid missing validation events.
- *
- * @param[in] validation_interface_callbacks The callbacks used for passing validation information to the
- *                                           user.
- * @return                                   A validation interface. This should remain in memory for as
- *                                           long as the user expects to receive validation events.
- */
-kernel_ValidationInterface* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_validation_interface_create(
-    kernel_ValidationInterfaceCallbacks validation_interface_callbacks);
-
-/**
- * @brief Register a validation interface with the internal task runner
- * associated with this context. This also registers it with the chainstate
- * manager if the chainstate manager is subsequently created with this context.
- *
- * @param[in] context              Non-null, will register the validation interface with this context.
- * @param[in] validation_interface Non-null.
- * @return                         True on success.
- */
-bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_validation_interface_register(
-    kernel_Context* context,
-    kernel_ValidationInterface* validation_interface
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
-
-/**
- * @brief Unregister a validation interface from the internal task runner
- * associated with this context. This should be done before destroying the
- * kernel context it was previously registered with.
- *
- * @param[in] context              Non-null, will deregister the validation interface from this context.
- * @param[in] validation_interface Non-null.
- * @return                         True on success.
- */
-bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_validation_interface_unregister(
-    kernel_Context* context,
-    kernel_ValidationInterface* validation_interface
-) BITCOINKERNEL_ARG_NONNULL(1, 2);
-
-/**
- * Destroy the validation interface. This should be done after unregistering it
- * if the validation interface was previously registered with a chainstate
- * manager.
- */
-void kernel_validation_interface_destroy(kernel_ValidationInterface* validation_interface);
+///@{
 
 /**
  * Create options for loading the chainstate.
@@ -807,7 +830,7 @@ kernel_ChainstateLoadOptions* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate
 /**
  * @brief Sets wipe block tree db in the chainstate load options.
  *
- * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
  * @param[in] wipe_block_tree_db      Set wipe block tree db.
  */
 void kernel_chainstate_load_options_set_wipe_block_tree_db(
@@ -818,7 +841,7 @@ void kernel_chainstate_load_options_set_wipe_block_tree_db(
 /**
  * @brief Sets wipe chainstate db in the chainstate load options.
  *
- * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
  * @param[in] wipe_chainstate_db      Set wipe chainstate db.
  */
 void kernel_chainstate_load_options_set_wipe_chainstate_db(
@@ -829,7 +852,7 @@ void kernel_chainstate_load_options_set_wipe_chainstate_db(
 /**
  * @brief Sets block tree db in memory in the chainstate load options.
  *
- * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
  * @param[in] block_tree_db_in_memory Set block tree db in memory.
  */
 void kernel_chainstate_load_options_set_block_tree_db_in_memory(
@@ -840,7 +863,7 @@ void kernel_chainstate_load_options_set_block_tree_db_in_memory(
 /**
  * @brief Sets chainstate db in memory in the chainstate load options.
  *
- * @param[in] chainstate_load_options Non-null, created with kernel_chainstate_load_options_create.
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
  * @param[in] chainstate_db_in_memory Set chainstate db in memory.
  */
 void kernel_chainstate_load_options_set_chainstate_db_in_memory(
@@ -853,12 +876,37 @@ void kernel_chainstate_load_options_set_chainstate_db_in_memory(
  */
 void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_options);
 
+///@}
+
+/** @name ChainstateManager
+ * Functions for chainstate management.
+ */
+///@{
+
+/**
+ * @brief Create a chainstate manager. This is the main object for many
+ * validation tasks as well as for retrieving data from the chain. It is only
+ * valid for as long as the passed in context also remains in memory.
+ *
+ * @param[in] chainstate_manager_options Non-null, created by @ref kernel_chainstate_manager_options_create.
+ * @param[in] block_manager_options      Non-null, created by @ref kernel_block_manager_options_create.
+ * @param[in] context                    Non-null, the created chainstate manager will associate with this
+ *                                       kernel context for the duration of its lifetime. The same context
+ *                                       needs to be used for later interactions with the chainstate manager.
+ * @return                               The allocated chainstate manager, or null on error.
+ */
+kernel_ChainstateManager* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_create(
+    const kernel_Context* context,
+    const kernel_ChainstateManagerOptions* chainstate_manager_options,
+    const kernel_BlockManagerOptions* block_manager_options
+) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+
 /**
  * @brief This function must be called to initialize the chainstate manager
  * before doing validation tasks or interacting with its indexes.
  *
  * @param[in] context                 Non-null.
- * @param[in] chainstate_load_options Non-null, created by kernel_chainstate_load_options_create.
+ * @param[in] chainstate_load_options Non-null, created by @ref kernel_chainstate_load_options_create.
  * @param[in] chainstate_manager      Non-null, will load the chainstate(s) and initialize indexes.
  * @return                            True on success, false on error.
  */
@@ -882,7 +930,7 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_load_chainstate(
  */
 bool kernel_import_blocks(const kernel_Context* context,
                           kernel_ChainstateManager* chainstate_manager,
-                          const char** block_file_paths, size_t block_file_paths_len
+                          const char** block_file_paths, size_t* block_file_paths_lens, size_t block_file_paths_len
 ) BITCOINKERNEL_ARG_NONNULL(1, 2);
 
 /**
@@ -906,6 +954,33 @@ bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_chainstate_manager_process_block(
 ) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
 /**
+ * Destroy the chainstate manager.
+ */
+void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainstate_manager, const kernel_Context* context);
+
+///@}
+
+/** @name Block
+ * Functions for working with blocks.
+ */
+///@{
+
+/**
+ * @brief Reads the block the passed in block index points to from disk and
+ * returns it.
+ *
+ * @param[in] context            Non-null.
+ * @param[in] chainstate_manager Non-null.
+ * @param[in] block_index        Non-null.
+ * @return                       The read out block, or null on error.
+ */
+kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_read_block_from_disk(
+    const kernel_Context* context,
+    kernel_ChainstateManager* chainstate_manager,
+    const kernel_BlockIndex* block_index
+) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+
+/**
  * @brief Parse a serialized raw block into a new block object.
  *
  * @param[in] raw_block     Non-null, serialized block.
@@ -926,10 +1001,15 @@ kernel_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_get_hash(
     kernel_Block* block
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
-/**
- * Destroy the block.
+/** @name ByteArray
+ * @brief Calculate and return the hash of a block.
+ *
+ * @param[in] block Non-null.
+ * @return    The block hash.
  */
-void kernel_block_destroy(kernel_Block* block);
+kernel_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_pointer_get_hash(
+    const kernel_BlockPointer* block
+) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
  * @brief Copies block data into the returned byte array.
@@ -952,19 +1032,28 @@ kernel_ByteArray* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_copy_block_pointer_dat
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
- * @brief Calculate and return the hash of a block.
- *
- * @param[in] block Non-null.
- * @return    The block hash.
+ * Destroy the block.
  */
-kernel_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_pointer_get_hash(
-    const kernel_BlockPointer* block
-) BITCOINKERNEL_ARG_NONNULL(1);
+void kernel_block_destroy(kernel_Block* block);
+
+///@}
+
+/** @name ByteArray
+ * Functions for working with byte arrays.
+ */
+///@{
 
 /**
  * A helper function for destroying an existing byte array.
  */
 void kernel_byte_array_destroy(kernel_ByteArray* byte_array);
+
+///@}
+
+/** @name BlockValidationState
+ * Functions for working with block validation states.
+ */
+///@{
 
 /**
  * Returns the validation mode from an opaque block validation state pointer.
@@ -979,6 +1068,13 @@ kernel_ValidationMode kernel_get_validation_mode_from_block_validation_state(
 kernel_BlockValidationResult kernel_get_block_validation_result_from_block_validation_state(
     const kernel_BlockValidationState* block_validation_state
 ) BITCOINKERNEL_ARG_NONNULL(1);
+
+///@}
+
+/** @name BlockIndex
+ * Functions for working with block indexes.
+ */
+///@{
 
 /**
  * @brief Get the block index entry of the current chain tip. Once returned,
@@ -1062,19 +1158,27 @@ kernel_BlockIndex* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get_previous_block_in
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
- * @brief Reads the block the passed in block index points to from disk and
- * returns it.
+ * @brief Return the height of a certain block index.
  *
- * @param[in] context            Non-null.
- * @param[in] chainstate_manager Non-null.
- * @param[in] block_index        Non-null.
- * @return                       The read out block, or null on error.
+ * @param[in] block_index Non-null.
+ * @return                The block height.
  */
-kernel_Block* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_read_block_from_disk(
-    const kernel_Context* context,
-    kernel_ChainstateManager* chainstate_manager,
+int32_t BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_index_get_height(
     const kernel_BlockIndex* block_index
-) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+
+/**
+ * @brief Destroy the block index.
+ */
+void kernel_block_index_destroy(kernel_BlockIndex* block_index);
+
+///@}
+
+/** @name BlockUndo
+ * Functions for working with block undo data.
+ */
+///@{
 
 /**
  * @brief Reads the block undo data the passed in block index points to from
@@ -1092,11 +1196,6 @@ kernel_BlockUndo* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_read_block_undo_from_d
 ) BITCOINKERNEL_ARG_NONNULL(1, 2, 3);
 
 /**
- * @brief Destroy the block index.
- */
-void kernel_block_index_destroy(kernel_BlockIndex* block_index);
-
-/**
  * @brief Returns the number of transactions whose undo data is contained in
  * block undo.
  *
@@ -1106,11 +1205,6 @@ void kernel_block_index_destroy(kernel_BlockIndex* block_index);
 uint64_t BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_undo_size(
     const kernel_BlockUndo* block_undo
 ) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * Destroy the block undo data.
- */
-void kernel_block_undo_destroy(kernel_BlockUndo* block_undo);
 
 /**
  * @brief Returns the number of previous transaction outputs contained in the
@@ -1142,14 +1236,16 @@ kernel_TransactionOutput* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get_undo_outpu
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
 /**
- * @brief Return the height of a certain block index.
- *
- * @param[in] block_index Non-null.
- * @return                The block height.
+ * Destroy the block undo data.
  */
-int32_t BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_index_get_height(
-    const kernel_BlockIndex* block_index
-) BITCOINKERNEL_ARG_NONNULL(1);
+void kernel_block_undo_destroy(kernel_BlockUndo* block_undo);
+
+///@}
+
+/** @name BlockHash
+ * Functions for working with block hashes.
+ */
+///@{
 
 /**
  * @brief Return the block hash associated with a block index.
@@ -1166,24 +1262,7 @@ kernel_BlockHash* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_index_get_block_
  */
 void kernel_block_hash_destroy(kernel_BlockHash* block_hash);
 
-/**
- * @brief Copies the script pubkey of an output in the returned script pubkey
- * opaque object.
- *
- * @param[in] transaction_output Non-null.
- * @return                       The data for the output's script pubkey.
- */
-kernel_ScriptPubkey* kernel_copy_script_pubkey_from_output(kernel_TransactionOutput* transaction_output
-) BITCOINKERNEL_ARG_NONNULL(1);
-
-/**
- * @brief Gets the amount associated with this transaction output
- *
- * @param[in] transaction_output Non-null.
- * @return                       The amount.
- */
-int64_t kernel_get_transaction_output_amount(kernel_TransactionOutput* transaction_output
-) BITCOINKERNEL_ARG_NONNULL(1);
+///@}
 
 #ifdef __cplusplus
 } // extern "C"
