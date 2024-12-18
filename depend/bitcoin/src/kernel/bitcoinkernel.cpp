@@ -174,9 +174,13 @@ public:
     {
         if (m_cbs.header_tip) m_cbs.header_tip((void*) m_cbs.user_data, cast_state(state), height, timestamp, presync);
     }
+    void progress(const bilingual_str& title, int progress_percent, bool resume_possible) override
+    {
+        if (m_cbs.progress) m_cbs.progress((void*) m_cbs.user_data, title.original.c_str(), title.original.length(), progress_percent, resume_possible);
+    }
     void warningSet(kernel::Warning id, const bilingual_str& message) override
     {
-        if (m_cbs.warning_set) m_cbs.warning_set((void*) m_cbs.user_data, cast_kernel_warning(id), message.original.c_str());
+        if (m_cbs.warning_set) m_cbs.warning_set((void*) m_cbs.user_data, cast_kernel_warning(id), message.original.c_str(), message.original.length());
     }
     void warningUnset(kernel::Warning id) override
     {
@@ -184,17 +188,36 @@ public:
     }
     void flushError(const bilingual_str& message) override
     {
-        if (m_cbs.flush_error) m_cbs.flush_error((void*) m_cbs.user_data, message.original.c_str());
+        if (m_cbs.flush_error) m_cbs.flush_error((void*) m_cbs.user_data, message.original.c_str(), message.original.length());
     }
     void fatalError(const bilingual_str& message) override
     {
-        if (m_cbs.fatal_error) m_cbs.fatal_error((void*) m_cbs.user_data, message.original.c_str());
+        if (m_cbs.fatal_error) m_cbs.fatal_error((void*) m_cbs.user_data, message.original.c_str(), message.original.length());
+    }
+};
+
+class KernelValidationInterface final : public CValidationInterface
+{
+public:
+    const kernel_ValidationInterfaceCallbacks m_cbs;
+
+    explicit KernelValidationInterface(const kernel_ValidationInterfaceCallbacks vi_cbs) : m_cbs{vi_cbs} {}
+
+protected:
+    void BlockChecked(const CBlock& block, const BlockValidationState& stateIn) override
+    {
+        if (m_cbs.block_checked) {
+            m_cbs.block_checked((void*) m_cbs.user_data,
+                                reinterpret_cast<const kernel_BlockPointer*>(&block),
+                                reinterpret_cast<const kernel_BlockValidationState*>(&stateIn));
+        }
     }
 };
 
 struct ContextOptions {
     std::unique_ptr<const KernelNotifications> m_notifications;
     std::unique_ptr<const CChainParams> m_chainparams;
+    std::unique_ptr<const KernelValidationInterface> m_validation_interface;
 };
 
 class Context
@@ -209,6 +232,8 @@ public:
     std::unique_ptr<ValidationSignals> m_signals;
 
     std::unique_ptr<const CChainParams> m_chainparams;
+
+    std::unique_ptr<KernelValidationInterface> m_validation_interface;
 
     Context(const ContextOptions* options, bool& sane)
         : m_context{std::make_unique<kernel::Context>()},
@@ -228,27 +253,19 @@ public:
             m_chainparams = CChainParams::Main();
         }
 
+        if (options && options->m_validation_interface) {
+            m_validation_interface = std::make_unique<KernelValidationInterface>(*options->m_validation_interface);
+            m_signals->RegisterValidationInterface(m_validation_interface.get());
+        }
+
         if (!kernel::SanityChecks(*m_context)) {
             sane = false;
         }
     }
-};
 
-class KernelValidationInterface final : public CValidationInterface
-{
-public:
-    const kernel_ValidationInterfaceCallbacks m_cbs;
-
-    explicit KernelValidationInterface(const kernel_ValidationInterfaceCallbacks vi_cbs) : m_cbs{vi_cbs} {}
-
-protected:
-    void BlockChecked(const CBlock& block, const BlockValidationState& stateIn) override
+    ~Context()
     {
-        if (m_cbs.block_checked) {
-            m_cbs.block_checked((void*) m_cbs.user_data,
-                                reinterpret_cast<const kernel_BlockPointer*>(&block),
-                                reinterpret_cast<const kernel_BlockValidationState*>(&stateIn));
-        }
+        m_signals->UnregisterValidationInterface(m_validation_interface.get());
     }
 };
 
@@ -286,12 +303,6 @@ const CChainParams* cast_const_chain_params(const kernel_ChainParameters* chain_
 {
     assert(chain_params);
     return reinterpret_cast<const CChainParams*>(chain_params);
-}
-
-const KernelNotifications* cast_const_notifications(const kernel_Notifications* notifications)
-{
-    assert(notifications);
-    return reinterpret_cast<const KernelNotifications*>(notifications);
 }
 
 Context* cast_context(kernel_Context* context)
@@ -346,12 +357,6 @@ std::shared_ptr<CBlock>* cast_cblocksharedpointer(kernel_Block* block)
 {
     assert(block);
     return reinterpret_cast<std::shared_ptr<CBlock>*>(block);
-}
-
-std::shared_ptr<KernelValidationInterface>* cast_validation_interface(kernel_ValidationInterface* interface)
-{
-    assert(interface);
-    return reinterpret_cast<std::shared_ptr<KernelValidationInterface>*>(interface);
 }
 
 const BlockValidationState* cast_block_validation_state(const kernel_BlockValidationState* block_validation_state)
@@ -532,22 +537,22 @@ kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback ca
     LogInstance().m_log_sourcelocations = options.log_sourcelocations;
     LogInstance().m_always_print_category_level = options.always_print_category_levels;
 
-    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback((void*) user_data, str.c_str()); })};
+    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback((void*) user_data, str.c_str(), str.length()); })};
 
     try {
         // Only start logging if we just added the connection.
         if (LogInstance().NumConnections() == 1 && !LogInstance().StartLogging()) {
-            LogError("Logger start failed.\n");
+            LogError("Logger start failed.");
             LogInstance().DeleteCallback(connection);
             return nullptr;
         }
     } catch (std::exception& e) {
-        LogError("Logger start failed.\n");
+        LogError("Logger start failed.");
         LogInstance().DeleteCallback(connection);
         return nullptr;
     }
 
-    LogDebug(BCLog::KERNEL, "Logger connected.\n");
+    LogDebug(BCLog::KERNEL, "Logger connected.");
 
     auto heap_connection{new std::list<std::function<void(const std::string&)>>::iterator(connection)};
     return reinterpret_cast<kernel_LoggingConnection*>(heap_connection);
@@ -560,7 +565,7 @@ void kernel_logging_connection_destroy(kernel_LoggingConnection* connection_)
         return;
     }
 
-    LogDebug(BCLog::KERNEL, "Logger disconnected.\n");
+    LogDebug(BCLog::KERNEL, "Logger disconnected.");
     LogInstance().DeleteCallback(*connection);
     delete connection;
 
@@ -600,18 +605,6 @@ void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_paramet
     }
 }
 
-kernel_Notifications* kernel_notifications_create(kernel_NotificationInterfaceCallbacks callbacks)
-{
-    return reinterpret_cast<kernel_Notifications*>(new KernelNotifications{callbacks});
-}
-
-void kernel_notifications_destroy(kernel_Notifications* notifications)
-{
-    if (notifications) {
-        delete cast_const_notifications(notifications);
-    }
-}
-
 kernel_ContextOptions* kernel_context_options_create()
 {
     return reinterpret_cast<kernel_ContextOptions*>(new ContextOptions{});
@@ -625,12 +618,18 @@ void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, con
     options->m_chainparams = std::make_unique<const CChainParams>(*chain_params);
 }
 
-void kernel_context_options_set_notifications(kernel_ContextOptions* options_, const kernel_Notifications* notifications_)
+void kernel_context_options_set_notifications(kernel_ContextOptions* options_, kernel_NotificationInterfaceCallbacks notifications)
 {
     auto options{cast_context_options(options_)};
-    auto notifications{reinterpret_cast<const KernelNotifications*>(notifications_)};
     // Copy the notifications, so the caller can free it again
-    options->m_notifications = std::make_unique<const KernelNotifications>(*notifications);
+    options->m_notifications = std::make_unique<const KernelNotifications>(notifications);
+}
+
+void kernel_context_options_set_validation_interface(kernel_ContextOptions* options_, kernel_ValidationInterfaceCallbacks vi_cbs)
+{
+    auto options{cast_context_options(options_)};
+    options->m_validation_interface = std::make_unique<KernelValidationInterface>(KernelValidationInterface(vi_cbs));
+    // return reinterpret_cast<kernel_ValidationInterface*>(new std::shared_ptr<KernelValidationInterface>(new KernelValidationInterface(vi_cbs)));
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* options)
@@ -646,7 +645,7 @@ kernel_Context* kernel_context_create(const kernel_ContextOptions* options_)
     bool sane{true};
     auto context{new Context{options, sane}};
     if (!sane) {
-        LogError("Kernel context sanity check failed.\n");
+        LogError("Kernel context sanity check failed.");
         delete context;
         return nullptr;
     }
@@ -663,42 +662,6 @@ void kernel_context_destroy(kernel_Context* context)
 {
     if (context) {
         delete cast_context(context);
-    }
-}
-
-kernel_ValidationInterface* kernel_validation_interface_create(kernel_ValidationInterfaceCallbacks vi_cbs)
-{
-    return reinterpret_cast<kernel_ValidationInterface*>(new std::shared_ptr<KernelValidationInterface>(new KernelValidationInterface(vi_cbs)));
-}
-
-bool kernel_validation_interface_register(kernel_Context* context_, kernel_ValidationInterface* validation_interface_)
-{
-    auto context{cast_context(context_)};
-    auto validation_interface{cast_validation_interface(validation_interface_)};
-    if (!context->m_signals) {
-        LogError("Cannot register validation interface with context that has no validation signals.\n");
-        return false;
-    }
-    context->m_signals->RegisterSharedValidationInterface(*validation_interface);
-    return true;
-}
-
-bool kernel_validation_interface_unregister(kernel_Context* context_, kernel_ValidationInterface* validation_interface_)
-{
-    auto context{cast_context(context_)};
-    auto validation_interface{cast_validation_interface(validation_interface_)};
-    if (!context->m_signals) {
-        LogError("Cannot de-register validation interface with context that has no validation signals.\n");
-        return false;
-    }
-    context->m_signals->UnregisterSharedValidationInterface(*validation_interface);
-    return true;
-}
-
-void kernel_validation_interface_destroy(kernel_ValidationInterface* validation_interface)
-{
-    if (validation_interface) {
-        delete cast_validation_interface(validation_interface);
     }
 }
 
@@ -738,10 +701,10 @@ kernel_BlockValidationResult kernel_get_block_validation_result_from_block_valid
     assert(false);
 }
 
-kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir)
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len)
 {
     try {
-        fs::path abs_data_dir{fs::absolute(fs::PathFromString(data_dir))};
+        fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
         fs::create_directories(abs_data_dir);
         auto context{cast_const_context(context_)};
         return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
@@ -750,7 +713,7 @@ kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const 
             .notifications = *context->m_notifications,
             .signals = context->m_signals.get()});
     } catch (const std::exception& e) {
-        LogError("Failed to create chainstate manager options: %s\n", e.what());
+        LogError("Failed to create chainstate manager options: %s", e.what());
         return nullptr;
     }
 }
@@ -768,10 +731,10 @@ void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* 
     }
 }
 
-kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* blocks_dir)
+kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* blocks_dir, size_t blocks_dir_len)
 {
     try {
-        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString(blocks_dir))};
+        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
         fs::create_directories(abs_blocks_dir);
         auto context{cast_const_context(context_)};
         if (!context) {
@@ -782,7 +745,7 @@ kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Con
             .blocks_dir = abs_blocks_dir,
             .notifications = *context->m_notifications});
     } catch (const std::exception& e) {
-        LogError("Failed to create block manager options; %s\n", e.what());
+        LogError("Failed to create block manager options; %s", e.what());
         return nullptr;
     }
 }
@@ -806,7 +769,7 @@ kernel_ChainstateManager* kernel_chainstate_manager_create(
     try {
         return reinterpret_cast<kernel_ChainstateManager*>(new ChainstateManager{*context->m_interrupt, *chainman_opts, *blockman_opts});
     } catch (const std::exception& e) {
-        LogError("Failed to create chainstate manager: %s\n", e.what());
+        LogError("Failed to create chainstate manager: %s", e.what());
         return nullptr;
     }
 }
@@ -865,7 +828,7 @@ bool kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
         auto& chainman{*cast_chainstate_manager(chainman_)};
 
         if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
-            LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.\n");
+            LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
             return false;
         }
 
@@ -875,24 +838,24 @@ bool kernel_chainstate_manager_load_chainstate(const kernel_Context* context_,
         cache_sizes.coins = (450 << 20) - (2 << 20) - (2 << 22);
         auto [status, chainstate_err]{node::LoadChainstate(chainman, cache_sizes, chainstate_load_opts)};
         if (status != node::ChainstateLoadStatus::SUCCESS) {
-            LogError("Failed to load chain state from your data directory: %s\n", chainstate_err.original);
+            LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
             return false;
         }
         std::tie(status, chainstate_err) = node::VerifyLoadedChainstate(chainman, chainstate_load_opts);
         if (status != node::ChainstateLoadStatus::SUCCESS) {
-            LogError("Failed to verify loaded chain state from your datadir: %s\n", chainstate_err.original);
+            LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
             return false;
         }
 
         for (Chainstate* chainstate : WITH_LOCK(::cs_main, return chainman.GetAll())) {
             BlockValidationState state;
             if (!chainstate->ActivateBestChain(state, nullptr)) {
-                LogError("Failed to connect best block: %s\n", state.ToString());
+                LogError("Failed to connect best block: %s", state.ToString());
                 return false;
             }
         }
     } catch (const std::exception& e) {
-        LogError("Failed to load chainstate: %s\n", e.what());
+        LogError("Failed to load chainstate: %s", e.what());
         return false;
     }
     return true;
@@ -921,6 +884,7 @@ void kernel_chainstate_manager_destroy(kernel_ChainstateManager* chainman_, cons
 bool kernel_import_blocks(const kernel_Context* context_,
                           kernel_ChainstateManager* chainman_,
                           const char** block_file_paths,
+                          size_t* block_file_paths_lens,
                           size_t block_file_paths_len)
 {
     try {
@@ -929,13 +893,13 @@ bool kernel_import_blocks(const kernel_Context* context_,
         import_files.reserve(block_file_paths_len);
         for (uint32_t i = 0; i < block_file_paths_len; i++) {
             if (block_file_paths[i] != nullptr) {
-                import_files.emplace_back(block_file_paths[i]);
+                import_files.emplace_back(std::string{block_file_paths[i], block_file_paths_lens[i]}.c_str());
             }
         }
         node::ImportBlocks(*chainman, import_files);
         chainman->ActiveChainstate().ForceFlushStateToDisk();
     } catch (const std::exception& e) {
-        LogError("Failed to import blocks: %s\n", e.what());
+        LogError("Failed to import blocks: %s", e.what());
         return false;
     }
     return true;
@@ -951,7 +915,7 @@ kernel_Block* kernel_block_create(const unsigned char* raw_block, size_t raw_blo
         stream >> TX_WITH_WITNESS(*block);
     } catch (const std::exception& e) {
         delete block;
-        LogDebug(BCLog::KERNEL, "Block decode failed.\n");
+        LogDebug(BCLog::KERNEL, "Block decode failed.");
         return nullptr;
     }
 
@@ -1042,7 +1006,7 @@ kernel_BlockIndex* kernel_get_block_index_from_hash(const kernel_Context* contex
     auto hash = uint256{Span<const unsigned char>{(*block_hash).hash, 32}};
     auto block_index = WITH_LOCK(::cs_main, return chainman->m_blockman.LookupBlockIndex(hash));
     if (!block_index) {
-        LogDebug(BCLog::KERNEL, "A block with the given hash is not indexed.\n");
+        LogDebug(BCLog::KERNEL, "A block with the given hash is not indexed.");
         return nullptr;
     }
     return reinterpret_cast<kernel_BlockIndex*>(block_index);
@@ -1055,7 +1019,7 @@ kernel_BlockIndex* kernel_get_block_index_from_height(const kernel_Context* cont
     LOCK(cs_main);
 
     if (height < 0 || height > chainman->ActiveChain().Height()) {
-        LogDebug(BCLog::KERNEL, "Block height is out of range.\n");
+        LogDebug(BCLog::KERNEL, "Block height is out of range.");
         return nullptr;
     }
     return reinterpret_cast<kernel_BlockIndex*>(chainman->ActiveChain()[height]);
@@ -1069,7 +1033,7 @@ kernel_BlockIndex* kernel_get_next_block_index(const kernel_Context* context_, k
     auto next_block_index{WITH_LOCK(::cs_main, return chainman->ActiveChain().Next(block_index))};
 
     if (!next_block_index) {
-        LogTrace(BCLog::KERNEL, "The block index is the tip of the current chain, it does not have a next.\n");
+        LogTrace(BCLog::KERNEL, "The block index is the tip of the current chain, it does not have a next.");
     }
 
     return reinterpret_cast<kernel_BlockIndex*>(next_block_index);
@@ -1080,7 +1044,7 @@ kernel_BlockIndex* kernel_get_previous_block_index(const kernel_BlockIndex* bloc
     const CBlockIndex* block_index{cast_const_block_index(block_index_)};
 
     if (!block_index->pprev) {
-        LogTrace(BCLog::KERNEL, "The block index is the genesis, it has no previous.\n");
+        LogTrace(BCLog::KERNEL, "The block index is the genesis, it has no previous.");
         return nullptr;
     }
 
@@ -1096,7 +1060,7 @@ kernel_Block* kernel_read_block_from_disk(const kernel_Context* context_,
 
     auto block{new std::shared_ptr<CBlock>(new CBlock{})};
     if (!chainman->m_blockman.ReadBlockFromDisk(**block, *block_index)) {
-        LogError("Failed to read block from disk.\n");
+        LogError("Failed to read block from disk.");
         return nullptr;
     }
     return reinterpret_cast<kernel_Block*>(block);
@@ -1110,12 +1074,12 @@ kernel_BlockUndo* kernel_read_block_undo_from_disk(const kernel_Context* context
     const auto block_index{cast_const_block_index(block_index_)};
 
     if (block_index->nHeight < 1) {
-        LogError("The genesis block does not have undo data.\n");
+        LogDebug(BCLog::KERNEL, "The genesis block does not have undo data.");
         return nullptr;
     }
     auto block_undo{new CBlockUndo{}};
     if (!chainman->m_blockman.UndoReadFromDisk(*block_undo, *block_index)) {
-        LogError("Failed to read undo data from disk.\n");
+        LogError("Failed to read undo data from disk.");
         return nullptr;
     }
     return reinterpret_cast<kernel_BlockUndo*>(block_undo);
@@ -1153,14 +1117,14 @@ kernel_TransactionOutput* kernel_get_undo_output_by_index(const kernel_BlockUndo
     const auto block_undo{cast_const_block_undo(block_undo_)};
 
     if (transaction_undo_index >= block_undo->vtxundo.size()) {
-        LogInfo("transaction undo index is out of bounds.\n");
+        LogInfo("transaction undo index is out of bounds.");
         return nullptr;
     }
 
     const auto& tx_undo = block_undo->vtxundo[transaction_undo_index];
 
     if (output_index >= tx_undo.vprevout.size()) {
-        LogInfo("previous output index is out of bounds.\n");
+        LogInfo("previous output index is out of bounds.");
         return nullptr;
     }
 
