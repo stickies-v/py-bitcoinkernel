@@ -5,7 +5,7 @@ from pbk.capi import KernelOpaquePtr
 
 if typing.TYPE_CHECKING:
     from pbk.chain import ChainParameters
-    from pbk.notifications import Notifications
+    from pbk.notifications import NotificationInterfaceCallbacks
     from pbk.validation import ValidationInterfaceCallbacks
 
 
@@ -13,7 +13,7 @@ class ContextOptions(KernelOpaquePtr):
     def set_chainparams(self, chain_parameters: "ChainParameters"):
         k.kernel_context_options_set_chainparams(self, chain_parameters)
 
-    def set_notifications(self, notifications: "Notifications"):
+    def set_notifications(self, notifications: "NotificationInterfaceCallbacks"):
         k.kernel_context_options_set_notifications(self, notifications)
 
     def set_validation_interface(
