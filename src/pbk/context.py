@@ -6,7 +6,7 @@ from pbk.capi import KernelOpaquePtr
 if typing.TYPE_CHECKING:
     from pbk.chain import ChainParameters
     from pbk.notifications import Notifications
-    from pbk.validation import ValidationInterface
+    from pbk.validation import ValidationInterfaceCallbacks
 
 
 class ContextOptions(KernelOpaquePtr):
@@ -16,6 +16,11 @@ class ContextOptions(KernelOpaquePtr):
     def set_notifications(self, notifications: "Notifications"):
         k.kernel_context_options_set_notifications(self, notifications)
 
+    def set_validation_interface(
+        self, interface_callbacks: "ValidationInterfaceCallbacks"
+    ):
+        k.kernel_context_options_set_validation_interface(self, interface_callbacks)
+
 
 class Context(KernelOpaquePtr):
     def __init__(self, options: ContextOptions):
@@ -23,6 +28,3 @@ class Context(KernelOpaquePtr):
 
     def interrupt(self) -> bool:
         return k.kernel_context_interrupt(self)
-
-    def register_validation_interface(self, interface: "ValidationInterface"):
-        k.kernel_validation_interface_register(self, interface)

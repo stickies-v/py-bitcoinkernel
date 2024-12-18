@@ -19,7 +19,6 @@ from pbk.script import (
     verify_script,
 )
 from pbk.transaction import Transaction, TransactionOutput, TransactionUndo
-from pbk.validation import ValidationInterface
 
 __all__ = [
     "Block",
@@ -47,7 +46,6 @@ __all__ = [
     "Transaction",
     "TransactionOutput",
     "TransactionUndo",
-    "ValidationInterface",
 ]
 
 from pathlib import Path
