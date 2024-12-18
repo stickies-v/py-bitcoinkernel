@@ -10,7 +10,6 @@ from pbk.chain import (
 )
 from pbk.context import Context, ContextOptions
 from pbk.log import LogCategory, LoggingConnection, LoggingOptions
-from pbk.notifications import Notifications
 from pbk.script import (
     ScriptPubkey,
     ScriptFlags,
@@ -37,7 +36,6 @@ __all__ = [
     "LogCategory",
     "LoggingConnection",
     "LoggingOptions",
-    "Notifications",
     "ScriptPubkey",
     "ScriptFlags",
     "ScriptVerifyException",

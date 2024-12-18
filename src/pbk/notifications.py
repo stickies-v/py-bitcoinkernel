@@ -1,6 +1,5 @@
 import pbk.capi.bindings as k
 import pbk.util.callbacks
-from pbk.capi import KernelOpaquePtr
 
 
 class NotificationInterfaceCallbacks(k.kernel_NotificationInterfaceCallbacks):
@@ -29,10 +28,3 @@ default_notification_callbacks = NotificationInterfaceCallbacks(
     flush_error=lambda user_data, message: print(f"flush_error: message: {message}"),
     fatal_error=lambda user_data, message: print(f"flush_error: message: {message}"),
 )
-
-
-class Notifications(KernelOpaquePtr):
-    def __init__(
-        self, callbacks: NotificationInterfaceCallbacks = default_notification_callbacks
-    ):
-        super().__init__(callbacks)
