@@ -30,4 +30,5 @@ packages = { find = { where = ["src"] } }
 dev = [
     "pytest>=7.0",
     "ctypeslib2",  # to generate the language bindings
+    "clang==15.*",
 ]
