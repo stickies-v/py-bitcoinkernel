@@ -1,93 +1,79 @@
-# Python Bitcoin Kernel (pbk)
+Bitcoin Core integration/staging tree
+=====================================
 
-A Python wrapper around
-[libbitcoinkernel](https://github.com/bitcoin/bitcoin/issues/27587)
-providing a clean, Pythonic interface while handling the low-level
-ctypes bindings and memory management.
+https://bitcoincore.org
 
-## Features
+For an immediately usable, binary version of the Bitcoin Core software, see
+https://bitcoincore.org/en/download/.
 
-- Clean Python interface that hides ctypes implementation details
-- Automatic memory management of kernel resources
-- Support for core Bitcoin functionality:
-  - Block validation and processing
-  - Chain state management
-  - Block index traversal
+What is Bitcoin Core?
+---------------------
 
-## Installation
+Bitcoin Core connects to the Bitcoin peer-to-peer network to download and fully
+validate blocks and transactions. It also includes a wallet and graphical user
+interface, which can be optionally built.
 
-### `libbitcoinkernel` shared library
+Further information about Bitcoin Core is available in the [doc folder](/doc).
 
-It is recommended to install `py-bitcoinkernel` in a virtual
-environment:
-```
-python -m venv .venv
-source .venv/bin/activate
-```
+License
+-------
 
-The recommended way to install `py-bitcoinkernel` is with `pip`, which
-automatically installs dependencies too.
-```
-pip install . -v
-```
+Bitcoin Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
+information or see https://opensource.org/licenses/MIT.
 
-`py-bitcoinkernel` is a wrapper around the `libbitcoinkernel` C shared
-library, which needs to be installed. The `py-bitcoinkernel` will
-automatically try to detect an installation of `libbitcoinkernel`, and
-otherwise automatically compile the bundled version in
-`depend/bitcoin/`.
+Development Process
+-------------------
 
-If that fails, you can compile it manually with the following commands:
+The `master` branch is regularly built (see `doc/build-*.md` for instructions) and tested, but it is not guaranteed to be
+completely stable. [Tags](https://github.com/bitcoin/bitcoin/tags) are created
+regularly from release branches to indicate new official, stable release versions of Bitcoin Core.
 
-```
-NUM_CORES=4
-cd depend/bitcoin/
-cmake -B cmake -B build -DBUILD_KERNEL_LIB=ON -DBUILD_UTIL_CHAINSTATE=ON
-cmake --build build -j $(NUM_CORES)
-cmake --install build
-```
+The https://github.com/bitcoin-core/gui repository is used exclusively for the
+development of the GUI. Its master branch is identical in all monotree
+repositories. Release branches and tags do not exist, so please do not fork
+that repository unless it is for development reasons.
 
+The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md)
+and useful hints for developers can be found in [doc/developer-notes.md](doc/developer-notes.md).
 
-> [!WARNING] While `libbitcoinkernel` and `py-bitcoinkernel` are in very
-> early and experimental phases of development, no version management is
-> done, and you **must** install the `libbitcoinkernel` version that is
-> shipped with this library in `depend/bitcoin/`.
+Testing
+-------
 
+Testing and code review is the bottleneck for development; we get more pull
+requests than we can review and test on short notice. Please be patient and help out by testing
+other people's pull requests, and remember this is a security-critical project where any mistake might cost people
+lots of money.
 
-## Usage
+### Automated Testing
 
-> [!WARNING] This code is highly experimental and not ready for use in
-> production software yet.
+Developers are strongly encouraged to write [unit tests](src/test/README.md) for new code, and to
+submit new unit tests for old code. Unit tests can be compiled and run
+(assuming they weren't disabled during the generation of the build system) with: `ctest`. Further details on running
+and extending unit tests can be found in [/src/test/README.md](/src/test/README.md).
 
-All the classes and functions that can be used are exposed in a single
-`pbk` package. Lifetimes are managed automatically. The application is
-currently not threadsafe.
+There are also [regression and integration tests](/test), written
+in Python.
+These tests can be run (if the [test dependencies](/test) are installed) with: `build/test/functional/test_runner.py`
+(assuming `build` is your build directory).
 
-The entry point for most current `libbitcoinkernel` usage is the
-`ChainstateManager`. To create it, we'll first need to create a
-`Context` object.
+The CI (Continuous Integration) systems make sure that every pull request is built for Windows, Linux, and macOS,
+and that unit/sanity tests are run automatically.
 
-### Context
+### Manual Quality Assurance (QA) Testing
 
-```py
-def make_context(chain_type: pbk.ChainType):
-    chain_params = pbk.ChainParameters(chain_type)
-    opts = pbk.ContextOptions()
-    opts.set_chainparams(chain_params)
-    return pbk.Context(opts)
+Changes should be tested by somebody other than the developer who wrote the
+code. This is especially important for large or high-risk changes. It is useful
+to add a test plan to the pull request description if testing the changes is
+not straightforward.
 
-context = make_context(pbk.ChainType.SIGNET)
-```
+Translations
+------------
 
-### 
+Changes to translations as well as new translations can be submitted to
+[Bitcoin Core's Transifex page](https://www.transifex.com/bitcoin/bitcoin/).
 
-If you want to enable `libbitcoinkernel` built-in logging, create a
-`LoggingConnection()` object and keep it alive for the duration of your
-application:
+Translations are periodically pulled from Transifex and merged into the git repository. See the
+[translation process](doc/translation_process.md) for details on how this works.
 
-```py
-...
-if __name__ == '__main__':
-    log = pbk.LoggingConnection()  # must be kept alive for the duration of the application
-    <use py-bitcoinkernel>
-```
+**Important**: We do not accept translation changes as GitHub pull requests because the next
+pull from Transifex would automatically overwrite them again.
