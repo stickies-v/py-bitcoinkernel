@@ -64,8 +64,9 @@ def load_chainman(
 
     block_man_opts = BlockManagerOptions(context, str(blocksdir.absolute()))
     chain_man_opts = ChainstateManagerOptions(context, str(datadir.absolute()))
-    chain_man = ChainstateManager(context, chain_man_opts, block_man_opts)
     chain_load_opts = ChainstateLoadOptions()
-    chain_man.load_chainstate(chain_load_opts)
+    chain_man = ChainstateManager(
+        context, chain_man_opts, block_man_opts, chain_load_opts
+    )
 
     return chain_man

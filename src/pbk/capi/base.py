@@ -8,7 +8,7 @@ def camel_to_snake(s):
 
 
 class KernelPtr:
-    _as_parameter_: ctypes.c_void_p  # Underlying ctypes object
+    _as_parameter_: ctypes.c_void_p | None = None  # Underlying ctypes object
     _owns_ptr: bool = False  # If False, pointer is owned by the kernel
 
     def __init__(self, *args, **kwargs):
