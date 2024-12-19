@@ -67,6 +67,7 @@ class BitcoinBuildCommand(build_ext):
             "-DBUILD_UTIL_CHAINSTATE=OFF",
             "-DBUILD_WALLET_TOOL=OFF",
             "-DENABLE_WALLET=OFF",
+            "-DWITH_SQLITE=OFF",
         ]
 
         # Try to use Ninja if available
