@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libevent-dev libboost-dev libsqlite3-dev cmake ninja-build
+          sudo apt-get install -y libboost-dev cmake ninja-build
           python -m pip install --upgrade pip
           pip install .
           pip install pytest

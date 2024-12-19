@@ -56,7 +56,7 @@ class BitcoinBuildCommand(build_ext):
             "-DBUILD_KERNEL_LIB=ON",
             "-DBUILD_BENCH=OFF",
             "-DBUILD_CLI=OFF",
-            "-DBUILD_DAEMON=ON",
+            "-DBUILD_DAEMON=OFF",
             "-DBUILD_FOR_FUZZING=OFF",
             "-DBUILD_FUZZ_BINARY=OFF",
             "-DBUILD_GUI=OFF",
