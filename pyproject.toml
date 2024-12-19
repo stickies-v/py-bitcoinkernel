@@ -1,14 +1,8 @@
 [build-system]
 requires = [
-    "setuptools",
-    "scikit-build",
-    "wheel",
-    "cmake",
-    "ninja",
-    "clang==15.*",
-    "ctypeslib2"
+    "scikit-build-core"
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "py-bitcoinkernel"
@@ -23,8 +17,9 @@ dependencies = [
 ]
 requires-python=">3.10"
 
-[tool.setuptools]
-packages = { find = { where = ["src"] } }
+[tool.scikit-build]
+wheel.packages = ["src/pbk"]
+wheel.install-dir = "pbk"
 
 [project.optional-dependencies]
 dev = [
