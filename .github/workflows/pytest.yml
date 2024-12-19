@@ -49,7 +49,9 @@ jobs:
           -DBUILD_UTIL=OFF \
           -DBUILD_UTIL_CHAINSTATE=OFF \
           -DBUILD_WALLET_TOOL=OFF \
-          -DENABLE_WALLET=OFF -GNinja
+          -DENABLE_WALLET=OFF \
+          -DWITH_SQLITE=OFF \
+          -GNinja
           ninja
 
       - name: Cache bitcoinkernel build
