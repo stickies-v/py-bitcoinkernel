@@ -54,9 +54,10 @@ class ChainstateManager(KernelOpaquePtr):
         context: "Context",
         chain_man_opts: ChainstateManagerOptions,
         block_man_opts: BlockManagerOptions,
+        chainstate_load_opts: ChainstateLoadOptions,
     ):
         self._context = context
-        super().__init__(context, chain_man_opts, block_man_opts)
+        super().__init__(context, chain_man_opts, block_man_opts, chainstate_load_opts)
 
     def get_block_index_from_hash(self, hash: "BlockHash"):
         return BlockIndex._from_ptr(
@@ -87,9 +88,6 @@ class ChainstateManager(KernelOpaquePtr):
     ) -> "BlockIndex | None":
         previous = k.kernel_get_previous_block_index(block_index)
         return BlockIndex._from_ptr(previous) if previous else None
-
-    def load_chainstate(self, opts: ChainstateLoadOptions) -> bool:
-        return k.kernel_chainstate_manager_load_chainstate(self._context, opts, self)
 
     def process_block(self, block: Block, new_block: bool | None) -> bool:
         new_block_ptr = (
