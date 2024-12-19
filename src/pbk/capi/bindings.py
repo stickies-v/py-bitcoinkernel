@@ -173,8 +173,6 @@ def char_pointer_cast(string, encoding='utf-8'):
     return ctypes.cast(string, ctypes.POINTER(ctypes.c_char))
 
 
-
-
 class struct_kernel_Transaction(Structure):
     pass
 
@@ -576,10 +574,7 @@ kernel_chainstate_load_options_destroy.restype = None
 kernel_chainstate_load_options_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainstateLoadOptions)]
 kernel_chainstate_manager_create = BITCOINKERNEL_LIB.kernel_chainstate_manager_create
 kernel_chainstate_manager_create.restype = ctypes.POINTER(struct_kernel_ChainstateManager)
-kernel_chainstate_manager_create.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.POINTER(struct_kernel_BlockManagerOptions)]
-kernel_chainstate_manager_load_chainstate = BITCOINKERNEL_LIB.kernel_chainstate_manager_load_chainstate
-kernel_chainstate_manager_load_chainstate.restype = ctypes.c_bool
-kernel_chainstate_manager_load_chainstate.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateLoadOptions), ctypes.POINTER(struct_kernel_ChainstateManager)]
+kernel_chainstate_manager_create.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.POINTER(struct_kernel_BlockManagerOptions), ctypes.POINTER(struct_kernel_ChainstateLoadOptions)]
 kernel_import_blocks = BITCOINKERNEL_LIB.kernel_import_blocks
 kernel_import_blocks.restype = ctypes.c_bool
 kernel_import_blocks.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), ctypes.POINTER(ctypes.c_uint64), size_t]
@@ -737,7 +732,6 @@ __all__ = \
     'kernel_chainstate_load_options_set_wipe_chainstate_db',
     'kernel_chainstate_manager_create',
     'kernel_chainstate_manager_destroy',
-    'kernel_chainstate_manager_load_chainstate',
     'kernel_chainstate_manager_options_create',
     'kernel_chainstate_manager_options_destroy',
     'kernel_chainstate_manager_options_set_worker_threads_num',
