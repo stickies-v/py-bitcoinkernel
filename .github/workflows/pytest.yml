@@ -32,27 +32,9 @@ jobs:
       - name: Build bitcoinkernel library
         if: env.CACHE_HIT != 'true'  # Only build if cache was not hit
         run: |
-          mkdir -p depend/bitcoin/build
-          cd depend/bitcoin/build
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=ON \
-          -DBUILD_KERNEL_LIB=ON \
-          -DBUILD_BENCH=OFF \
-          -DBUILD_CLI=OFF \
-          -DBUILD_DAEMON=OFF \
-          -DBUILD_FOR_FUZZING=OFF \
-          -DBUILD_FUZZ_BINARY=OFF \
-          -DBUILD_GUI=OFF \
-          -DBUILD_KERNEL_TEST=OFF \
-          -DBUILD_TESTS=OFF \
-          -DBUILD_TX=OFF \
-          -DBUILD_UTIL=OFF \
-          -DBUILD_UTIL_CHAINSTATE=OFF \
-          -DBUILD_WALLET_TOOL=OFF \
-          -DENABLE_WALLET=OFF \
-          -DWITH_SQLITE=OFF \
-          -GNinja
-          ninja
+          mkdir -p build
+          cd build
+          cmake .. 
 
       - name: Cache bitcoinkernel build
         if: env.CACHE_HIT != 'true'  # Only cache if it was built
