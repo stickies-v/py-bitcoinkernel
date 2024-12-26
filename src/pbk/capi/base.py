@@ -9,7 +9,7 @@ def camel_to_snake(s):
 
 class KernelPtr:
     _as_parameter_: ctypes.c_void_p | None = None  # Underlying ctypes object
-    _owns_ptr: bool = False  # If False, pointer is owned by the kernel
+    _owns_ptr: bool = True  # If True, user is responsible for freeing the pointer
 
     def __init__(self, *args, **kwargs):
         raise NotImplementedError("KernelPtr cannot be instantiated directly")
@@ -20,13 +20,13 @@ class KernelPtr:
         return self._as_parameter_.contents  # type: ignore
 
     @classmethod
-    def _from_ptr(cls, ptr: ctypes.c_void_p):
+    def _from_ptr(cls, ptr: ctypes.c_void_p, owns_ptr: bool = True):
         """Wrap a C pointer owned by the kernel."""
         if not ptr:
             raise ValueError(f"Failed to create {cls.__name__}: pointer cannot be NULL")
         instance = cls.__new__(cls)
         instance._as_parameter_ = ptr
-        instance._owns_ptr = False
+        instance._owns_ptr = owns_ptr
         return instance
 
     def __del__(self):
