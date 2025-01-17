@@ -1,46 +1,52 @@
 cmake_minimum_required(VERSION 3.15)
 project(py-bitcoinkernel)
 
-# Function to find bitcoinkernel library
-function(find_bitcoinkernel OUT_VAR)
-    # First check environment variable
-    if(DEFINED ENV{BITCOINKERNEL_LIB})
-        if(EXISTS $ENV{BITCOINKERNEL_LIB})
-            message(STATUS "Using bitcoinkernel library from BITCOINKERNEL_LIB: $ENV{BITCOINKERNEL_LIB}")
-            set(${OUT_VAR} $ENV{BITCOINKERNEL_LIB} PARENT_SCOPE)
-            return()
-        else()
-            message(FATAL_ERROR "BITCOINKERNEL_LIB points to non-existent file: $ENV{BITCOINKERNEL_LIB}")
-            return()
-        endif()
-    endif()
+# ----------------------------------------
+# 1. Define a configurable Bitcoin source directory
+# ----------------------------------------
+set(BITCOINKERNEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin" CACHE PATH "Path to Bitcoin source directory")
 
-    # Then check system paths
-    find_library(SYSTEM_BITCOINKERNEL bitcoinkernel)
-    if(SYSTEM_BITCOINKERNEL)
-        message(STATUS "Found system bitcoinkernel library: ${SYSTEM_BITCOINKERNEL}")
-        if(EXISTS ${SYSTEM_BITCOINKERNEL})
-            set(${OUT_VAR} ${SYSTEM_BITCOINKERNEL} PARENT_SCOPE)
-        else()
-            message(FATAL_ERROR "Found path but file does not exist: ${SYSTEM_BITCOINKERNEL}")
-        endif()
-        return()
-    endif()
-
-    # Not found
-    set(${OUT_VAR} "" PARENT_SCOPE)
+# Function to read the git_commit value from a file
+function(read_git_commit filename out_var)
+    file(READ "${filename}" file_contents)
+    string(REGEX MATCH "git_commit=([a-f0-9]+)" _ "${file_contents}")
+    set(${out_var} "${CMAKE_MATCH_1}" PARENT_SCOPE)
 endfunction()
 
-# Try to find existing library
-find_bitcoinkernel(BITCOINKERNEL_PATH)
+find_package(PkgConfig QUIET)
 
-if(NOT BITCOINKERNEL_PATH)
+if(DEFINED ENV{BITCOINKERNEL_LIB})
+    set(BITCOINKERNEL_PATH $ENV{BITCOINKERNEL_LIB})
+elseif(PKG_CONFIG_FOUND)
+    # Only consider system installations if we can check the version with pkg-config
+    find_library(BITCOINKERNEL_SYSTEM_PATH bitcoinkernel)
+    if(PKG_CONFIG_FOUND AND BITCOINKERNEL_SYSTEM_PATH)
+        pkg_check_modules(BITCOINKERNEL_PC REQUIRED libbitcoinkernel)
+
+        string(REGEX MATCH "@([a-f0-9]+)" _ ${BITCOINKERNEL_PC_VERSION})
+        set(ACTUAL_SHA ${CMAKE_MATCH_1})
+        read_git_commit("${CMAKE_CURRENT_SOURCE_DIR}/BitcoinkernelVersion.txt" EXPECTED_SHA)
+
+        if(EXPECTED_SHA MATCHES "^${ACTUAL_SHA}")
+            set(BITCOINKERNEL_PATH ${BITCOINKERNEL_SYSTEM_PATH})
+        else()
+            message(STATUS "Incorrect system bitcoinkernel version. SHA needs to match with: ${EXPECTED_SHA}, but found: ${ACTUAL_SHA}")
+        endif()
+    endif()
+endif()
+
+if(BITCOINKERNEL_PATH)
+    message(STATUS "Using existing bitcoinkernel library at ${BITCOINKERNEL_PATH}")
+    if(NOT EXISTS ${BITCOINKERNEL_PATH})
+        message(FATAL_ERROR "File at ${BITCOINKERNEL_PATH} does not exist")
+    endif()
+else()
     # Library not found, build from source
-    message(STATUS "Building bitcoinkernel from source in depend/bitcoin/")
-    
+    message(STATUS "Building bitcoinkernel from source in ${BITCOINKERNEL_SOURCE_DIR}")
+
     # Ensure the submodule is present
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin/CMakeLists.txt")
-        message(FATAL_ERROR "Bitcoin source not found in depend/bitcoin/. Please ensure the submodule is initialized.")
+    if(NOT EXISTS "${BITCOINKERNEL_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR "Bitcoin source not found in ${BITCOINKERNEL_SOURCE_DIR}. Please ensure the submodule is initialized or provide the correct path.")
     endif()
 
     # Configure and build bitcoinkernel
@@ -50,7 +56,7 @@ if(NOT BITCOINKERNEL_PATH)
     # Configure bitcoin build
     execute_process(
         COMMAND ${CMAKE_COMMAND} 
-            -S "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin"
+            -S "${BITCOINKERNEL_SOURCE_DIR}"
             -B "${BITCOIN_BUILD_DIR}"
             -DBUILD_SHARED_LIBS=ON
             -DBUILD_KERNEL_LIB=ON
