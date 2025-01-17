@@ -6,40 +6,18 @@ project(py-bitcoinkernel)
 # ----------------------------------------
 set(BITCOINKERNEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin" CACHE PATH "Path to Bitcoin source directory")
 
-# Function to find bitcoinkernel library
-function(find_bitcoinkernel OUT_VAR)
-    # First check environment variable
-    if(DEFINED ENV{BITCOINKERNEL_LIB})
-        if(EXISTS $ENV{BITCOINKERNEL_LIB})
-            message(STATUS "Using bitcoinkernel library from BITCOINKERNEL_LIB: $ENV{BITCOINKERNEL_LIB}")
-            set(${OUT_VAR} $ENV{BITCOINKERNEL_LIB} PARENT_SCOPE)
-            return()
-        else()
-            message(FATAL_ERROR "BITCOINKERNEL_LIB points to non-existent file: $ENV{BITCOINKERNEL_LIB}")
-            return()
-        endif()
+if(DEFINED ENV{BITCOINKERNEL_LIB})
+    set(BITCOINKERNEL_PATH $ENV{BITCOINKERNEL_LIB})
+else()
+    find_library(BITCOINKERNEL_PATH bitcoinkernel)
+endif()
+
+if(BITCOINKERNEL_PATH)
+    message(STATUS "Using existing bitcoinkernel library at ${BITCOINKERNEL_PATH}")
+    if(NOT EXISTS ${BITCOINKERNEL_PATH})
+        message(FATAL_ERROR "File at ${BITCOINKERNEL_PATH} does not exist")
     endif()
-
-    # Then check system paths
-    find_library(SYSTEM_BITCOINKERNEL bitcoinkernel)
-    if(SYSTEM_BITCOINKERNEL)
-        message(STATUS "Found system bitcoinkernel library: ${SYSTEM_BITCOINKERNEL}")
-        if(EXISTS ${SYSTEM_BITCOINKERNEL})
-            set(${OUT_VAR} ${SYSTEM_BITCOINKERNEL} PARENT_SCOPE)
-        else()
-            message(FATAL_ERROR "Found path but file does not exist: ${SYSTEM_BITCOINKERNEL}")
-        endif()
-        return()
-    endif()
-
-    # Not found
-    set(${OUT_VAR} "" PARENT_SCOPE)
-endfunction()
-
-# Try to find existing library
-find_bitcoinkernel(BITCOINKERNEL_PATH)
-
-if(NOT BITCOINKERNEL_PATH)
+else()
     # Library not found, build from source
     message(STATUS "Building bitcoinkernel from source in ${BITCOINKERNEL_SOURCE_DIR}")
 
