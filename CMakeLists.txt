@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 project(py-bitcoinkernel)
 
+# ----------------------------------------
+# 1. Define a configurable Bitcoin source directory
+# ----------------------------------------
+set(BITCOINKERNEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin" CACHE PATH "Path to Bitcoin source directory")
+
 # Function to find bitcoinkernel library
 function(find_bitcoinkernel OUT_VAR)
     # First check environment variable
@@ -36,11 +41,11 @@ find_bitcoinkernel(BITCOINKERNEL_PATH)
 
 if(NOT BITCOINKERNEL_PATH)
     # Library not found, build from source
-    message(STATUS "Building bitcoinkernel from source in depend/bitcoin/")
-    
+    message(STATUS "Building bitcoinkernel from source in ${BITCOINKERNEL_SOURCE_DIR}")
+
     # Ensure the submodule is present
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin/CMakeLists.txt")
-        message(FATAL_ERROR "Bitcoin source not found in depend/bitcoin/. Please ensure the submodule is initialized.")
+    if(NOT EXISTS "${BITCOINKERNEL_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR "Bitcoin source not found in ${BITCOINKERNEL_SOURCE_DIR}. Please ensure the submodule is initialized or provide the correct path.")
     endif()
 
     # Configure and build bitcoinkernel
@@ -50,7 +55,7 @@ if(NOT BITCOINKERNEL_PATH)
     # Configure bitcoin build
     execute_process(
         COMMAND ${CMAKE_COMMAND} 
-            -S "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin"
+            -S "${BITCOINKERNEL_SOURCE_DIR}"
             -B "${BITCOIN_BUILD_DIR}"
             -DBUILD_SHARED_LIBS=ON
             -DBUILD_KERNEL_LIB=ON
