@@ -6,10 +6,33 @@ project(py-bitcoinkernel)
 # ----------------------------------------
 set(BITCOINKERNEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin" CACHE PATH "Path to Bitcoin source directory")
 
+# Function to read the git_commit value from a file
+function(read_git_commit filename out_var)
+    file(READ "${filename}" file_contents)
+    string(REGEX MATCH "git_commit=([a-f0-9]+)" _ "${file_contents}")
+    set(${out_var} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+endfunction()
+
+find_package(PkgConfig QUIET)
+
 if(DEFINED ENV{BITCOINKERNEL_LIB})
     set(BITCOINKERNEL_PATH $ENV{BITCOINKERNEL_LIB})
-else()
-    find_library(BITCOINKERNEL_PATH bitcoinkernel)
+elseif(PKG_CONFIG_FOUND)
+    # Only consider system installations if we can check the version with pkg-config
+    find_library(BITCOINKERNEL_SYSTEM_PATH bitcoinkernel)
+    if(PKG_CONFIG_FOUND AND BITCOINKERNEL_SYSTEM_PATH)
+        pkg_check_modules(BITCOINKERNEL_PC REQUIRED libbitcoinkernel)
+
+        string(REGEX MATCH "@([a-f0-9]+)" _ ${BITCOINKERNEL_PC_VERSION})
+        set(ACTUAL_SHA ${CMAKE_MATCH_1})
+        read_git_commit("${CMAKE_CURRENT_SOURCE_DIR}/BitcoinkernelVersion.txt" EXPECTED_SHA)
+
+        if(EXPECTED_SHA MATCHES "^${ACTUAL_SHA}")
+            set(BITCOINKERNEL_PATH ${BITCOINKERNEL_SYSTEM_PATH})
+        else()
+            message(STATUS "Incorrect system bitcoinkernel version. SHA needs to match with: ${EXPECTED_SHA}, but found: ${ACTUAL_SHA}")
+        endif()
+    endif()
 endif()
 
 if(BITCOINKERNEL_PATH)

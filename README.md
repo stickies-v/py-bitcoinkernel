@@ -26,32 +26,25 @@ source .venv/bin/activate
 ```
 
 The recommended way to install `py-bitcoinkernel` is with `pip`, which
-automatically installs dependencies too.
+automatically installs dependencies, including `libbitcoinkernel`.
 ```
-pip install . -v
-```
-
-`py-bitcoinkernel` is a wrapper around the `libbitcoinkernel` C shared
-library, which needs to be installed. The `py-bitcoinkernel` will
-automatically try to detect an installation of `libbitcoinkernel`, and
-otherwise automatically compile the bundled version in
-`depend/bitcoin/`.
-
-If that fails, you can compile it manually with the following commands:
-
-```
-NUM_CORES=4
-cd depend/bitcoin/
-cmake -B cmake -B build -DBUILD_KERNEL_LIB=ON -DBUILD_UTIL_CHAINSTATE=ON
-cmake --build build -j $(NUM_CORES)
-cmake --install build
+pip install .
 ```
 
+If `libbitcoinkernel` is already available in your system path, the
+installer will automatically use that installation if the version matches
+the expected version in `BitcoinkernelVersion.txt`. In case of a mismatch,
+the installer will automatically build `libbitcoinkernel` from source in
+`depend/bitcoin/`. You can also set the `BITCOINKERNEL_LIB` environment
+variable to point to an existing installation of `libbitcoinkernel`:
 
-> [!WARNING] While `libbitcoinkernel` and `py-bitcoinkernel` are in very
-> early and experimental phases of development, no version management is
-> done, and you **must** install the `libbitcoinkernel` version that is
-> shipped with this library in `depend/bitcoin/`.
+```
+export BITCOINKERNEL_LIB=/path/to/libbitcoinkernel
+pip install .
+```
+
+In this case, you must ensure that the version of `libbitcoinkernel`
+matches the expected version in `BitcoinkernelVersion.txt`.
 
 
 ## Usage
