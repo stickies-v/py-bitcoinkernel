@@ -14,19 +14,6 @@ function(find_bitcoinkernel OUT_VAR)
             return()
         endif()
     endif()
-
-    # Then check system paths
-    find_library(SYSTEM_BITCOINKERNEL bitcoinkernel)
-    if(SYSTEM_BITCOINKERNEL)
-        message(STATUS "Found system bitcoinkernel library: ${SYSTEM_BITCOINKERNEL}")
-        if(EXISTS ${SYSTEM_BITCOINKERNEL})
-            set(${OUT_VAR} ${SYSTEM_BITCOINKERNEL} PARENT_SCOPE)
-        else()
-            message(FATAL_ERROR "Found path but file does not exist: ${SYSTEM_BITCOINKERNEL}")
-        endif()
-        return()
-    endif()
-
     # Not found
     set(${OUT_VAR} "" PARENT_SCOPE)
 endfunction()
