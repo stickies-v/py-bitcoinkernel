@@ -23,16 +23,11 @@ def _find_bitcoinkernel_lib():
         if len(matches) == 1:
             return str(matches[0])
         raise RuntimeError(f"Found multiple libbitcoinkernel candidates: {matches}")
-
-    # Fall back to system library search
-    if system_lib := ctypes.util.find_library('bitcoinkernel'):
-        return system_lib
         
     raise RuntimeError(
-        "Could not find libbitcoinkernel. Please either:\n"
-        "1. Install it in your system library path\n"
-        "2. Place it in ../_libs/ relative to the installed Python package\n"
-        "3. Set BITCOINKERNEL_LIB environment variable to the full path"
+        "Could not find libbitcoinkernel. Please re-run `pip install` to "
+        "install the bundled version or set BITCOINKERNEL_LIB environment "
+        "variable to the full path of an existing installation."
     )
 
 BITCOINKERNEL_LIB = ctypes.CDLL(_find_bitcoinkernel_lib())
