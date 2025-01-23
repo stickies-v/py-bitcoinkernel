@@ -7,16 +7,10 @@
 #
 import ctypes
 import ctypes.util
-import os
 from pathlib import Path
 
 
 def _find_bitcoinkernel_lib():
-    if lib_path := os.getenv('BITCOINKERNEL_LIB'):
-        if Path(lib_path).exists():
-            return lib_path
-        raise RuntimeError(f"Library path specified in BITCOINKERNEL_LIB environment variable does not exist: {lib_path}")
-
     # Check relative ../_libs/ directory
     script_dir = Path(__file__).parent
     if (matches := list((script_dir.parent / "_libs").glob("*bitcoinkernel*"))):
@@ -25,9 +19,7 @@ def _find_bitcoinkernel_lib():
         raise RuntimeError(f"Found multiple libbitcoinkernel candidates: {matches}")
         
     raise RuntimeError(
-        "Could not find libbitcoinkernel. Please re-run `pip install` to "
-        "install the bundled version or set BITCOINKERNEL_LIB environment "
-        "variable to the full path of an existing installation."
+        "Could not find libbitcoinkernel. Please re-run `pip install`."
     )
 
 BITCOINKERNEL_LIB = ctypes.CDLL(_find_bitcoinkernel_lib())
