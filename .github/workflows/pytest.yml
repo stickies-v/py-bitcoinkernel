@@ -3,7 +3,7 @@ name: pytest
 on: [ push ]
 
 env:
-  BUILD_OUTPUT: build/bitcoin/src/kernel/libbitcoinkernel.so
+  BUILD_OUTPUT: build/_libs/libbitcoinkernel.so
 
 jobs:
   build-bitcoinkernel:
@@ -30,6 +30,8 @@ jobs:
         if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           cmake -B build
+          cmake --build build -j
+          cmake --install build --strip
 
       - name: Save lib cache
         if: steps.cache-lib.outputs.cache-hit != 'true'
