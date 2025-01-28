@@ -1,0 +1,226 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'  # Matches vX.Y.Z with optional suffix
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-24.04
+    container: quay.io/pypa/${{ matrix.platform }}_${{ matrix.version }}_${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: 'x86_64'
+            platform: 'manylinux'
+            version: '2_28' 
+          - arch: 'x86_64'
+            platform: 'musllinux'
+            version: '1_2'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore bitcoinkernel from cache
+        id: cache-lib
+        uses: actions/cache/restore@v4
+        with:
+          path: depend/bitcoin/build/lib/
+          key: bitcoinkernel-${{ matrix.platform }}_${{ matrix.version }}_${{ matrix.arch }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+
+      - name: Build bitcoinkernel lib
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        run: |
+          cd depend/bitcoin && \
+          make -C depends NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 NO_LIBEVENT=1 NO_SQLITE=1 NO_BDB=1 HOST=${{ matrix.arch }}-linux-gnu -j$(nproc) && \
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=$PWD/depends/${{ matrix.arch }}-linux-gnu/toolchain.cmake -DBUILD_KERNEL_LIB=ON -DBUILD_BENCH=OFF -DBUILD_DAEMON=OFF -DBUILD_CLI=OFF -DBUILD_GUI=OFF -DBUILD_FUZZ_BINARY=OFF -DBUILD_TESTS=OFF -DBUILD_TX=OFF -DBUILD_UTIL=OFF -DBUILD_UTIL_CHAINSTATE=OFF -DBUILD_WALLET_TOOL=OFF -DENABLE_WALLET=OFF && \
+          cmake --build build --target bitcoinkernel --parallel && \
+          cmake --install build --component Kernel --prefix=build/ --strip
+
+      - name: Save lib cache
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: depend/bitcoin/build/lib/
+          key: ${{ steps.cache-lib.outputs.cache-primary-key}}
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitcoinkernel-${{ matrix.platform }}_${{ matrix.arch }}
+          path: depend/bitcoin/build/lib/libbitcoinkernel.so
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore bitcoinkernel from cache
+        id: cache-lib
+        uses: actions/cache/restore@v4
+        with:
+          path: depend/bitcoin/build/bin/
+          key: bitcoinkernel-win_AMD64-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+
+      - name: Install dependencies
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -y && \
+          sudo apt-get install g++-mingw-w64-x86-64-posix
+
+      - name: Build bitcoinkernel lib
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        run: |
+          cd depend/bitcoin && \
+          make -C depends NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 NO_LIBEVENT=1 NO_SQLITE=1 NO_BDB=1 HOST=x86_64-w64-mingw32 -j$(nproc) && \
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=$PWD/depends/x86_64-w64-mingw32/toolchain.cmake -DBUILD_KERNEL_LIB=ON -DBUILD_BENCH=OFF -DBUILD_DAEMON=OFF -DBUILD_CLI=OFF -DBUILD_GUI=OFF -DBUILD_FUZZ_BINARY=OFF -DBUILD_TESTS=OFF -DBUILD_TX=OFF -DBUILD_UTIL=OFF -DBUILD_UTIL_CHAINSTATE=OFF -DBUILD_WALLET_TOOL=OFF -DENABLE_WALLET=OFF && \
+          cmake --build build --target bitcoinkernel --parallel && \
+          cmake --install build --component Kernel --prefix=build/ --strip
+
+      - name: Save lib cache
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: depend/bitcoin/build/bin/
+          key: ${{ steps.cache-lib.outputs.cache-primary-key}}
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitcoinkernel-win_AMD64
+          path: depend/bitcoin/build/bin/libbitcoinkernel.dll
+          if-no-files-found: error
+
+  build-osx:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch: 'x86_64'
+          - arch: 'arm64'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore bitcoinkernel from cache
+        id: cache-lib
+        uses: actions/cache/restore@v4
+        with:
+          path: build/_libs
+          key: bitcoinkernel-macosx_${{ matrix.arch }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+
+      - name: Install dependencies
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        run: |
+          brew install boost
+
+      - name: Build bitcoinkernel lib
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        run: |
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          cmake --build build -j
+          cmake --install build --strip
+
+      - name: Save lib cache
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/_libs
+          key: ${{ steps.cache-lib.outputs.cache-primary-key}}
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitcoinkernel-macosx_${{ matrix.arch }}
+          path: build/_libs/libbitcoinkernel.dylib
+          if-no-files-found: error
+
+  build-wheels:
+    needs: [build-linux, build-osx, build-windows]
+    strategy:
+      matrix:
+        platform_config:
+          - platform: 'win'
+            arch: 'AMD64'
+            os: 'windows-latest'
+            lib_path: 'lib/libbitcoinkernel.dll'
+          - platform: 'macosx'
+            arch: 'arm64'
+            os: 'macos-latest'
+            lib_path: 'lib/libbitcoinkernel.dylib'
+          - platform: 'macosx'
+            arch: 'x86_64'
+            os: 'macos-latest'
+            lib_path: 'lib/libbitcoinkernel.dylib'
+          - platform: 'manylinux'
+            arch: 'x86_64'
+            os: 'ubuntu-latest'
+            lib_path: 'lib/libbitcoinkernel.so'
+          - platform: 'musllinux'
+            arch: 'x86_64'
+            os: 'ubuntu-latest'
+            lib_path: 'lib/libbitcoinkernel.so'
+    runs-on: ${{ matrix.platform_config.os }}
+    env:
+      PLATFORM_TAG: ${{ matrix.platform_config.platform }}_${{ matrix.platform_config.arch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: bitcoinkernel-${{ env.PLATFORM_TAG }}
+          path: lib
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.22
+        env:
+          CIBW_BUILD: "cp310-${{ env.PLATFORM_TAG }} cp311-${{ env.PLATFORM_TAG }} cp312-${{ env.PLATFORM_TAG }} cp313-${{ env.PLATFORM_TAG }}"
+          CIBW_ARCHS: "${{ matrix.platform_config.arch }}"
+          CIBW_ENVIRONMENT: "BITCOINKERNEL_LIB=${{ matrix.platform_config.lib_path }}"
+          MACOSX_DEPLOYMENT_TARGET: 13.0
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MUSLLINUX_X86_64_IMAGE: "musllinux_1_2"
+
+      - name: Upload Wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ env.PLATFORM_TAG }}
+          path: wheelhouse/*.whl
+
+  publish-pypi:
+    needs: build-wheels
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/py-bitcoinkernel
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build SDist
+        run: |
+          python -m pip install build
+          python -m build --sdist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

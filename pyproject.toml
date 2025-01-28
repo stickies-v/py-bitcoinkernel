@@ -18,6 +18,10 @@ dependencies = [
 ]
 requires-python=">=3.10"
 
+[tool.cibuildwheel]
+test-command = "pytest {project}/test"
+test-extras = ["test"]
+
 [tool.scikit-build]
 wheel.packages = ["src/pbk"]
 wheel.install-dir = "pbk"
