@@ -8,7 +8,7 @@ import pbk
 
 @pytest.fixture
 def temp_dir():
-    dir = tempfile.TemporaryDirectory()
+    dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     try:
         yield Path(dir.name)
     finally:
