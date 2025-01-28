@@ -15,15 +15,13 @@ license = { text = "MIT" }
 readme = "README.md"
 dependencies = [
 ]
-requires-python=">3.10"
+requires-python=">=3.10"
 
 [tool.scikit-build]
 wheel.packages = ["src/pbk"]
 wheel.install-dir = "pbk"
 
 [project.optional-dependencies]
-dev = [
+test = [
     "pytest>=7.0",
-    "ctypeslib2",  # to generate the language bindings
-    "clang==15.*",
 ]
