@@ -1,93 +1,157 @@
-# Python Bitcoin Kernel (pbk)
+# py-bitcoinkernel
+[![pypi](https://img.shields.io/pypi/v/py-bitcoinkernel.svg)](https://pypi.python.org/pypi/py-bitcoinkernel)
+[![versions](https://img.shields.io/pypi/pyversions/py-bitcoinkernel.svg)](https://github.com/stickies-v/py-bitcoinkernel)
+[![license](https://img.shields.io/github/license/stickies-v/py-bitcoinkernel.svg)](https://github.com/stickies-v/py-bitcoinkernel/blob/main/LICENSE)
 
-A Python wrapper around
-[libbitcoinkernel](https://github.com/bitcoin/bitcoin/issues/27587)
+`py-bitcoinkernel` is a Python wrapper around
+[`libbitcoinkernel`](https://github.com/bitcoin/bitcoin/pull/30595)
 providing a clean, Pythonic interface while handling the low-level
 ctypes bindings and memory management.
 
-## Features
+In its current alpha state, it is primarily intended as a tool to:
+1) help developers experiment with the `libbitcoinkernel` library and to
+   help inform its development and interface design.
+2) help data scientists access and parse Bitcoin blockchain data for
+   research purposes, instead of using alternative interfaces like the
+   Bitcoin Core RPC interface or manually parsing block data files.
 
-- Clean Python interface that hides ctypes implementation details
-- Automatic memory management of kernel resources
-- Support for core Bitcoin functionality:
-  - Block validation and processing
-  - Chain state management
-  - Block index traversal
+> [!WARNING]
+> `py-bitcoinkernel` is highly experimental software, and should in no
+> way be used in software that is consensus-critical, deals with
+> (mainnet) coins, or is generally used in any production environment.
+
+## Table of contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Limitations](#limitations)
 
 ## Installation
 
-### `libbitcoinkernel` shared library
+### Requirements
 
-It is recommended to install `py-bitcoinkernel` in a virtual
-environment:
-```
-python -m venv .venv
-source .venv/bin/activate
-```
+This project requires:
+- Python 3.10+ and `pip`
+- The minimum system requirements, build requirements and dependencies
+  to compile `libbitcoinkernel` from source. See Bitcoin Core's
+  documentation
+  ([Unix](./depend/bitcoin/doc/build-unix.md),
+  [macOS](./depend/bitcoin/doc/build-osx.md),
+  [Windows](./depend/bitcoin/doc/build-windows.md))
+  for more information.
+  - Note: `libevent` is a required dependency for Bitcoin Core, but not
+    for `libbitcoinkernel`.
 
-The recommended way to install `py-bitcoinkernel` is with `pip`, which
-automatically installs dependencies too.
-```
-pip install . -v
-```
-
-`py-bitcoinkernel` is a wrapper around the `libbitcoinkernel` C shared
-library, which needs to be installed. The `py-bitcoinkernel` will
-automatically try to detect an installation of `libbitcoinkernel`, and
-otherwise automatically compile the bundled version in
-`depend/bitcoin/`.
-
-If that fails, you can compile it manually with the following commands:
+To install `py-bitcoinkernel`, simply clone this repo, (optionally
+create and activate a virtual environment), and install with `pip`:
 
 ```
-NUM_CORES=4
-cd depend/bitcoin/
-cmake -B cmake -B build -DBUILD_KERNEL_LIB=ON -DBUILD_UTIL_CHAINSTATE=ON
-cmake --build build -j $(NUM_CORES)
-cmake --install build
+pip install .
 ```
 
-
-> [!WARNING] While `libbitcoinkernel` and `py-bitcoinkernel` are in very
-> early and experimental phases of development, no version management is
-> done, and you **must** install the `libbitcoinkernel` version that is
-> shipped with this library in `depend/bitcoin/`.
-
+> [!NOTE]
+> `pip` will automatically compile `libbitcoinkernel` from the bundled
+> source code in `depend/bitcoin/`. This process may take a while. To
+> inspect the build progress, run `pip install . -v`.
 
 ## Usage
 
-> [!WARNING] This code is highly experimental and not ready for use in
-> production software yet.
+> [!WARNING]
+> This code is highly experimental and not ready for use in
+> production software. The interface is under active development and
+> is likely going to change, without concern for backwards compatibility.
 
 All the classes and functions that can be used are exposed in a single
 `pbk` package. Lifetimes are managed automatically. The application is
 currently not threadsafe.
 
 The entry point for most current `libbitcoinkernel` usage is the
-`ChainstateManager`. To create it, we'll first need to create a
-`Context` object.
+`ChainstateManager`.
 
-### Context
-
-```py
-def make_context(chain_type: pbk.ChainType):
-    chain_params = pbk.ChainParameters(chain_type)
-    opts = pbk.ContextOptions()
-    opts.set_chainparams(chain_params)
-    return pbk.Context(opts)
-
-context = make_context(pbk.ChainType.SIGNET)
-```
-
-### 
+### Logging
 
 If you want to enable `libbitcoinkernel` built-in logging, create a
 `LoggingConnection()` object and keep it alive for the duration of your
 application:
 
 ```py
-...
-if __name__ == '__main__':
-    log = pbk.LoggingConnection()  # must be kept alive for the duration of the application
-    <use py-bitcoinkernel>
+import pbk
+log = pbk.LoggingConnection()  # must be kept alive for the duration of the application
 ```
+
+### Loading a chainstate
+
+First, we'll instantiate a `ChainstateManager` object. If you want
+`py-bitcoinkernel` to use an existing `Bitcoin Core` chainstate, copy
+the data directory to a new location and point `datadir` at it.
+
+**IMPORTANT**: `py-bitcoinkernel` requires exclusive access to the data
+directory. Sharing a data directory with Bitcoin Core will ONLY work
+when only one of both programs is running at a time.
+
+```py
+from pathlib import Path
+import pbk
+
+datadir = Path("/tmp/bitcoin/signet")
+chainman = pbk.load_chainman(datadir, pbk.ChainType.SIGNET)
+```
+
+If you're starting from an empty data directory, you'll likely want to
+import blocks from disk first:
+
+```py
+with open("raw_blocks.txt", "r") as file:
+    for line in file.readlines():
+        block = pbk.Block(bytes.fromhex(line))
+        chainman.process_block(block, new_block=True)
+```
+
+### Common operations
+
+ChainstateManager exposes a range of functionality to interact with the
+chainstate. For example, to print the current block tip:
+
+```py
+tip = chainman.get_block_index_from_tip()
+print(f"Current block tip: {tip.block_hash.hex} at height {tip.height}")
+```
+
+To lazily iterate over the last 10 block indexes, use the
+`block_index_generator` function:
+
+```py
+from_block = -10  # Negative indexes are relative to the tip
+to_block = -1     # -1 is the chain tip
+for block_index in pbk.block_index_generator(chainman, from_block, to_block):
+    print(f"Block {block_index.height}: {block_index.block_hash.hex}")
+```
+
+Block indexes can be used for other operations, like reading blocks from
+disk:
+
+```py
+block_height = 1
+block_index = chainman.get_block_index_from_height(block_height)
+block = chainman.read_block_from_disk(block_index)
+filename = f"block_{block_height}.bin"
+print(f"Writing block {block_height}: {block_index.block_hash.hex} to disk ({filename})...")
+with open(filename, "wb") as f:
+    f.write(block.data)
+```
+
+## Limitations
+
+- `Bitcoin Core` requires exclusive access to its data directory. If you
+  want to use `py-bitcoinkernel` with an existing chainstate, you'll
+  need to either first shut down `Bitcoin Core`, or clone the `blocks/`
+  and `chainstate/` directories to a new location.
+
+## Resources
+Some helpful resources for learning about `libbitcoinkernel`:
+
+- The [Bitcoin Core PR](https://github.com/bitcoin/bitcoin/pull/30595)
+  that introduces the `libbitcoinkernel` C API.
+- The `libbitcoinkernel` project [tracking issue](https://github.com/bitcoin/bitcoin/issues/27587).
+- ["The Bitcoin Core Kernel"](https://thecharlatan.ch/Kernel/) blog post by TheCharlatan
+- The rust-bitcoinkernel [repository](https://github.com/TheCharlatan/rust-bitcoinkernel/)
