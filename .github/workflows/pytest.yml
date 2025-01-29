@@ -2,6 +2,9 @@ name: pytest
 
 on: [ push ]
 
+env:
+  BUILD_OUTPUT: build/bitcoin/src/kernel/libbitcoinkernel.so
+
 jobs:
   build-bitcoinkernel:
     runs-on: ubuntu-latest
@@ -10,43 +13,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Cache bitcoinkernel build
-        id: cache-bitcoinkernel
-        uses: actions/cache@v4
+      - name: Restore bitcoinkernel from cache
+        id: cache-lib
+        uses: actions/cache/restore@v4
         with:
-          path: depend/bitcoin/build/src/kernel/libbitcoinkernel.so
-          key: ${{ runner.os }}-bitcoinkernel-${{ hashFiles('depend/bitcoin/**') }}
-          restore-keys: |
-            ${{ runner.os }}-bitcoinkernel-
-
-      - name: Check if cache hit
-        id: cache-hit
-        run: echo "CACHE_HIT=${{ steps.cache-bitcoinkernel.outputs.cache-hit }}" >> $GITHUB_ENV
+          path: ${{ env.BUILD_OUTPUT }}
+          key: pytest-bitcoinkernel-${{ runner.os }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
 
       - name: Install build dependencies
-        if: env.CACHE_HIT != 'true'  # Only install if cache was not hit
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libboost-dev cmake ninja-build
+          sudo apt-get install -y libboost-dev
       
       - name: Build bitcoinkernel library
-        if: env.CACHE_HIT != 'true'  # Only build if cache was not hit
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
-          mkdir -p build
-          cd build
-          cmake .. 
+          cmake -B build
 
-      - name: Cache bitcoinkernel build
-        if: env.CACHE_HIT != 'true'  # Only cache if it was built
-        uses: actions/cache@v4
+      - name: Save lib cache
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
         with:
-          path: depend/bitcoin/build/src/kernel/libbitcoinkernel.so
-          key: ${{ runner.os }}-bitcoinkernel-${{ hashFiles('depend/bitcoin/**') }}
+          path: ${{ env.BUILD_OUTPUT }}
+          key: ${{ steps.cache-lib.outputs.cache-primary-key}}
 
-      - name: Set BITCOINKERNEL_LIB environment variable
-        run: echo "BITCOINKERNEL_LIB=$(pwd)/depend/bitcoin/build/src/kernel/libbitcoinkernel.so" >> $GITHUB_ENV
-        shell: bash
-      
   test:
     needs: build-bitcoinkernel
     runs-on: ubuntu-latest
@@ -63,25 +54,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      
-      - name: Set BITCOINKERNEL_LIB environment variable
-        run: echo "BITCOINKERNEL_LIB=$(pwd)/depend/bitcoin/build/src/kernel/libbitcoinkernel.so" >> $GITHUB_ENV
-        shell: bash
 
-      - name: Restore bitcoinkernel build from cache
-        uses: actions/cache@v4
+      - name: Restore bitcoinkernel from cache
+        id: cache-lib
+        uses: actions/cache/restore@v4
         with:
-          path: depend/bitcoin/build/src/kernel/libbitcoinkernel.so
-          key: ${{ runner.os }}-bitcoinkernel-${{ hashFiles('depend/bitcoin/**') }}
-          restore-keys: |
-            ${{ runner.os }}-bitcoinkernel-
-      
+          path: ${{ env.BUILD_OUTPUT }}
+          key: pytest-bitcoinkernel-${{ runner.os }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+
       - name: Install dependencies
+        env:
+          BITCOINKERNEL_LIB: ${{ env.BUILD_OUTPUT }}
         run: |
-          python -m pip install --upgrade pip
-          pip install .
-          pip install pytest
-      
+          pip install ".[test]"
+
       - name: Run tests with pytest
         run: |
           pytest
