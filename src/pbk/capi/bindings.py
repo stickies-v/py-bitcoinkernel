@@ -16,16 +16,14 @@ def _find_bitcoinkernel_lib():
         if Path(lib_path).exists():
             return lib_path
         raise RuntimeError(f"Library path specified in BITCOINKERNEL_LIB environment variable does not exist: {lib_path}")
-    
-    # Check relative ../lib/ directory
+
+    # Check relative ../_libs/ directory
     script_dir = Path(__file__).parent
-    relative_lib = script_dir.parent / '_libs' / 'libbitcoinkernel'
-    
-    # Try common extensions
-    for ext in ['.dylib', '.so', '.dll']:
-        if (relative_lib.parent / f"{relative_lib.name}{ext}").exists():
-            return str(relative_lib.parent / f"{relative_lib.name}{ext}")
-    
+    if (matches := list((script_dir.parent / "_libs").glob("*bitcoinkernel*"))):
+        if len(matches) == 1:
+            return str(matches[0])
+        raise RuntimeError(f"Found multiple libbitcoinkernel candidates: {matches}")
+
     # Fall back to system library search
     if system_lib := ctypes.util.find_library('bitcoinkernel'):
         return system_lib
