@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "py-bitcoinkernel"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "A Python wrapper for libbitcoinkernel"
 authors = [
     { name = "Stephan Vuylsteke", email = "stickies-v@protonmail.com" }
