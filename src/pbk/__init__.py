@@ -57,8 +57,9 @@ def make_context(chain_type: ChainType = ChainType.REGTEST) -> Context:
 
 
 def load_chainman(
-    datadir: Path, chain_type: ChainType = ChainType.REGTEST
+    datadir: Path | str, chain_type: ChainType = ChainType.REGTEST
 ) -> ChainstateManager:
+    datadir = Path(datadir)
     context = make_context(chain_type)
     blocksdir = datadir / "blocks"
 
