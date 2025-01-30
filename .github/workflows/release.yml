@@ -131,25 +131,11 @@ jobs:
           name: wheels-${{ env.PLATFORM_TAG }}
           path: wheelhouse/*.whl
 
-  publish-pypi:
-    needs: build-wheels
+  build-sdist:
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/py-bitcoinkernel
-    permissions:
-      id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Download all wheels
-        uses: actions/download-artifact@v4
-        with:
-          pattern: wheels-*
-          path: dist
-          merge-multiple: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -165,8 +151,37 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y libboost-dev
-          python -m pip install dist/*.tar.gz
+          python -m pip install dist/*.tar.gz pytest
           pytest
+
+      - name: Upload SDist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish-pypi:
+    needs: [build-wheels, build-sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/py-bitcoinkernel
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Download SDist
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
