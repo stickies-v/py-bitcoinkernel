@@ -46,11 +46,8 @@ git subtree pull --prefix=depend/bitcoin https://github.com/bitcoin/bitcoin "$CO
 
 echo "Subtree pulled successfully."
 
-pushd depend/bitcoin
-
-mkdir -p build
-cmake -B build -G Ninja -DBUILD_KERNEL_LIB=ON -DBUILD_UTIL_CHAINSTATE=ON
-cmake --build build
+cmake --B build
+cmake --build build -j
 
 # Install and capture library path
 INSTALL_OUTPUT=$(sudo cmake --install build 2>&1)
@@ -71,8 +68,6 @@ OUTPUT_FILE="bindings.py.new"
 if [ -f "$OUTPUT_FILE" ]; then
     echo "Warning: $OUTPUT_FILE already exists and will be overwritten."
 fi
-
-popd
 
 clang2py "$SCRIPT_DIR/../depend/bitcoin/src/kernel/bitcoinkernel.h" -l "$LIB_PATH" $NM_OPTION > "$OUTPUT_FILE"
 

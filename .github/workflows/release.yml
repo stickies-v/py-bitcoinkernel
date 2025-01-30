@@ -26,30 +26,28 @@ jobs:
         id: cache-lib
         uses: actions/cache/restore@v4
         with:
-          path: depend/bitcoin/build/lib/
+          path: build/_libs/
           key: bitcoinkernel-${{ matrix.platform }}_${{ matrix.version }}_${{ matrix.arch }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
 
       - name: Build bitcoinkernel lib
         if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
-          cd depend/bitcoin && \
-          make -C depends NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 NO_LIBEVENT=1 NO_SQLITE=1 NO_BDB=1 HOST=${{ matrix.arch }}-linux-gnu -j$(nproc) && \
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=$PWD/depends/${{ matrix.arch }}-linux-gnu/toolchain.cmake -DBUILD_KERNEL_LIB=ON -DBUILD_BENCH=OFF -DBUILD_DAEMON=OFF -DBUILD_CLI=OFF -DBUILD_GUI=OFF -DBUILD_FUZZ_BINARY=OFF -DBUILD_TESTS=OFF -DBUILD_TX=OFF -DBUILD_UTIL=OFF -DBUILD_UTIL_CHAINSTATE=OFF -DBUILD_WALLET_TOOL=OFF -DENABLE_WALLET=OFF && \
-          cmake --build build --target bitcoinkernel --parallel && \
-          cmake --install build --component Kernel --prefix=build/ --strip
+          cmake -B build -DBITCOIN_TARGET=${{ matrix.arch }}-linux-gnu
+          cmake --build build -j
+          cmake --install build
 
       - name: Save lib cache
         if: steps.cache-lib.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: depend/bitcoin/build/lib/
+          path: build/_libs/
           key: ${{ steps.cache-lib.outputs.cache-primary-key}}
 
       - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
           name: bitcoinkernel-${{ matrix.platform }}_${{ matrix.arch }}
-          path: depend/bitcoin/build/lib/libbitcoinkernel.so
+          path: build/_libs/libbitcoinkernel.so
           if-no-files-found: error
 
   build-windows:
@@ -62,7 +60,7 @@ jobs:
         id: cache-lib
         uses: actions/cache/restore@v4
         with:
-          path: depend/bitcoin/build/bin/
+          path: build/_libs/
           key: bitcoinkernel-win_AMD64-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
 
       - name: Install dependencies
@@ -74,24 +72,22 @@ jobs:
       - name: Build bitcoinkernel lib
         if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
-          cd depend/bitcoin && \
-          make -C depends NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 NO_LIBEVENT=1 NO_SQLITE=1 NO_BDB=1 HOST=x86_64-w64-mingw32 -j$(nproc) && \
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=$PWD/depends/x86_64-w64-mingw32/toolchain.cmake -DBUILD_KERNEL_LIB=ON -DBUILD_BENCH=OFF -DBUILD_DAEMON=OFF -DBUILD_CLI=OFF -DBUILD_GUI=OFF -DBUILD_FUZZ_BINARY=OFF -DBUILD_TESTS=OFF -DBUILD_TX=OFF -DBUILD_UTIL=OFF -DBUILD_UTIL_CHAINSTATE=OFF -DBUILD_WALLET_TOOL=OFF -DENABLE_WALLET=OFF && \
-          cmake --build build --target bitcoinkernel --parallel && \
-          cmake --install build --component Kernel --prefix=build/ --strip
+          cmake -B build -DBITCOIN_TARGET=x86_64-w64-mingw32
+          cmake --build build -j
+          cmake --install build
 
       - name: Save lib cache
         if: steps.cache-lib.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: depend/bitcoin/build/bin/
+          path: build/_libs/
           key: ${{ steps.cache-lib.outputs.cache-primary-key}}
 
       - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
           name: bitcoinkernel-win_AMD64
-          path: depend/bitcoin/build/bin/libbitcoinkernel.dll
+          path: build/_libs/libbitcoinkernel.dll
           if-no-files-found: error
 
   build-osx:
