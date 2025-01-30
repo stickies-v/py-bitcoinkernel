@@ -5,19 +5,47 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'  # Matches vX.Y.Z with optional suffix
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-24.04
-    container: quay.io/pypa/${{ matrix.platform }}_${{ matrix.version }}_${{ matrix.arch }}
+  build-lib:
     strategy:
       matrix:
         include:
-          - arch: 'x86_64'
-            platform: 'manylinux'
-            version: '2_28' 
-          - arch: 'x86_64'
-            platform: 'musllinux'
-            version: '1_2'
+          # Linux builds
+          - os: ubuntu-24.04
+            container: quay.io/pypa/manylinux_2_28_x86_64
+            arch: x86_64
+            platform: manylinux
+            cmake_args: '-DBITCOIN_TARGET=x86_64-linux-gnu'
 
+          - os: ubuntu-24.04
+            container: quay.io/pypa/musllinux_1_2_x86_64
+            arch: x86_64
+            platform: musllinux
+            cmake_args: '-DBITCOIN_TARGET=x86_64-linux-gnu'
+
+          # Windows build
+          - os: ubuntu-24.04
+            arch: AMD64
+            platform: win
+            cmake_args: '-DBITCOIN_TARGET=x86_64-w64-mingw32'
+            deps_cmd: sudo apt-get update -y && sudo apt-get install g++-mingw-w64-x86-64-posix
+
+          # macOS builds
+          - os: macos-latest
+            arch: x86_64
+            platform: macosx
+            cmake_args: '-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0'
+            deps_cmd: brew install boost
+
+          - os: macos-latest
+            arch: arm64
+            platform: macosx
+            cmake_args: '-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0'
+            deps_cmd: brew install boost
+
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    env:
+      BUILD_PATH: build/_libs
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,13 +54,17 @@ jobs:
         id: cache-lib
         uses: actions/cache/restore@v4
         with:
-          path: build/_libs/
-          key: bitcoinkernel-${{ matrix.platform }}_${{ matrix.version }}_${{ matrix.arch }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+          path: ${{ env.BUILD_PATH }}
+          key: bitcoinkernel-${{ matrix.platform }}_${{ matrix.arch }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+
+      - name: Install dependencies
+        if: steps.cache-lib.outputs.cache-hit != 'true' && matrix.deps_cmd != ''
+        run: ${{ matrix.deps_cmd }}
 
       - name: Build bitcoinkernel lib
         if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
-          cmake -B build -DBITCOIN_TARGET=${{ matrix.arch }}-linux-gnu
+          cmake -B build ${{ matrix.cmake_args }}
           cmake --build build -j
           cmake --install build
 
@@ -40,125 +72,36 @@ jobs:
         if: steps.cache-lib.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: build/_libs/
+          path: ${{ env.BUILD_PATH }}
           key: ${{ steps.cache-lib.outputs.cache-primary-key}}
 
       - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
           name: bitcoinkernel-${{ matrix.platform }}_${{ matrix.arch }}
-          path: build/_libs/libbitcoinkernel.so
-          if-no-files-found: error
-
-  build-windows:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Restore bitcoinkernel from cache
-        id: cache-lib
-        uses: actions/cache/restore@v4
-        with:
-          path: build/_libs/
-          key: bitcoinkernel-win_AMD64-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
-
-      - name: Install dependencies
-        if: steps.cache-lib.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update -y && \
-          sudo apt-get install g++-mingw-w64-x86-64-posix
-
-      - name: Build bitcoinkernel lib
-        if: steps.cache-lib.outputs.cache-hit != 'true'
-        run: |
-          cmake -B build -DBITCOIN_TARGET=x86_64-w64-mingw32
-          cmake --build build -j
-          cmake --install build
-
-      - name: Save lib cache
-        if: steps.cache-lib.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/_libs/
-          key: ${{ steps.cache-lib.outputs.cache-primary-key}}
-
-      - name: Upload Binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: bitcoinkernel-win_AMD64
-          path: build/_libs/libbitcoinkernel.dll
-          if-no-files-found: error
-
-  build-osx:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        include:
-          - arch: 'x86_64'
-          - arch: 'arm64'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Restore bitcoinkernel from cache
-        id: cache-lib
-        uses: actions/cache/restore@v4
-        with:
-          path: build/_libs
-          key: bitcoinkernel-macosx_${{ matrix.arch }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
-
-      - name: Install dependencies
-        if: steps.cache-lib.outputs.cache-hit != 'true'
-        run: |
-          brew install boost
-
-      - name: Build bitcoinkernel lib
-        if: steps.cache-lib.outputs.cache-hit != 'true'
-        run: |
-          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
-          cmake --build build -j
-          cmake --install build --strip
-
-      - name: Save lib cache
-        if: steps.cache-lib.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/_libs
-          key: ${{ steps.cache-lib.outputs.cache-primary-key}}
-
-      - name: Upload Binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: bitcoinkernel-macosx_${{ matrix.arch }}
-          path: build/_libs/libbitcoinkernel.dylib
+          path: ${{ env.BUILD_PATH }}/*
           if-no-files-found: error
 
   build-wheels:
-    needs: [build-linux, build-osx, build-windows]
+    needs: [build-lib]
     strategy:
       matrix:
         platform_config:
           - platform: 'win'
             arch: 'AMD64'
             os: 'windows-latest'
-            lib_path: 'lib/libbitcoinkernel.dll'
           - platform: 'macosx'
             arch: 'arm64'
             os: 'macos-latest'
-            lib_path: 'lib/libbitcoinkernel.dylib'
           - platform: 'macosx'
             arch: 'x86_64'
             os: 'macos-latest'
-            lib_path: 'lib/libbitcoinkernel.dylib'
           - platform: 'manylinux'
             arch: 'x86_64'
             os: 'ubuntu-latest'
-            lib_path: 'lib/libbitcoinkernel.so'
           - platform: 'musllinux'
             arch: 'x86_64'
             os: 'ubuntu-latest'
-            lib_path: 'lib/libbitcoinkernel.so'
     runs-on: ${{ matrix.platform_config.os }}
     env:
       PLATFORM_TAG: ${{ matrix.platform_config.platform }}_${{ matrix.platform_config.arch }}
@@ -170,14 +113,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bitcoinkernel-${{ env.PLATFORM_TAG }}
-          path: lib
+          path: build/_libs
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22
         env:
           CIBW_BUILD: "cp310-${{ env.PLATFORM_TAG }} cp311-${{ env.PLATFORM_TAG }} cp312-${{ env.PLATFORM_TAG }} cp313-${{ env.PLATFORM_TAG }}"
           CIBW_ARCHS: "${{ matrix.platform_config.arch }}"
-          CIBW_ENVIRONMENT: "BITCOINKERNEL_LIB=${{ matrix.platform_config.lib_path }}"
+          CIBW_ENVIRONMENT: "BITCOINKERNEL_LIB=build/_libs/*bitcoinkernel*"
           MACOSX_DEPLOYMENT_TARGET: 13.0
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           CIBW_MUSLLINUX_X86_64_IMAGE: "musllinux_1_2"
@@ -220,6 +163,8 @@ jobs:
 
       - name: Test SDist
         run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libboost-dev
           python -m pip install dist/*.tar.gz
           pytest
 
