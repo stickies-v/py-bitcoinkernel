@@ -25,6 +25,9 @@ test-extras = ["test"]
 [tool.scikit-build]
 wheel.packages = ["src/pbk"]
 wheel.install-dir = "pbk"
+sdist.include = [
+    "depend/bitcoin/src/univalue/lib/**",  # Otherwise this doesn't get included in the sdist
+]
 
 [project.optional-dependencies]
 test = [
