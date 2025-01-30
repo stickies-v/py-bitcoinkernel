@@ -6,22 +6,43 @@ project(py-bitcoinkernel
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}")
 
 include(ExternalProject)
+include(GNUInstallDirs)
+
+set(BITCOIN_TARGET "" CACHE STRING "Host triple for cross compilation, enables depends build if set")
 
 add_library(bitcoinkernel SHARED IMPORTED)
 if(DEFINED ENV{BITCOINKERNEL_LIB})
     message(STATUS "Using bitcoinkernel library from BITCOINKERNEL_LIB: $ENV{BITCOINKERNEL_LIB}")
     set(BITCOINKERNEL_PATH "$ENV{BITCOINKERNEL_LIB}")
 else()
-    message(STATUS "Building bitcoinkernel from source in depend/bitcoin/")
-    message(STATUS "Using toolchain for host: ${HOST_TUPLE}")
+    set(BITCOIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin")
+    message(STATUS "Building bitcoinkernel from source in ${BITCOIN_SOURCE_DIR}")
 
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin/CMakeLists.txt")
-        message(FATAL_ERROR "Bitcoin source not found in depend/bitcoin/. Please ensure the submodule is initialized.")
+    if(NOT EXISTS "${BITCOIN_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR "Bitcoin source not found in ${BITCOIN_SOURCE_DIR}. Please ensure the submodule is initialized.")
+    endif()
+
+    if(BITCOIN_TARGET)
+        set(DEPENDS_DIR "${BITCOIN_SOURCE_DIR}/depends")
+        message(STATUS "Building Bitcoin Core dependencies for target: ${BITCOIN_TARGET}")
+        ExternalProject_Add(bitcoin_depends
+            SOURCE_DIR "${DEPENDS_DIR}"
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND make -C "${DEPENDS_DIR}"
+                NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 
+                NO_LIBEVENT=1 NO_SQLITE=1 NO_BDB=1 
+                HOST=${BITCOIN_TARGET} -j${CMAKE_BUILD_PARALLEL_LEVEL}
+            BUILD_IN_SOURCE 1
+            INSTALL_COMMAND ""
+        )
+        set(TOOLCHAIN_ARG "--toolchain" "${DEPENDS_DIR}/${BITCOIN_TARGET}/toolchain.cmake")
+        set(BITCOIN_DEPENDS_ARG DEPENDS bitcoin_depends)
     endif()
 
     ExternalProject_Add(bitcoin_core
-        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/depend/bitcoin"
-        CMAKE_ARGS
+        ${BITCOIN_DEPENDS_ARG}
+        SOURCE_DIR "${BITCOIN_SOURCE_DIR}"
+        CONFIGURE_COMMAND ${CMAKE_COMMAND} ${TOOLCHAIN_ARG} <SOURCE_DIR>
             -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
             -DCMAKE_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR}
             -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
