@@ -45,7 +45,7 @@ There are two main ways to install `py-bitcoinkernel`:
 To install a pre-compiled wheel from PyPI, simply run:
 
 ```
-pip install --pre py-bitcoinkernel
+pip install py-bitcoinkernel
 ```
 
 ### Install from source
@@ -59,7 +59,7 @@ pip install .
 Alternatively, you can install the source distribution from PyPI:
 
 ```
-pip install --pre py-bitcoinkernel --no-binary :all:
+pip install py-bitcoinkernel --no-binary :all:
 ```
 
 > [!NOTE]
