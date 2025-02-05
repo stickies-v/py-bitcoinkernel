@@ -184,6 +184,11 @@ with open(filename, "wb") as f:
 `multiprocessing`. See [doc/concurrency.md](./doc/concurrency.md) for
 more information.
 
+## Testing
+
+See the [Developer Notes](./doc/developer-notes.md#testing) for more
+information on running the test suite.
+
 ## Limitations
 
 - `Bitcoin Core` requires exclusive access to its data directory. If you
