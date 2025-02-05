@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.22)
 project(py-bitcoinkernel
         VERSION 0.1)
 
-# Set install prefix to be relative to the build directory
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}")
-
 include(ExternalProject)
 include(GNUInstallDirs)
 
@@ -89,6 +86,6 @@ set_target_properties(bitcoinkernel PROPERTIES
 )
 
 install(FILES "${BITCOINKERNEL_PATH}"
-    DESTINATION "_libs"
+    DESTINATION "."
     COMPONENT Kernel
 )

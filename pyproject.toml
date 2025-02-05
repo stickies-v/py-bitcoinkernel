@@ -24,7 +24,7 @@ test-extras = ["test"]
 [tool.scikit-build]
 cmake.version = "CMakeLists.txt"
 wheel.packages = ["src/pbk"]
-wheel.install-dir = "pbk"
+wheel.install-dir = "pbk/_libs"
 sdist.include = [
     "depend/bitcoin/src/univalue/lib/**",  # Otherwise this doesn't get included in the sdist
 ]
