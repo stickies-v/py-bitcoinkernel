@@ -31,7 +31,7 @@ jobs:
         run: |
           cmake -B build
           cmake --build build -j
-          cmake --install build --strip
+          cmake --install build --prefix build/_libs/
 
       - name: Save lib cache
         if: steps.cache-lib.outputs.cache-hit != 'true'
