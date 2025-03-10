@@ -24,7 +24,7 @@ class BlockHash(KernelPtr):
 
 class BlockIndex(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError(
+        raise NotImplementedError(  # pragma: no cover
             "BlockIndex needs to be constructed via its `from_*` factory methods"
         )
 
@@ -41,7 +41,7 @@ class BlockIndex(KernelOpaquePtr):
             return self.height == other.height and self.block_hash == other.block_hash
         return False
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return f"BlockIndex(height={self.height}, hash={self.block_hash.hex})"
 
 
@@ -61,7 +61,9 @@ class Block(KernelOpaquePtr):
 
 class BlockUndo(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError("BlockUndo cannot be constructed directly")
+        raise NotImplementedError(
+            "BlockUndo cannot be constructed directly"
+        )  # pragma: no cover
 
     @property
     def transaction_count(self) -> int:

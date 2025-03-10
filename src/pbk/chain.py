@@ -119,21 +119,42 @@ def block_index_generator(
 ) -> typing.Generator[BlockIndex, typing.Any, None]:
     """Iterate over BlockIndexes from start (inclusive, defaults to genesis) to end (inclusive,
     defaults to chaintip).
+
+    @param start: BlockIndex or int. If int is provided, it represents the block height.
+                  Negative integers are supported and count backwards from the tip
+                  (e.g. -1 means the last block, -2 second to last, etc.).
+                  If None, starts from genesis block.
+    @param end: BlockIndex or int. If int is provided, it represents the block height.
+                Negative integers are supported and count backwards from the tip
+                (e.g. -1 means the last block, -2 second to last, etc.).
+                If None, ends at the current chain tip.
+    @return: Generator[BlockIndex, Any, None] that yields BlockIndex objects in sequence.
+             The sequence can go either forward or backward depending on whether
+             start.height <= end.height.
+    @raises IndexError: If the provided start or end heights are out of bounds
     """
     if start is None:
         start = chain_man.get_block_index_from_genesis()
     elif isinstance(start, int):
+        tip_height = chain_man.get_block_index_from_tip().height
         if start < 0:
-            start = chain_man.get_block_index_from_tip().height + start + 1
-            assert start >= 0
+            start = tip_height + start + 1
+        if start < 0 or start > tip_height:
+            raise IndexError(
+                f"Start height {start} is out of bounds for tip height {tip_height}"
+            )
         start = chain_man.get_block_index_from_height(start)
 
     if end is None:
         end = chain_man.get_block_index_from_tip()
     elif isinstance(end, int):
+        tip_height = chain_man.get_block_index_from_tip().height
         if end < 0:
-            end = chain_man.get_block_index_from_tip().height + end + 1
-            assert end >= 0
+            end = tip_height + end + 1
+        if end < 0 or end > tip_height:
+            raise IndexError(
+                f"End height {end} is out of bounds for tip height {tip_height}"
+            )
         end = chain_man.get_block_index_from_height(end)
 
     next = start
