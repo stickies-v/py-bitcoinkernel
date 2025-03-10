@@ -3,7 +3,7 @@
 [![versions](https://img.shields.io/pypi/pyversions/py-bitcoinkernel.svg)](https://github.com/stickies-v/py-bitcoinkernel)
 [![license](https://img.shields.io/github/license/stickies-v/py-bitcoinkernel.svg)](https://github.com/stickies-v/py-bitcoinkernel/blob/main/LICENSE)
 
-`py-bitcoinkernel` is a Python wrapper around
+`py-bitcoinkernel` (or `pbk` in short) is a Python wrapper around
 [`libbitcoinkernel`](https://github.com/bitcoin/bitcoin/pull/30595)
 providing a clean, Pythonic interface while handling the low-level
 ctypes bindings and memory management.
@@ -138,6 +138,10 @@ with open("raw_blocks.txt", "r") as file:
 
 ### Common operations
 
+> [!NOTE]
+> See [doc/examples](./doc/examples/) for more common usage examples of
+> `pbk`
+
 ChainstateManager exposes a range of functionality to interact with the
 chainstate. For example, to print the current block tip:
 
@@ -175,6 +179,10 @@ with open(filename, "wb") as f:
   want to use `py-bitcoinkernel` with an existing chainstate, you'll
   need to either first shut down `Bitcoin Core`, or clone the `blocks/`
   and `chainstate/` directories to a new location.
+- The `bitcoinkernel` API currently does not offer granular inspection
+  of most kernel objects. See [doc/examples](./doc/examples/) for ideas
+  on using third-party (de)serialization libraries to convert kernel
+  objects to/from bytes.
 
 ## Resources
 Some helpful resources for learning about `libbitcoinkernel`:
