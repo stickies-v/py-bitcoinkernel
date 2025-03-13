@@ -1,4 +1,6 @@
 import ctypes
+import inspect
+import typing
 from collections.abc import Callable
 from enum import IntEnum
 
@@ -36,8 +38,29 @@ def _simple_print(message: str):
     print(message, end="")
 
 
+def is_valid_log_callback(fn: typing.Any) -> bool:
+    """
+    Best-effort attempt to check that `fn` adheres to the
+    kernel_LogCallback signature.
+
+    It does not inspect the type of the parameter and return value.
+    """
+    if not callable(fn):
+        return False
+
+    fn_sig = inspect.signature(fn)
+    if len(fn_sig.parameters) != 1:
+        return False
+
+    return True
+
+
 class LoggingConnection(KernelOpaquePtr):
     def __init__(self, cb=_simple_print, user_data=None, opts=LoggingOptions()):
+        if not is_valid_log_callback(cb):
+            raise TypeError(
+                "Log callback must be a callable with 1 string parameter and no return value."
+            )
         self._cb = self._wrap_log_fn(cb)  # ensure lifetime
         self._user_data = user_data
         super().__init__(self._cb, user_data, opts)
