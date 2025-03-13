@@ -23,11 +23,20 @@ class LogCategory(IntEnum):
 
 
 class LoggingOptions(k.kernel_LoggingOptions):
-    log_timestamps: bool = True
-    log_time_micros: bool = False
-    log_threadnames: bool = False
-    log_sourcelocations: bool = False
-    always_print_category_levels: bool = False
+    def __init__(
+        self,
+        log_timestamps=True,
+        log_time_micros=False,
+        log_threadnames=False,
+        log_sourcelocations=False,
+        always_print_category_levels=False,
+    ):
+        super().__init__()
+        self.log_timestamps = log_timestamps
+        self.log_time_micros = log_time_micros
+        self.log_threadnames = log_threadnames
+        self.log_sourcelocations = log_sourcelocations
+        self.always_print_category_levels = always_print_category_levels
 
     @property
     def _as_parameter_(self):
