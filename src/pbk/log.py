@@ -14,7 +14,7 @@ class LogCategory(IntEnum):
     BLOCKSTORAGE = k.kernel_LOG_BLOCKSTORAGE
     COINDB = k.kernel_LOG_COINDB
     LEVELDB = k.kernel_LOG_LEVELDB
-    LOCK = k.kernel_LOG_LOCK
+    #  LOCK = k.kernel_LOG_LOCK  BCLog::LOCK only exists when compiled with DEBUG_LOCKCONTENTION, disable for now
     MEMPOOL = k.kernel_LOG_MEMPOOL
     PRUNE = k.kernel_LOG_PRUNE
     RAND = k.kernel_LOG_RAND
