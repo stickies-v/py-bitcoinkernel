@@ -7,7 +7,15 @@ from pbk.chain import (
     block_index_generator,
 )
 from pbk.context import Context, ContextOptions
-from pbk.log import LogCategory, LoggingConnection, LoggingOptions
+from pbk.log import (
+    LogCategory,
+    LogLevel,
+    LoggingConnection,
+    LoggingOptions,
+    add_log_level_category,
+    enable_log_category,
+    disable_log_category,
+)
 from pbk.script import (
     ScriptPubkey,
     ScriptFlags,
@@ -18,28 +26,32 @@ from pbk.script import (
 from pbk.transaction import Transaction, TransactionOutput, TransactionUndo
 
 __all__ = [
-    "Block",
     "BlockHash",
     "BlockIndex",
+    "Block",
     "BlockUndo",
     "ChainParameters",
     "ChainstateManager",
     "ChainstateManagerOptions",
     "ChainType",
-    "block_index_generator",
     "Context",
     "ContextOptions",
     "LogCategory",
+    "LogLevel",
     "LoggingConnection",
     "LoggingOptions",
-    "ScriptPubkey",
     "ScriptFlags",
+    "ScriptPubkey",
     "ScriptVerifyException",
     "ScriptVerifyStatus",
-    "verify_script",
     "Transaction",
     "TransactionOutput",
     "TransactionUndo",
+    "add_log_level_category",
+    "block_index_generator",
+    "disable_log_category",
+    "enable_log_category",
+    "verify_script",
 ]
 
 from pathlib import Path
