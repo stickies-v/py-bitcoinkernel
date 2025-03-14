@@ -1,8 +1,13 @@
 import ctypes
 import inspect
+import logging
+import re
 import typing
 from collections.abc import Callable
+from contextlib import contextmanager
+from datetime import datetime
 from enum import IntEnum
+from pathlib import Path
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
@@ -26,6 +31,18 @@ class LogLevel(IntEnum):
     INFO = k.kernel_LOG_INFO
     DEBUG = k.kernel_LOG_DEBUG
     #  TRACE = k.kernel_LOG_TRACE  # TRACE is not a python-native logging level, disable it for now
+
+
+KERNEL_LEVEL_TO_PYTHON = {  # numeric value
+    LogLevel.INFO: logging.INFO,  # 20
+    LogLevel.DEBUG: logging.DEBUG,  # 10
+}
+
+
+def kernel_level_from_python(python_level: int) -> LogLevel:
+    if python_level > KERNEL_LEVEL_TO_PYTHON[LogLevel.DEBUG]:
+        return LogLevel.INFO
+    return LogLevel.DEBUG
 
 
 class LoggingOptions(k.kernel_LoggingOptions):
@@ -109,3 +126,138 @@ class LoggingConnection(KernelOpaquePtr):
             return fn(ctypes.string_at(message, message_len).decode("utf-8"))
 
         return k.kernel_LogCallback(wrapped)
+
+
+class KernelLogViewer:
+    """
+    Pipes `bitcoinkernel` logging output into a named `logging.Logger`.
+
+    `KernelLogViewer` wraps a `logging.Logger` object, which can be
+    accessed through `logging.getLogger(name)` or through this class'
+    `getLogger()` method.
+
+    To prevent flooding logs and allow for fine-grained control,
+    `bitcoinkernel` assigns a category to each debug log message. To
+    view debug messages, initialize `KernelLogViewer` with a list of
+    categories (e.g.
+    `KernelLogViewer(categories=[pbk.LogCategory.VALIDATION])`) and
+    ensure the `logging` level is set to `logging.DEBUG` or lower.
+
+    A sublogger is created for each enabled category, and can be
+    accessed via this class' `getLogger()` method.
+    """
+
+    def __init__(
+        self,
+        name: str = "bitcoinkernel",
+        categories: typing.List[LogCategory] | None = None,
+    ):
+        self.name = name
+        self.categories = categories or []
+        self._logger = logging.getLogger(name)
+
+        # To simplify things, just set the level for to DEBUG for all
+        # log categories. This shouldn't have any effect until categories
+        # are actually enabled with enable_log_category.
+        add_log_level_category(LogCategory.ALL, LogLevel.DEBUG)
+        if categories is None:
+            categories = []
+        for category in categories:
+            enable_log_category(category)
+        self.conn = self._create_log_connection()
+
+    def getLogger(self, category: LogCategory | None = None) -> logging.Logger:
+        if category:
+            return self._logger.getChild(category.name.upper())
+        return self._logger
+
+    @contextmanager
+    def temporary_categories(self, categories: typing.List[LogCategory]):
+        """
+        Context manager that temporary enables `categories`, and
+        disables them again when the function exits. Categories that the
+        `KernelLogViewer` were initialized with remain enabled either
+        way.
+        """
+        [enable_log_category(category) for category in categories]
+        try:
+            yield
+        finally:
+            [
+                disable_log_category(category)
+                for category in categories
+                if category not in self.categories
+            ]
+
+    def _create_log_connection(self) -> LoggingConnection:
+        """TODO: avoid logging stuff the user doesn't need"""
+        log_opts = LoggingOptions(
+            log_timestamps=True,
+            log_time_micros=False,
+            log_threadnames=True,
+            log_sourcelocations=True,
+            always_print_category_levels=True,
+        )
+        conn = LoggingConnection(
+            cb=self._create_log_callback(self.getLogger()), opts=log_opts
+        )
+        return conn
+
+    @staticmethod
+    def _create_log_callback(logger: logging.Logger) -> typing.Callable[[str], None]:
+        def callback(msg: str) -> None:
+            try:
+                record = parse_kernel_log_string(logger.name, msg)
+                logger.handle(record)
+            except ValueError:
+                logging.getLogger().error(f"Failed to parse log message: {msg}")
+
+        return callback
+
+
+def parse_kernel_log_string(logger_name: str, log_string: str) -> logging.LogRecord:
+    pattern = r"""
+        ^([\d-]+T[\d:]+Z)              # timestamp
+        \s+\[([^\]]+)\]                # threadname
+        \s+\[([^\]]+)\]                # filepath:lineno
+        \s+\[([^\]]+)\]                # filename/function
+        \s+\[([^:]+):([^\]]+)\]        # category:level
+        \s+(.+)$                       # message
+    """
+    match = re.match(pattern, log_string, re.VERBOSE)
+    if not match:
+        raise ValueError(f"Log pattern matching failed: {log_string}")
+    timestamp, thread_name, source_loc, func_name, category, level, message = (
+        match.groups()
+    )
+    pathname, lineno = (
+        source_loc.rsplit(":", 1) if ":" in source_loc else (source_loc, 0)
+    )
+    filename = Path(pathname).name
+    if category.upper() != "ALL":
+        logger_name += f".{category.upper()}"
+    created = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").timestamp()
+    levels = {
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warning": logging.WARN,
+        "error": logging.ERROR,
+    }
+
+    record = logging.makeLogRecord(
+        {
+            "name": logger_name,
+            "levelno": levels.get(level.lower(), 0),
+            "levelname": level.upper(),
+            "filename": filename,
+            "pathname": pathname,
+            "lineno": int(lineno) if lineno and lineno.isdigit() else 0,
+            "msg": message,
+            "args": (),
+            "exc_info": None,
+            "funcName": func_name,
+            "created": created,
+            "threadName": thread_name,
+        }
+    )
+    return record
