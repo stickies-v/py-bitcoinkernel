@@ -10,6 +10,7 @@ from pbk.chain import (
 )
 from pbk.context import Context, ContextOptions
 from pbk.log import (
+    KernelLogViewer,
     LogCategory,
     LogLevel,
     LoggingConnection,
@@ -40,6 +41,7 @@ __all__ = [
     "ChainType",
     "Context",
     "ContextOptions",
+    "KernelLogViewer",
     "LogCategory",
     "LogLevel",
     "LoggingConnection",

@@ -1,7 +1,10 @@
 import ctypes
 import inspect
+import logging
+import re
 import typing
 from collections.abc import Callable
+from datetime import datetime
 from enum import IntEnum
 
 import pbk.capi.bindings as k
@@ -27,6 +30,18 @@ class LogLevel(IntEnum):
     INFO = k.kernel_LOG_INFO
     DEBUG = k.kernel_LOG_DEBUG
     #  TRACE = k.kernel_LOG_TRACE  # TRACE is not a python-native logging level, disable it for now
+
+
+KERNEL_LEVEL_TO_PYTHON = {  # numeric value
+    LogLevel.INFO: logging.INFO,  # 20
+    LogLevel.DEBUG: logging.DEBUG,  # 10
+}
+
+
+def kernel_level_from_python(python_level: int) -> LogLevel:
+    if python_level > KERNEL_LEVEL_TO_PYTHON[LogLevel.DEBUG]:
+        return LogLevel.INFO
+    return LogLevel.DEBUG
 
 
 class LoggingOptions(k.kernel_LoggingOptions):
@@ -110,3 +125,88 @@ class LoggingConnection(KernelOpaquePtr):
             return fn(ctypes.string_at(message, message_len).decode("utf-8"))
 
         return k.kernel_LogCallback(wrapped)
+
+
+class KernelLogViewer:
+    def __init__(
+        self,
+        name: str = "bitcoinkernel",
+        categories: typing.List[LogCategory] | None = None,
+    ):
+        self.name = name
+        self._logger = logging.getLogger(f"{name}.{LogCategory.ALL.name.upper()}")
+
+        if categories is None:
+            categories = []
+        for category in categories:
+            self._sync_kernel_logging(category)
+            self.enable_category(category)
+        self.conn = self.create_log_connection()
+
+    def getLogger(self, category: LogCategory | None = None) -> logging.Logger:
+        if category:
+            return self._logger.getChild(category.name.upper())
+        return self._logger
+
+    def handle(self, msg: str):
+        record = self.parse_kernel_log_string(msg)
+        self._logger.handle(record)
+
+    def enable_category(self, category: LogCategory):
+        enable_log_category(category)
+
+    def disable_category(self, category: LogCategory):
+        disable_log_category(category)
+
+    def parse_kernel_log_string(self, log_string: str) -> logging.LogRecord:
+        # pattern: <timestamp> [threadname] [filepath:lineno] [filename] [category:level] <msg>
+        pattern = r"^([\d-]+T[\d:]+Z) \[([^\]]+)\] \[([^\]]+)\] \[([^\]]+)\] \[([^:]+):([^\]]+)\] (.+)$"
+        match = re.match(pattern, log_string)
+        assert match, f"Log pattern matching failed: {log_string}"
+        timestamp, thread_name, source_loc, func_name, category, level, message = (
+            match.groups()
+        )
+        pathname, lineno = (
+            source_loc.rsplit(":", 1) if ":" in source_loc else (source_loc, 0)
+        )
+        created = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").timestamp()
+        kernel_level = LogLevel[level.upper()]
+        level_num = KERNEL_LEVEL_TO_PYTHON[kernel_level]
+
+        record = logging.makeLogRecord(
+            {
+                "name": f"{self.name}.{category.upper()}",
+                "levelno": level_num,
+                "levelname": level.upper(),
+                "pathname": pathname,
+                "lineno": int(lineno) if lineno and lineno.isdigit() else 0,
+                "msg": message,
+                "args": (),
+                "exc_info": None,
+                "func": func_name,
+                "created": created,
+                "threadName": thread_name,
+            }
+        )
+        return record
+
+    def create_log_connection(self) -> LoggingConnection:
+        log_opts = LoggingOptions(
+            log_timestamps=True,
+            log_time_micros=False,
+            log_threadnames=True,
+            log_sourcelocations=True,
+            always_print_category_levels=True,
+        )
+        conn = LoggingConnection(cb=self.handle, opts=log_opts)
+        return conn
+
+    def _sync_kernel_logging(self, category: LogCategory):
+        logger = self._logger.getChild(category.name.upper())
+        python_level = logger.getEffectiveLevel()
+        kernel_level = kernel_level_from_python(python_level)
+        if python_level > logging.DEBUG:
+            logging.getLogger().warning(
+                f"LogCategory {category.name.upper()} is set, but won't log anything unless global loglevel is set to DEBUG."
+            )
+        assert add_log_level_category(category, kernel_level)
