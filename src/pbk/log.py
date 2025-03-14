@@ -22,6 +22,12 @@ class LogCategory(IntEnum):
     KERNEL = k.kernel_LOG_KERNEL
 
 
+class LogLevel(IntEnum):
+    INFO = k.kernel_LOG_INFO
+    DEBUG = k.kernel_LOG_DEBUG
+    #  TRACE = k.kernel_LOG_TRACE  # TRACE is not a python-native logging level, disable it for now
+
+
 class LoggingOptions(k.kernel_LoggingOptions):
     def __init__(
         self,
@@ -62,6 +68,29 @@ def is_valid_log_callback(fn: typing.Any) -> bool:
         return False
 
     return True
+
+
+def add_log_level_category(category: LogCategory, level: LogLevel) -> None:
+    """
+    Set the log level of the global internal logger. This does not
+    enable the selected categories. Use `enable_log_category` to start
+    logging from a specific, or all categories.
+    """
+    k.kernel_add_log_level_category(category, level)
+
+
+def enable_log_category(category: LogCategory) -> None:
+    """
+    Enable a specific log category for the global internal logger.
+    """
+    k.kernel_enable_log_category(category)
+
+
+def disable_log_category(category: LogCategory) -> None:
+    """
+    Disable a specific log category for the global internal logger.
+    """
+    k.kernel_disable_log_category(category)
 
 
 class LoggingConnection(KernelOpaquePtr):
