@@ -1,8 +1,6 @@
 from pbk.block import Block, BlockHash, BlockIndex, BlockUndo
 from pbk.chain import (
-    BlockManagerOptions,
     ChainParameters,
-    ChainstateLoadOptions,
     ChainstateManager,
     ChainstateManagerOptions,
     ChainType,
@@ -24,9 +22,7 @@ __all__ = [
     "BlockHash",
     "BlockIndex",
     "BlockUndo",
-    "BlockManagerOptions",
     "ChainParameters",
-    "ChainstateLoadOptions",
     "ChainstateManager",
     "ChainstateManagerOptions",
     "ChainType",
@@ -78,11 +74,9 @@ def load_chainman(
     context = make_context(chain_type)
     blocksdir = datadir / "blocks"
 
-    block_man_opts = BlockManagerOptions(context, str(blocksdir.absolute()))
-    chain_man_opts = ChainstateManagerOptions(context, str(datadir.absolute()))
-    chain_load_opts = ChainstateLoadOptions()
-    chain_man = ChainstateManager(
-        context, chain_man_opts, block_man_opts, chain_load_opts
+    chain_man_opts = ChainstateManagerOptions(
+        context, str(datadir.absolute()), str(blocksdir.absolute())
     )
+    chain_man = ChainstateManager(context, chain_man_opts)
 
     return chain_man

@@ -23,27 +23,25 @@ class ChainParameters(KernelOpaquePtr):
         super().__init__(chain_type)
 
 
-class BlockManagerOptions(KernelOpaquePtr):
-    def __init__(self, context: "Context", blocksdir: str):
-        blocksdir_bytes = blocksdir.encode("utf-8")
-        super().__init__(context, blocksdir_bytes, len(blocksdir_bytes))
-
-
 class ChainstateManagerOptions(KernelOpaquePtr):
-    def __init__(self, context: "Context", datadir: str):
+    def __init__(self, context: "Context", datadir: str, blocks_dir: str):
         datadir_bytes = datadir.encode("utf-8")
-        super().__init__(context, datadir_bytes, len(datadir_bytes))
+        blocksdir_bytes = blocks_dir.encode("utf-8")
+        super().__init__(
+            context,
+            datadir_bytes,
+            len(datadir_bytes),
+            blocksdir_bytes,
+            len(blocksdir_bytes),
+        )
+
+    def set_wipe_dbs(self, wipe_block_tree_db: bool, wipe_chainstate_db: bool) -> bool:
+        return k.kernel_chainstate_manager_options_set_wipe_dbs(
+            self, wipe_block_tree_db, wipe_chainstate_db
+        )
 
     def set_worker_threads_num(self, worker_threads: int):
         k.kernel_chainstate_manager_options_set_worker_threads_num(self, worker_threads)
-
-
-class ChainstateLoadOptions(KernelOpaquePtr):
-    def set_wipe_block_tree_db(self, value: bool):
-        k.kernel_chainstate_load_options_set_wipe_block_tree_db(self, value)
-
-    def set_wipe_chainstate_db(self, value: bool):
-        k.kernel_chainstate_load_options_set_wipe_chainstate_db(self, value)
 
 
 class ChainstateManager(KernelOpaquePtr):
@@ -53,11 +51,9 @@ class ChainstateManager(KernelOpaquePtr):
         self,
         context: "Context",
         chain_man_opts: ChainstateManagerOptions,
-        block_man_opts: BlockManagerOptions,
-        chainstate_load_opts: ChainstateLoadOptions,
     ):
         self._context = context
-        super().__init__(context, chain_man_opts, block_man_opts, chainstate_load_opts)
+        super().__init__(context, chain_man_opts)
 
     def get_block_index_from_hash(self, hash: "BlockHash"):
         return BlockIndex._from_ptr(
