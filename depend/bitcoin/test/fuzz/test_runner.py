@@ -109,7 +109,7 @@ def main():
         logging.error("Must have fuzz executable built")
         sys.exit(1)
 
-    fuzz_bin=os.getenv("BITCOINFUZZ", default=os.path.join(config["environment"]["BUILDDIR"], 'src', 'test', 'fuzz', 'fuzz'))
+    fuzz_bin=os.getenv("BITCOINFUZZ", default=os.path.join(config["environment"]["BUILDDIR"], 'bin', 'fuzz'))
 
     # Build list of tests
     test_list_all = parse_test_list(
@@ -371,10 +371,6 @@ def run_once(*, fuzz_pool, corpus, test_list, src_dir, fuzz_bin, using_libfuzzer
     for future in as_completed(jobs):
         output, result, target = future.result()
         logging.debug(output)
-        if using_libfuzzer:
-            done_stat = [l for l in output.splitlines() if "DONE" in l]
-            assert len(done_stat) == 1
-            stats.append((target, done_stat[0]))
         try:
             result.check_returncode()
         except subprocess.CalledProcessError as e:
@@ -382,8 +378,12 @@ def run_once(*, fuzz_pool, corpus, test_list, src_dir, fuzz_bin, using_libfuzzer
                 logging.info(e.stdout)
             if e.stderr:
                 logging.info(e.stderr)
-            logging.info(f"Target {result.args} failed with exit code {e.returncode}")
+            logging.info(f"⚠️ Failure generated from target with exit code {e.returncode}: {result.args}")
             sys.exit(1)
+        if using_libfuzzer:
+            done_stat = [l for l in output.splitlines() if "DONE" in l]
+            assert len(done_stat) == 1
+            stats.append((target, done_stat[0]))
 
     if using_libfuzzer:
         print("Summary:")

@@ -432,8 +432,8 @@ RPC that, when enabled, logs the location and duration of each lock contention
 to the `debug.log` file.
 
 The `-DCMAKE_BUILD_TYPE=Debug` build option adds `-DDEBUG_LOCKCONTENTION` to the
-compiler flags. You may also enable it manually by building with `-DDEBUG_LOCKCONTENTION` added to your CPPFLAGS,
-i.e. `CPPFLAGS="-DDEBUG_LOCKCONTENTION"`, then build and run bitcoind.
+compiler flags. You may also enable it manually by building with `-DDEBUG_LOCKCONTENTION`
+added to your CPPFLAGS, i.e. `-DAPPEND_CPPFLAGS="-DDEBUG_LOCKCONTENTION"`.
 
 You can then use the `-debug=lock` configuration option at bitcoind startup or
 `bitcoin-cli logging '["lock"]'` at runtime to turn on lock contention logging.
@@ -475,10 +475,10 @@ which includes known Valgrind warnings in our dependencies that cannot be fixed
 in-tree. Example use:
 
 ```shell
-$ valgrind --suppressions=contrib/valgrind.supp build/src/test/test_bitcoin
+$ valgrind --suppressions=contrib/valgrind.supp build/bin/test_bitcoin
 $ valgrind --suppressions=contrib/valgrind.supp --leak-check=full \
-      --show-leak-kinds=all build/src/test/test_bitcoin --log_level=test_suite
-$ valgrind -v --leak-check=full build/src/bitcoind -printtoconsole
+      --show-leak-kinds=all build/bin/test_bitcoin --log_level=test_suite
+$ valgrind -v --leak-check=full build/bin/bitcoind -printtoconsole
 $ ./build/test/functional/test_runner.py --valgrind
 ```
 
@@ -1230,7 +1230,7 @@ Current subtrees include:
   - Upstream at https://github.com/bitcoin-core/ctaes ; maintained by Core contributors.
 
 - src/minisketch
-  - Upstream at https://github.com/sipa/minisketch ; maintained by Core contributors.
+  - Upstream at https://github.com/bitcoin-core/minisketch ; maintained by Core contributors.
 
 Upgrading LevelDB
 ---------------------

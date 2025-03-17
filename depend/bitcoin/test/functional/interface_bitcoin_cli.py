@@ -164,6 +164,9 @@ class TestBitcoinCli(BitcoinTestFramework):
         self.log.info("Test connecting with non-existing RPC cookie file")
         assert_raises_process_error(1, "Could not locate RPC credentials", self.nodes[0].cli('-rpccookiefile=does-not-exist', '-rpcpassword=').echo)
 
+        self.log.info("Test connecting without RPC cookie file and with password arg")
+        assert_equal(BLOCKS, self.nodes[0].cli('-norpccookiefile', f'-rpcuser={user}', f'-rpcpassword={password}').getblockcount())
+
         self.log.info("Test -getinfo with arguments fails")
         assert_raises_process_error(1, "-getinfo takes no arguments", self.nodes[0].cli('-getinfo').help)
 
@@ -275,6 +278,10 @@ class TestBitcoinCli(BitcoinTestFramework):
             assert 'Balances' not in cli_get_info_string
             assert_equal(cli_get_info['Wallet'], wallets[1])
             assert_equal(Decimal(cli_get_info['Balance']), amounts[1])
+
+            self.log.info("Test -getinfo -norpcwallet returns the same as -getinfo")
+            # Previously there was a bug where -norpcwallet was treated like -rpcwallet=0
+            assert_equal(self.nodes[0].cli('-getinfo', "-norpcwallet").send_cli(), cli_get_info_string)
 
             self.log.info("Test -getinfo with -rpcwallet=remaining-non-default-wallet returns only its balance")
             cli_get_info_string = self.nodes[0].cli('-getinfo', rpcwallet2).send_cli()

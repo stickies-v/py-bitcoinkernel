@@ -17,10 +17,7 @@ interface Mining $Proxy.wrap("interfaces::Mining") {
     isInitialBlockDownload @1 (context :Proxy.Context) -> (result: Bool);
     getTip @2 (context :Proxy.Context) -> (result: Common.BlockRef, hasResult: Bool);
     waitTipChanged @3 (context :Proxy.Context, currentTip: Data, timeout: Float64) -> (result: Common.BlockRef);
-    createNewBlock @4 (scriptPubKey: Data, options: BlockCreateOptions) -> (result: BlockTemplate);
-    processNewBlock @5 (context :Proxy.Context, block: Data) -> (newBlock: Bool, result: Bool);
-    getTransactionsUpdated @6 (context :Proxy.Context) -> (result: UInt32);
-    testBlockValidity @7 (context :Proxy.Context, block: Data, checkMerkleRoot: Bool) -> (state: BlockValidationState, result: Bool);
+    createNewBlock @4 (options: BlockCreateOptions) -> (result: BlockTemplate);
 }
 
 interface BlockTemplate $Proxy.wrap("interfaces::BlockTemplate") {
@@ -34,12 +31,18 @@ interface BlockTemplate $Proxy.wrap("interfaces::BlockTemplate") {
     getWitnessCommitmentIndex @7 (context: Proxy.Context) -> (result: Int32);
     getCoinbaseMerklePath @8 (context: Proxy.Context) -> (result: List(Data));
     submitSolution @9 (context: Proxy.Context, version: UInt32, timestamp: UInt32, nonce: UInt32, coinbase :Data) -> (result: Bool);
+    waitNext @10 (context: Proxy.Context, options: BlockWaitOptions) -> (result: BlockTemplate);
 }
 
 struct BlockCreateOptions $Proxy.wrap("node::BlockCreateOptions") {
     useMempool @0 :Bool $Proxy.name("use_mempool");
-    coinbaseMaxAdditionalWeight @1 :UInt64 $Proxy.name("coinbase_max_additional_weight");
+    blockReservedWeight @1 :UInt64 $Proxy.name("block_reserved_weight");
     coinbaseOutputMaxAdditionalSigops @2 :UInt64 $Proxy.name("coinbase_output_max_additional_sigops");
+}
+
+struct BlockWaitOptions $Proxy.wrap("node::BlockWaitOptions") {
+    timeout @0 : Float64 $Proxy.name("timeout");
+    feeThreshold @1 : Int64 $Proxy.name("fee_threshold");
 }
 
 # Note: serialization of the BlockValidationState C++ type is somewhat fragile

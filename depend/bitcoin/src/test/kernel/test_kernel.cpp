@@ -8,6 +8,7 @@
 #include <test/kernel/block_data.h>
 
 #include <cassert>
+#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -38,16 +39,18 @@ std::string random_string(uint32_t length)
     return random;
 }
 
-std::vector<unsigned char> hex_string_to_char_vec(const std::string& hex)
+std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
 {
     std::vector<unsigned char> bytes;
+    bytes.reserve(hex.length() / 2);
 
     for (size_t i{0}; i < hex.length(); i += 2) {
-        std::string byteString{hex.substr(i, 2)};
-        unsigned char byte = (char)std::strtol(byteString.c_str(), nullptr, 16);
-        bytes.push_back(byte);
+        unsigned char byte;
+        auto [ptr, ec] = std::from_chars(hex.data() + i, hex.data() + i + 2, byte, 16);
+        if (ec == std::errc{} && ptr == hex.data() + i + 2) {
+            bytes.push_back(byte);
+        }
     }
-
     return bytes;
 }
 
@@ -165,9 +168,6 @@ public:
                 break;
             case kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE:
                 std::cout << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_CHECKPOINT:
-                std::cout << "the block failed to meet one of our checkpoints" << std::endl;
                 break;
             }
             return;
@@ -315,15 +315,15 @@ void logging_test()
         .always_print_category_levels = true,
     };
 
-    assert(kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_BENCH, kernel_LogLevel::kernel_LOG_TRACE));
-    assert(kernel_disable_log_category(kernel_LogCategory::kernel_LOG_BENCH));
-    assert(kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION));
-    assert(kernel_disable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION));
+    kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_BENCH, kernel_LogLevel::kernel_LOG_TRACE);
+    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_BENCH);
+    kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
 
     // Check that connecting, connecting another, and then disconnecting and connecting a logger again works.
     {
-        assert(kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_KERNEL, kernel_LogLevel::kernel_LOG_TRACE));
-        assert(kernel_enable_log_category(kernel_LogCategory::kernel_LOG_KERNEL));
+        kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_KERNEL, kernel_LogLevel::kernel_LOG_TRACE);
+        kernel_enable_log_category(kernel_LogCategory::kernel_LOG_KERNEL);
         Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
         assert(logger);
         Logger logger_2{std::make_unique<TestLog>(TestLog{}), logging_options};
@@ -370,25 +370,12 @@ void chainman_test()
     TestKernelNotifications notifications{};
     auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
 
-    // Check that creating invalid options gives us an error
-    {
-        ChainstateManagerOptions opts{context, "////\\\\"};
-        assert(!opts);
-    }
-
-    {
-        BlockManagerOptions opts{context, "////\\\\"};
-        assert(!opts);
-    }
-
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory};
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(chainman_opts);
     chainman_opts.SetWorkerThreads(4);
-    BlockManagerOptions blockman_opts{context, test_directory.m_directory / "blocks"};
-    assert(blockman_opts);
-    ChainstateLoadOptions chainstate_load_opts{};
-
-    ChainMan chainman{context, chainman_opts, blockman_opts, chainstate_load_opts};
+    assert(chainman_opts.SetWipeDbs(/*wipe_block_tree=*/false, /*wipe_chainstate=*/false));
+    assert(!chainman_opts.SetWipeDbs(/*wipe_block_tree=*/true, /*wipe_chainstate=*/false));
+    ChainMan chainman{context, chainman_opts};
     assert(chainman);
 }
 
@@ -399,25 +386,23 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
                                           bool chainstate_db_in_memory,
                                           Context& context)
 {
-    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory};
-    BlockManagerOptions blockman_opts{context, test_directory.m_directory / "blocks"};
-    ChainstateLoadOptions chainstate_load_opts{};
+    ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
+    assert(chainman_opts);
 
     if (reindex) {
-        chainstate_load_opts.SetWipeBlockTreeDb(reindex);
-        chainstate_load_opts.SetWipeChainstateDb(reindex);
+        chainman_opts.SetWipeDbs(/*wipe_block_tree=*/reindex, /*wipe_chainstate=*/reindex);
     }
     if (wipe_chainstate) {
-        chainstate_load_opts.SetWipeChainstateDb(wipe_chainstate);
+        chainman_opts.SetWipeDbs(/*wipe_block_tree=*/false, /*wipe_chainstate=*/wipe_chainstate);
     }
     if (block_tree_db_in_memory) {
-        chainstate_load_opts.SetBlockTreeDbInMemory(block_tree_db_in_memory);
+        chainman_opts.SetBlockTreeDbInMemory(block_tree_db_in_memory);
     }
     if (chainstate_db_in_memory) {
-        chainstate_load_opts.SetChainstateDbInMemory(chainstate_db_in_memory);
+        chainman_opts.SetChainstateDbInMemory(chainstate_db_in_memory);
     }
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts, blockman_opts, chainstate_load_opts)};
+    auto chainman{std::make_unique<ChainMan>(context, chainman_opts)};
     assert(chainman);
     return chainman;
 }
@@ -588,7 +573,7 @@ void chainman_reindex_chainstate_test(TestDirectory& test_directory)
     auto chainman{create_chainman(test_directory, false, true, false, false, context)};
 
     std::vector<std::string> import_files;
-    import_files.push_back(test_directory.m_directory / "blocks" / "blk00000.dat");
+    import_files.push_back((test_directory.m_directory / "blocks" / "blk00000.dat").string());
     chainman->ImportBlocks(import_files);
 }
 
