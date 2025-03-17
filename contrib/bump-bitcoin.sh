@@ -46,7 +46,7 @@ git subtree pull --prefix=depend/bitcoin https://github.com/bitcoin/bitcoin "$CO
 
 echo "Subtree pulled successfully."
 
-cmake --B build
+cmake -B build
 cmake --build build -j
 
 # Install and capture library path
