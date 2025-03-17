@@ -63,10 +63,9 @@ else()
             -DBUILD_UTIL_CHAINSTATE=OFF
             -DBUILD_WALLET_TOOL=OFF
             -DENABLE_WALLET=OFF
-            -DWITH_SQLITE=OFF
         BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target bitcoinkernel
         INSTALL_COMMAND
-            ${CMAKE_COMMAND} --install <BINARY_DIR> --strip --component Kernel
+            ${CMAKE_COMMAND} --install <BINARY_DIR> --strip --component libbitcoinkernel
     )
 
     # Create imported target for bitcoinkernel
