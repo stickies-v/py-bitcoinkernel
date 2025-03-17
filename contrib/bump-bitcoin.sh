@@ -53,11 +53,6 @@ cmake --build build -j
 INSTALL_OUTPUT=$(sudo cmake --install build 2>&1)
 LIB_PATH=$(echo "$INSTALL_OUTPUT" | grep -Eo '/[^ ]+\.(so|dylib|dll)') || true
 
-NM_OPTION=""
-if [[ "${OSTYPE}" == "darwin"* ]]; then
-    NM_OPTION="--nm $SCRIPT_DIR/nm_patch.py"
-fi
-
 if [ -z "$LIB_PATH" ]; then
     echo "Error: Library path not found."
     exit 1
@@ -69,6 +64,6 @@ if [ -f "$OUTPUT_FILE" ]; then
     echo "Warning: $OUTPUT_FILE already exists and will be overwritten."
 fi
 
-clang2py "$SCRIPT_DIR/../depend/bitcoin/src/kernel/bitcoinkernel.h" -l "$LIB_PATH" $NM_OPTION > "$OUTPUT_FILE"
+clang2py "$SCRIPT_DIR/../depend/bitcoin/src/kernel/bitcoinkernel.h" -l "$LIB_PATH" > "$OUTPUT_FILE"
 
 echo "Bindings generated successfully at $OUTPUT_FILE."
