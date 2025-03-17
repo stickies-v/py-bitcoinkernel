@@ -3,7 +3,6 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "builtin-baseline": "c82f74667287d3dc386bce81e44964370c91a289",
   "dependencies": [
-    "boost-date-time",
     "boost-multi-index",
     "boost-signals2",
     "libevent"
@@ -12,6 +11,7 @@
     "qt5",
     "tests",
     "wallet",
+    "berkeleydb",
     "zeromq"
   ],
   "features": {
@@ -29,12 +29,6 @@
         "libqrencode"
       ]
     },
-    "sqlite": {
-      "description": "Enable SQLite wallet support",
-      "dependencies": [
-        "sqlite3"
-      ]
-    },
     "tests": {
       "description": "Build test_bitcoin.exe executable",
       "dependencies": [
@@ -42,9 +36,8 @@
       ]
     },
     "wallet": {
-      "description": "Enable wallet",
+      "description": "Enable wallet (SQLite)",
       "dependencies": [
-        "berkeleydb",
         "sqlite3"
       ]
     },

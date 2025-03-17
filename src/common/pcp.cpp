@@ -84,7 +84,7 @@ constexpr uint8_t NATPMP_RESULT_UNSUPP_VERSION = 1;
 constexpr uint8_t NATPMP_RESULT_NO_RESOURCES = 4;
 
 //! Mapping of NATPMP result code to string (RFC6886 3.5). Result codes <=2 match PCP.
-const std::map<uint8_t, std::string> NATPMP_RESULT_STR{
+const std::map<uint16_t, std::string> NATPMP_RESULT_STR{
     {0,  "SUCCESS"},
     {1,  "UNSUPP_VERSION"},
     {2,  "NOT_AUTHORIZED"},
@@ -165,7 +165,7 @@ const std::map<uint8_t, std::string> PCP_RESULT_STR{
 };
 
 //! Return human-readable string from NATPMP result code.
-std::string NATPMPResultString(uint8_t result_code)
+std::string NATPMPResultString(uint16_t result_code)
 {
     auto result_i = NATPMP_RESULT_STR.find(result_code);
     return strprintf("%s (code %d)", result_i == NATPMP_RESULT_STR.end() ? "(unknown)" : result_i->second,  result_code);
@@ -235,9 +235,9 @@ std::optional<std::vector<uint8_t>> PCPSendRecv(Sock &sock, const std::string &p
         }
 
         // Wait for response(s) until we get a valid response, a network error, or time out.
-        auto cur_time = time_point_cast<milliseconds>(steady_clock::now());
+        auto cur_time = time_point_cast<milliseconds>(MockableSteadyClock::now());
         auto deadline = cur_time + timeout_per_try;
-        while ((cur_time = time_point_cast<milliseconds>(steady_clock::now())) < deadline) {
+        while ((cur_time = time_point_cast<milliseconds>(MockableSteadyClock::now())) < deadline) {
             Sock::Event occurred = 0;
             if (!sock.Wait(deadline - cur_time, Sock::RECV, &occurred)) {
                 LogPrintLevel(BCLog::NET, BCLog::Level::Warning, "%s: Could not wait on socket: %s\n", protocol, NetworkErrorString(WSAGetLastError()));
@@ -426,7 +426,7 @@ std::variant<MappingResult, MappingError> PCPRequestPortMap(const PCPMappingNonc
         return MappingError::NETWORK_ERROR;
     }
     CService internal;
-    if (!internal.SetSockAddr((struct sockaddr*)&internal_addr)) return MappingError::NETWORK_ERROR;
+    if (!internal.SetSockAddr((struct sockaddr*)&internal_addr, internal_addrlen)) return MappingError::NETWORK_ERROR;
     LogPrintLevel(BCLog::NET, BCLog::Level::Debug, "pcp: Internal address after connect: %s\n", internal.ToStringAddr());
 
     // Build request packet. Make sure the packet is zeroed so that reserved fields are zero
@@ -512,7 +512,7 @@ std::variant<MappingResult, MappingError> PCPRequestPortMap(const PCPMappingNonc
     return MappingResult(PCP_VERSION, CService(internal, port), CService(external_addr, external_port), lifetime_ret);
 }
 
-std::string MappingResult::ToString()
+std::string MappingResult::ToString() const
 {
     Assume(version == NATPMP_VERSION || version == PCP_VERSION);
     return strprintf("%s:%s -> %s (for %ds)",

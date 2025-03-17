@@ -103,7 +103,7 @@ void IpcPipeTest()
     BOOST_CHECK_EQUAL(std::string_view(vec1.begin(), vec1.end()), std::string_view(vec2.begin(), vec2.end()));
 
     BlockValidationState bs1;
-    bs1.Invalid(BlockValidationResult::BLOCK_CHECKPOINT, "reject reason", "debug message");
+    bs1.Invalid(BlockValidationResult::BLOCK_MUTATED, "reject reason", "debug message");
     BlockValidationState bs2{foo->passBlockState(bs1)};
     BOOST_CHECK_EQUAL(bs1.IsValid(), bs2.IsValid());
     BOOST_CHECK_EQUAL(bs1.IsError(), bs2.IsError());
@@ -120,6 +120,10 @@ void IpcPipeTest()
     BOOST_CHECK_EQUAL(static_cast<int>(bs3.GetResult()), static_cast<int>(bs4.GetResult()));
     BOOST_CHECK_EQUAL(bs3.GetRejectReason(), bs4.GetRejectReason());
     BOOST_CHECK_EQUAL(bs3.GetDebugMessage(), bs4.GetDebugMessage());
+
+    auto script1{CScript() << OP_11};
+    auto script2{foo->passScript(script1)};
+    BOOST_CHECK_EQUAL(HexStr(script1), HexStr(script2));
 
     // Test cleanup: disconnect pipe and join thread
     disconnect_client();

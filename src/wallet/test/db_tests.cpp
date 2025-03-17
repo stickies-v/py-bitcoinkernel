@@ -13,9 +13,7 @@
 #ifdef USE_BDB
 #include <wallet/bdb.h>
 #endif
-#ifdef USE_SQLITE
 #include <wallet/sqlite.h>
-#endif
 #include <wallet/migrate.h>
 #include <wallet/test/util.h>
 #include <wallet/walletutil.h> // for WALLET_FLAG_DESCRIPTORS
@@ -34,9 +32,9 @@ inline std::ostream& operator<<(std::ostream& os, const std::pair<const Serializ
 
 namespace wallet {
 
-static Span<const std::byte> StringBytes(std::string_view str)
+inline std::span<const std::byte> StringBytes(std::string_view str)
 {
-    return AsBytes<const char>({str.data(), str.size()});
+    return std::as_bytes(std::span{str});
 }
 
 static SerializeData StringData(std::string_view str)
@@ -62,6 +60,7 @@ static void CheckPrefix(DatabaseBatch& batch, Span<const std::byte> prefix, Mock
 
 BOOST_FIXTURE_TEST_SUITE(db_tests, BasicTestingSetup)
 
+#ifdef USE_BDB
 static std::shared_ptr<BerkeleyEnvironment> GetWalletEnv(const fs::path& path, fs::path& database_filename)
 {
     fs::path data_file = BDBDataFile(path);
@@ -124,6 +123,7 @@ BOOST_AUTO_TEST_CASE(getwalletenv_g_dbenvs_free_instance)
     BOOST_CHECK(env_1_a != env_1_b);
     BOOST_CHECK(env_2_a == env_2_b);
 }
+#endif
 
 static std::vector<std::unique_ptr<WalletDatabase>> TestDatabases(const fs::path& path_root)
 {
@@ -136,9 +136,7 @@ static std::vector<std::unique_ptr<WalletDatabase>> TestDatabases(const fs::path
     // Needs BDB to make the DB to read
     dbs.emplace_back(std::make_unique<BerkeleyRODatabase>(BDBDataFile(path_root / "bdb"), /*open=*/false));
 #endif
-#ifdef USE_SQLITE
     dbs.emplace_back(MakeSQLiteDatabase(path_root / "sqlite", options, status, error));
-#endif
     dbs.emplace_back(CreateMockableWalletDatabase());
     return dbs;
 }
@@ -291,8 +289,6 @@ BOOST_AUTO_TEST_CASE(erase_prefix)
     }
 }
 
-#ifdef USE_SQLITE
-
 // Test-only statement execution error
 constexpr int TEST_SQLITE_ERROR = -999;
 
@@ -383,7 +379,6 @@ BOOST_AUTO_TEST_CASE(concurrent_txn_dont_interfere)
     BOOST_CHECK(handler2->Read(key, read_value));
     BOOST_CHECK_EQUAL(read_value, value2);
 }
-#endif // USE_SQLITE
 
 BOOST_AUTO_TEST_SUITE_END()
 } // namespace wallet

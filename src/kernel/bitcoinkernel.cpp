@@ -2,12 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#define BITCOINKERNEL_BUILD
+
 #include <kernel/bitcoinkernel.h>
 
 #include <chain.h>
 #include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
+#include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
@@ -15,7 +18,6 @@
 #include <kernel/warning.h>
 #include <logging.h>
 #include <node/blockstorage.h>
-#include <node/caches.h>
 #include <node/chainstate.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -71,60 +73,57 @@ bool is_valid_flag_combination(unsigned int flags)
     return true;
 }
 
-std::string log_level_to_string(const kernel_LogLevel level)
+BCLog::Level get_bclog_level(const kernel_LogLevel level)
 {
     switch (level) {
     case kernel_LogLevel::kernel_LOG_INFO: {
-        return "info";
+        return BCLog::Level::Info;
     }
     case kernel_LogLevel::kernel_LOG_DEBUG: {
-        return "debug";
+        return BCLog::Level::Debug;
     }
     case kernel_LogLevel::kernel_LOG_TRACE: {
-        return "trace";
+        return BCLog::Level::Trace;
     }
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
 
-std::string log_category_to_string(const kernel_LogCategory category)
+BCLog::LogFlags get_bclog_flag(const kernel_LogCategory category)
 {
     switch (category) {
     case kernel_LogCategory::kernel_LOG_BENCH: {
-        return "bench";
+        return BCLog::LogFlags::BENCH;
     }
     case kernel_LogCategory::kernel_LOG_BLOCKSTORAGE: {
-        return "blockstorage";
+        return BCLog::LogFlags::BLOCKSTORAGE;
     }
     case kernel_LogCategory::kernel_LOG_COINDB: {
-        return "coindb";
+        return BCLog::LogFlags::COINDB;
     }
     case kernel_LogCategory::kernel_LOG_LEVELDB: {
-        return "leveldb";
-    }
-    case kernel_LogCategory::kernel_LOG_LOCK: {
-        return "lock";
+        return BCLog::LogFlags::LEVELDB;
     }
     case kernel_LogCategory::kernel_LOG_MEMPOOL: {
-        return "mempool";
+        return BCLog::LogFlags::MEMPOOL;
     }
     case kernel_LogCategory::kernel_LOG_PRUNE: {
-        return "prune";
+        return BCLog::LogFlags::PRUNE;
     }
     case kernel_LogCategory::kernel_LOG_RAND: {
-        return "rand";
+        return BCLog::LogFlags::RAND;
     }
     case kernel_LogCategory::kernel_LOG_REINDEX: {
-        return "reindex";
+        return BCLog::LogFlags::REINDEX;
     }
     case kernel_LogCategory::kernel_LOG_VALIDATION: {
-        return "validation";
+        return BCLog::LogFlags::VALIDATION;
     }
     case kernel_LogCategory::kernel_LOG_KERNEL: {
-        return "kernel";
+        return BCLog::LogFlags::KERNEL;
     }
     case kernel_LogCategory::kernel_LOG_ALL: {
-        return "all";
+        return BCLog::LogFlags::ALL;
     }
     } // no default case, so the compiler can warn about missing cases
     assert(false);
@@ -147,7 +146,7 @@ kernel_Warning cast_kernel_warning(kernel::Warning warning)
 {
     switch (warning) {
     case kernel::Warning::UNKNOWN_NEW_RULES_ACTIVATED:
-        return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
+        return kernel_Warning::kernel_UNKNOWN_NEW_RULES_ACTIVATED;
     case kernel::Warning::LARGE_WORK_INVALID_CHAIN:
         return kernel_Warning::kernel_LARGE_WORK_INVALID_CHAIN;
     } // no default case, so the compiler can warn about missing cases
@@ -167,32 +166,32 @@ public:
 
     kernel::InterruptResult blockTip(SynchronizationState state, CBlockIndex& index) override
     {
-        if (m_cbs.block_tip) m_cbs.block_tip((void*) m_cbs.user_data, cast_state(state), reinterpret_cast<const kernel_BlockIndex*>(&index));
+        if (m_cbs.block_tip) m_cbs.block_tip((void*)m_cbs.user_data, cast_state(state), reinterpret_cast<const kernel_BlockIndex*>(&index));
         return {};
     }
     void headerTip(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
     {
-        if (m_cbs.header_tip) m_cbs.header_tip((void*) m_cbs.user_data, cast_state(state), height, timestamp, presync);
+        if (m_cbs.header_tip) m_cbs.header_tip((void*)m_cbs.user_data, cast_state(state), height, timestamp, presync);
     }
     void progress(const bilingual_str& title, int progress_percent, bool resume_possible) override
     {
-        if (m_cbs.progress) m_cbs.progress((void*) m_cbs.user_data, title.original.c_str(), title.original.length(), progress_percent, resume_possible);
+        if (m_cbs.progress) m_cbs.progress((void*)m_cbs.user_data, title.original.c_str(), title.original.length(), progress_percent, resume_possible);
     }
     void warningSet(kernel::Warning id, const bilingual_str& message) override
     {
-        if (m_cbs.warning_set) m_cbs.warning_set((void*) m_cbs.user_data, cast_kernel_warning(id), message.original.c_str(), message.original.length());
+        if (m_cbs.warning_set) m_cbs.warning_set((void*)m_cbs.user_data, cast_kernel_warning(id), message.original.c_str(), message.original.length());
     }
     void warningUnset(kernel::Warning id) override
     {
-        if (m_cbs.warning_unset) m_cbs.warning_unset((void*) m_cbs.user_data, cast_kernel_warning(id));
+        if (m_cbs.warning_unset) m_cbs.warning_unset((void*)m_cbs.user_data, cast_kernel_warning(id));
     }
     void flushError(const bilingual_str& message) override
     {
-        if (m_cbs.flush_error) m_cbs.flush_error((void*) m_cbs.user_data, message.original.c_str(), message.original.length());
+        if (m_cbs.flush_error) m_cbs.flush_error((void*)m_cbs.user_data, message.original.c_str(), message.original.length());
     }
     void fatalError(const bilingual_str& message) override
     {
-        if (m_cbs.fatal_error) m_cbs.fatal_error((void*) m_cbs.user_data, message.original.c_str(), message.original.length());
+        if (m_cbs.fatal_error) m_cbs.fatal_error((void*)m_cbs.user_data, message.original.c_str(), message.original.length());
     }
 };
 
@@ -207,7 +206,7 @@ protected:
     void BlockChecked(const CBlock& block, const BlockValidationState& stateIn) override
     {
         if (m_cbs.block_checked) {
-            m_cbs.block_checked((void*) m_cbs.user_data,
+            m_cbs.block_checked((void*)m_cbs.user_data,
                                 reinterpret_cast<const kernel_BlockPointer*>(&block),
                                 reinterpret_cast<const kernel_BlockValidationState*>(&stateIn));
         }
@@ -269,6 +268,31 @@ public:
     }
 };
 
+//! Helper struct to wrap the ChainstateManager-related Options
+struct ChainstateManagerOptions {
+    ChainstateManager::Options m_chainman_options;
+    node::BlockManager::Options m_blockman_options;
+    node::ChainstateLoadOptions m_chainstate_load_options;
+
+    ChainstateManagerOptions(const Context* context, const fs::path& data_dir, const fs::path& blocks_dir)
+        : m_chainman_options{ChainstateManager::Options{
+              .chainparams = *context->m_chainparams,
+              .datadir = data_dir,
+              .notifications = *context->m_notifications,
+              .signals = context->m_signals.get()}},
+          m_blockman_options{node::BlockManager::Options{
+              .chainparams = *context->m_chainparams,
+              .blocks_dir = blocks_dir,
+              .notifications = *context->m_notifications,
+              .block_tree_db_params = DBParams{
+                  .path = data_dir / "blocks" / "index",
+                  .cache_bytes = kernel::CacheSizes{DEFAULT_KERNEL_CACHE}.block_tree_db,
+              }}},
+          m_chainstate_load_options{node::ChainstateLoadOptions{}}
+    {
+    }
+};
+
 const CTransaction* cast_transaction(const kernel_Transaction* transaction)
 {
     assert(transaction);
@@ -305,6 +329,12 @@ const CChainParams* cast_const_chain_params(const kernel_ChainParameters* chain_
     return reinterpret_cast<const CChainParams*>(chain_params);
 }
 
+CChainParams* cast_chain_params(kernel_ChainParameters* chain_params)
+{
+    assert(chain_params);
+    return reinterpret_cast<CChainParams*>(chain_params);
+}
+
 Context* cast_context(kernel_Context* context)
 {
     assert(context);
@@ -317,40 +347,22 @@ const Context* cast_const_context(const kernel_Context* context)
     return reinterpret_cast<const Context*>(context);
 }
 
-const ChainstateManager::Options* cast_const_chainstate_manager_options(const kernel_ChainstateManagerOptions* options)
+const ChainstateManagerOptions* cast_const_chainstate_manager_options(const kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<const ChainstateManager::Options*>(options);
+    return reinterpret_cast<const ChainstateManagerOptions*>(options);
 }
 
-ChainstateManager::Options* cast_chainstate_manager_options(kernel_ChainstateManagerOptions* options)
+ChainstateManagerOptions* cast_chainstate_manager_options(kernel_ChainstateManagerOptions* options)
 {
     assert(options);
-    return reinterpret_cast<ChainstateManager::Options*>(options);
-}
-
-const node::BlockManager::Options* cast_const_block_manager_options(const kernel_BlockManagerOptions* options)
-{
-    assert(options);
-    return reinterpret_cast<const node::BlockManager::Options*>(options);
+    return reinterpret_cast<ChainstateManagerOptions*>(options);
 }
 
 ChainstateManager* cast_chainstate_manager(kernel_ChainstateManager* chainman)
 {
     assert(chainman);
     return reinterpret_cast<ChainstateManager*>(chainman);
-}
-
-node::ChainstateLoadOptions* cast_chainstate_load_options(kernel_ChainstateLoadOptions* options)
-{
-    assert(options);
-    return reinterpret_cast<node::ChainstateLoadOptions*>(options);
-}
-
-const node::ChainstateLoadOptions* cast_const_chainstate_load_options(const kernel_ChainstateLoadOptions* options)
-{
-    assert(options);
-    return reinterpret_cast<const node::ChainstateLoadOptions*>(options);
 }
 
 std::shared_ptr<CBlock>* cast_cblocksharedpointer(kernel_Block* block)
@@ -382,6 +394,13 @@ const CBlockUndo* cast_const_block_undo(const kernel_BlockUndo* undo)
     assert(undo);
     return reinterpret_cast<const CBlockUndo*>(undo);
 }
+
+CBlockUndo* cast_block_undo(kernel_BlockUndo* undo)
+{
+    assert(undo);
+    return reinterpret_cast<CBlockUndo*>(undo);
+}
+
 
 } // namespace
 
@@ -445,12 +464,12 @@ void kernel_transaction_output_destroy(kernel_TransactionOutput* output)
 }
 
 bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
-                         const int64_t amount_,
-                         const kernel_Transaction* tx_to,
-                         const kernel_TransactionOutput** spent_outputs_, size_t spent_outputs_len,
-                         const unsigned int input_index,
-                         const unsigned int flags,
-                         kernel_ScriptVerifyStatus* status)
+                          const int64_t amount_,
+                          const kernel_Transaction* tx_to,
+                          const kernel_TransactionOutput** spent_outputs_, size_t spent_outputs_len,
+                          const unsigned int input_index,
+                          const unsigned int flags,
+                          kernel_ScriptVerifyStatus* status)
 {
     const CAmount amount{amount_};
     const auto& script_pubkey{*cast_script_pubkey(script_pubkey_)};
@@ -502,24 +521,23 @@ bool kernel_verify_script(const kernel_ScriptPubkey* script_pubkey_,
                         nullptr);
 }
 
-bool kernel_add_log_level_category(const kernel_LogCategory category, const kernel_LogLevel level_)
+void kernel_add_log_level_category(const kernel_LogCategory category, const kernel_LogLevel level)
 {
-    const auto level{log_level_to_string(level_)};
     if (category == kernel_LogCategory::kernel_LOG_ALL) {
-        return LogInstance().SetLogLevel(level);
+        LogInstance().SetLogLevel(get_bclog_level(level));
     }
 
-    return LogInstance().SetCategoryLogLevel(log_category_to_string(category), level);
+    LogInstance().AddCategoryLogLevel(get_bclog_flag(category), get_bclog_level(level));
 }
 
-bool kernel_enable_log_category(const kernel_LogCategory category)
+void kernel_enable_log_category(const kernel_LogCategory category)
 {
-    return LogInstance().EnableCategory(log_category_to_string(category));
+    LogInstance().EnableCategory(get_bclog_flag(category));
 }
 
-bool kernel_disable_log_category(const kernel_LogCategory category)
+void kernel_disable_log_category(const kernel_LogCategory category)
 {
-    return LogInstance().DisableCategory(log_category_to_string(category));
+    LogInstance().DisableCategory(get_bclog_flag(category));
 }
 
 void kernel_disable_logging()
@@ -537,7 +555,7 @@ kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback ca
     LogInstance().m_log_sourcelocations = options.log_sourcelocations;
     LogInstance().m_always_print_category_level = options.always_print_category_levels;
 
-    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback((void*) user_data, str.c_str(), str.length()); })};
+    auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback((void*)user_data, str.c_str(), str.length()); })};
 
     try {
         // Only start logging if we just added the connection.
@@ -546,7 +564,7 @@ kernel_LoggingConnection* kernel_logging_connection_create(kernel_LogCallback ca
             LogInstance().DeleteCallback(connection);
             return nullptr;
         }
-    } catch (std::exception& e) {
+    } catch (std::exception&) {
         LogError("Logger start failed.");
         LogInstance().DeleteCallback(connection);
         return nullptr;
@@ -576,32 +594,37 @@ void kernel_logging_connection_destroy(kernel_LoggingConnection* connection_)
     }
 }
 
-const kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
+kernel_ChainParameters* kernel_chain_parameters_create(const kernel_ChainType chain_type)
 {
     switch (chain_type) {
     case kernel_ChainType::kernel_CHAIN_TYPE_MAINNET: {
-        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::Main().release());
+        CChainParams* params = new CChainParams(*CChainParams::Main());
+        return reinterpret_cast<kernel_ChainParameters*>(params);
     }
     case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET: {
-        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::TestNet().release());
+        CChainParams* params = new CChainParams(*CChainParams::TestNet());
+        return reinterpret_cast<kernel_ChainParameters*>(params);
     }
     case kernel_ChainType::kernel_CHAIN_TYPE_TESTNET_4: {
-        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::TestNet4().release());
+        CChainParams* params = new CChainParams(*CChainParams::TestNet4());
+        return reinterpret_cast<kernel_ChainParameters*>(params);
     }
     case kernel_ChainType::kernel_CHAIN_TYPE_SIGNET: {
-        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::SigNet({}).release());
+        CChainParams* params = new CChainParams(*CChainParams::SigNet({}));
+        return reinterpret_cast<kernel_ChainParameters*>(params);
     }
     case kernel_ChainType::kernel_CHAIN_TYPE_REGTEST: {
-        return reinterpret_cast<const kernel_ChainParameters*>(CChainParams::RegTest({}).release());
+        CChainParams* params = new CChainParams(*CChainParams::RegTest({}));
+        return reinterpret_cast<kernel_ChainParameters*>(params);
     }
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
 
-void kernel_chain_parameters_destroy(const kernel_ChainParameters* chain_parameters)
+void kernel_chain_parameters_destroy(kernel_ChainParameters* chain_parameters)
 {
     if (chain_parameters) {
-        delete cast_const_chain_params(chain_parameters);
+        delete cast_chain_params(chain_parameters);
     }
 }
 
@@ -613,7 +636,7 @@ kernel_ContextOptions* kernel_context_options_create()
 void kernel_context_options_set_chainparams(kernel_ContextOptions* options_, const kernel_ChainParameters* chain_parameters)
 {
     auto options{cast_context_options(options_)};
-    auto chain_params{reinterpret_cast<const CChainParams*>(chain_parameters)};
+    auto chain_params{cast_const_chain_params(chain_parameters)};
     // Copy the chainparams, so the caller can free it again
     options->m_chainparams = std::make_unique<const CChainParams>(*chain_params);
 }
@@ -629,7 +652,6 @@ void kernel_context_options_set_validation_interface(kernel_ContextOptions* opti
 {
     auto options{cast_context_options(options_)};
     options->m_validation_interface = std::make_unique<KernelValidationInterface>(KernelValidationInterface(vi_cbs));
-    // return reinterpret_cast<kernel_ValidationInterface*>(new std::shared_ptr<KernelValidationInterface>(new KernelValidationInterface(vi_cbs)));
 }
 
 void kernel_context_options_destroy(kernel_ContextOptions* options)
@@ -693,25 +715,21 @@ kernel_BlockValidationResult kernel_get_block_validation_result_from_block_valid
         return kernel_BlockValidationResult::kernel_BLOCK_INVALID_PREV;
     case BlockValidationResult::BLOCK_TIME_FUTURE:
         return kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE;
-    case BlockValidationResult::BLOCK_CHECKPOINT:
-        return kernel_BlockValidationResult::kernel_BLOCK_CHECKPOINT;
     case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
         return kernel_BlockValidationResult::kernel_BLOCK_HEADER_LOW_WORK;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
 
-kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len)
+kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const kernel_Context* context_, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
 {
     try {
         fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
         fs::create_directories(abs_data_dir);
+        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
+        fs::create_directories(abs_blocks_dir);
         auto context{cast_const_context(context_)};
-        return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManager::Options{
-            .chainparams = *context->m_chainparams,
-            .datadir = abs_data_dir,
-            .notifications = *context->m_notifications,
-            .signals = context->m_signals.get()});
+        return reinterpret_cast<kernel_ChainstateManagerOptions*>(new ChainstateManagerOptions(context, abs_data_dir, abs_blocks_dir));
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager options: %s", e.what());
         return nullptr;
@@ -721,119 +739,64 @@ kernel_ChainstateManagerOptions* kernel_chainstate_manager_options_create(const 
 void kernel_chainstate_manager_options_set_worker_threads_num(kernel_ChainstateManagerOptions* opts_, int worker_threads)
 {
     auto opts{cast_chainstate_manager_options(opts_)};
-    opts->worker_threads_num = worker_threads;
+    opts->m_chainman_options.worker_threads_num = worker_threads;
 }
 
 void kernel_chainstate_manager_options_destroy(kernel_ChainstateManagerOptions* options)
 {
     if (options) {
-        delete cast_const_chainstate_manager_options(options);
+        delete cast_chainstate_manager_options(options);
     }
 }
 
-kernel_BlockManagerOptions* kernel_block_manager_options_create(const kernel_Context* context_, const char* blocks_dir, size_t blocks_dir_len)
+bool kernel_chainstate_manager_options_set_wipe_dbs(kernel_ChainstateManagerOptions* chainman_opts_, bool wipe_block_tree_db, bool wipe_chainstate_db)
 {
-    try {
-        fs::path abs_blocks_dir{fs::absolute(fs::PathFromString({blocks_dir, blocks_dir_len}))};
-        fs::create_directories(abs_blocks_dir);
-        auto context{cast_const_context(context_)};
-        if (!context) {
-            return nullptr;
-        }
-        return reinterpret_cast<kernel_BlockManagerOptions*>(new node::BlockManager::Options{
-            .chainparams = *context->m_chainparams,
-            .blocks_dir = abs_blocks_dir,
-            .notifications = *context->m_notifications});
-    } catch (const std::exception& e) {
-        LogError("Failed to create block manager options; %s", e.what());
-        return nullptr;
+    if (wipe_block_tree_db && !wipe_chainstate_db) {
+        LogError("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
+        return false;
     }
+    auto chainman_opts{cast_chainstate_manager_options(chainman_opts_)};
+    chainman_opts->m_blockman_options.block_tree_db_params.wipe_data = wipe_block_tree_db;
+    chainman_opts->m_chainstate_load_options.wipe_chainstate_db = wipe_chainstate_db;
+    return true;
 }
 
-void kernel_block_manager_options_destroy(kernel_BlockManagerOptions* options)
-{
-    if (options) {
-        delete cast_const_block_manager_options(options);
-    }
-}
-
-kernel_ChainstateLoadOptions* kernel_chainstate_load_options_create()
-{
-    return reinterpret_cast<kernel_ChainstateLoadOptions*>(new node::ChainstateLoadOptions);
-}
-
-
-void kernel_chainstate_load_options_set_wipe_block_tree_db(
-    kernel_ChainstateLoadOptions* chainstate_load_opts_,
-    bool wipe_block_tree_db)
-{
-    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
-    chainstate_load_opts->wipe_block_tree_db = wipe_block_tree_db;
-}
-
-void kernel_chainstate_load_options_set_wipe_chainstate_db(
-    kernel_ChainstateLoadOptions* chainstate_load_opts_,
-    bool wipe_chainstate_db)
-{
-    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
-    chainstate_load_opts->wipe_chainstate_db = wipe_chainstate_db;
-}
-
-void kernel_chainstate_load_options_set_block_tree_db_in_memory(
-    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+void kernel_chainstate_manager_options_set_block_tree_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_load_opts_,
     bool block_tree_db_in_memory)
 {
-    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
-    chainstate_load_opts->block_tree_db_in_memory = block_tree_db_in_memory;
+    auto chainman_opts{cast_chainstate_manager_options(chainstate_load_opts_)};
+    chainman_opts->m_blockman_options.block_tree_db_params.memory_only = block_tree_db_in_memory;
 }
 
-void kernel_chainstate_load_options_set_chainstate_db_in_memory(
-    kernel_ChainstateLoadOptions* chainstate_load_opts_,
+void kernel_chainstate_manager_options_set_chainstate_db_in_memory(
+    kernel_ChainstateManagerOptions* chainstate_load_opts_,
     bool chainstate_db_in_memory)
 {
-    auto chainstate_load_opts{cast_chainstate_load_options(chainstate_load_opts_)};
-    chainstate_load_opts->coins_db_in_memory = chainstate_db_in_memory;
-}
-
-void kernel_chainstate_load_options_destroy(kernel_ChainstateLoadOptions* chainstate_load_opts)
-{
-    if (chainstate_load_opts) {
-        delete cast_const_chainstate_load_options(chainstate_load_opts);
-    }
+    auto chainman_opts{cast_chainstate_manager_options(chainstate_load_opts_)};
+    chainman_opts->m_chainstate_load_options.coins_db_in_memory = chainstate_db_in_memory;
 }
 
 kernel_ChainstateManager* kernel_chainstate_manager_create(
     const kernel_Context* context_,
-    const kernel_ChainstateManagerOptions* chainman_opts_,
-    const kernel_BlockManagerOptions* blockman_opts_,
-    const kernel_ChainstateLoadOptions* chainstate_load_opts_)
+    const kernel_ChainstateManagerOptions* chainman_opts_)
 {
     auto chainman_opts{cast_const_chainstate_manager_options(chainman_opts_)};
-    auto blockman_opts{cast_const_block_manager_options(blockman_opts_)};
     auto context{cast_const_context(context_)};
 
     ChainstateManager* chainman;
 
     try {
-        chainman = new ChainstateManager{*context->m_interrupt, *chainman_opts, *blockman_opts};
+        chainman = new ChainstateManager{*context->m_interrupt, chainman_opts->m_chainman_options, chainman_opts->m_blockman_options};
     } catch (const std::exception& e) {
         LogError("Failed to create chainstate manager: %s", e.what());
         return nullptr;
     }
 
     try {
-        const auto& chainstate_load_opts{*cast_const_chainstate_load_options(chainstate_load_opts_)};
+        const auto& chainstate_load_opts{chainman_opts->m_chainstate_load_options};
 
-        if (chainstate_load_opts.wipe_block_tree_db && !chainstate_load_opts.wipe_chainstate_db) {
-            LogWarning("Wiping the block tree db without also wiping the chainstate db is currently unsupported.");
-            kernel_chainstate_manager_destroy(reinterpret_cast<kernel_ChainstateManager*>(chainman), context_);
-            return nullptr;
-        }
-
-        node::CacheSizes cache_sizes;
-        cache_sizes.block_tree_db = 2 << 20;
-        cache_sizes.coins_db = 2 << 22;
-        cache_sizes.coins = (450 << 20) - (2 << 20) - (2 << 22);
+        kernel::CacheSizes cache_sizes{DEFAULT_KERNEL_CACHE};
         auto [status, chainstate_err]{node::LoadChainstate(*chainman, cache_sizes, chainstate_load_opts)};
         if (status != node::ChainstateLoadStatus::SUCCESS) {
             LogError("Failed to load chain state from your data directory: %s", chainstate_err.original);
@@ -915,7 +878,7 @@ kernel_Block* kernel_block_create(const unsigned char* raw_block, size_t raw_blo
 
     try {
         stream >> TX_WITH_WITNESS(*block);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         delete block;
         LogDebug(BCLog::KERNEL, "Block decode failed.");
         return nullptr;
@@ -1061,8 +1024,8 @@ kernel_Block* kernel_read_block_from_disk(const kernel_Context* context_,
     const CBlockIndex* block_index{cast_const_block_index(block_index_)};
 
     auto block{new std::shared_ptr<CBlock>(new CBlock{})};
-    if (!chainman->m_blockman.ReadBlockFromDisk(**block, *block_index)) {
-        LogError("Failed to read block from disk.");
+    if (!chainman->m_blockman.ReadBlock(**block, *block_index)) {
+        LogError("Failed to read block.");
         return nullptr;
     }
     return reinterpret_cast<kernel_Block*>(block);
@@ -1080,8 +1043,8 @@ kernel_BlockUndo* kernel_read_block_undo_from_disk(const kernel_Context* context
         return nullptr;
     }
     auto block_undo{new CBlockUndo{}};
-    if (!chainman->m_blockman.UndoReadFromDisk(*block_undo, *block_index)) {
-        LogError("Failed to read undo data from disk.");
+    if (!chainman->m_blockman.ReadBlockUndo(*block_undo, *block_index)) {
+        LogError("Failed to read block undo data.");
         return nullptr;
     }
     return reinterpret_cast<kernel_BlockUndo*>(block_undo);
@@ -1102,7 +1065,7 @@ uint64_t kernel_block_undo_size(const kernel_BlockUndo* block_undo_)
 void kernel_block_undo_destroy(kernel_BlockUndo* block_undo)
 {
     if (block_undo) {
-        delete cast_const_block_undo(block_undo);
+        delete cast_block_undo(block_undo);
     }
 }
 

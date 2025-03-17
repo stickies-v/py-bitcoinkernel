@@ -22,9 +22,7 @@
 #include <wallet/bdb.h>
 #endif
 #include <wallet/migrate.h>
-#ifdef USE_SQLITE
 #include <wallet/sqlite.h>
-#endif
 #include <wallet/wallet.h>
 
 #include <atomic>
@@ -152,6 +150,11 @@ bool WalletBatch::WriteCryptedKey(const CPubKey& vchPubKey,
 bool WalletBatch::WriteMasterKey(unsigned int nID, const CMasterKey& kMasterKey)
 {
     return WriteIC(std::make_pair(DBKeys::MASTER_KEY, nID), kMasterKey, true);
+}
+
+bool WalletBatch::EraseMasterKey(unsigned int id)
+{
+    return EraseIC(std::make_pair(DBKeys::MASTER_KEY, id));
 }
 
 bool WalletBatch::WriteCScript(const uint160& hash, const CScript& redeemScript)
@@ -1013,7 +1016,7 @@ static DBErrors LoadAddressBookRecords(CWallet* pwallet, DatabaseBatch& batch) E
             // "1" or "p" for present (which was written prior to
             // f5ba424cd44619d9b9be88b8593d69a7ba96db26).
             pwallet->LoadAddressPreviouslySpent(dest);
-        } else if (strKey.compare(0, 2, "rr") == 0) {
+        } else if (strKey.starts_with("rr")) {
             // Load "rr##" keys where ## is a decimal number, and strValue
             // is a serialized RecentRequestEntry object.
             pwallet->LoadAddressReceiveRequest(dest, strKey.substr(2), strValue);
@@ -1109,6 +1112,14 @@ static DBErrors LoadTxRecords(CWallet* pwallet, DatabaseBatch& batch, std::vecto
         return DBErrors::LOAD_OK;
     });
     result = std::max(result, order_pos_res.m_result);
+
+    // After loading all tx records, abandon any coinbase that is no longer in the active chain.
+    // This could happen during an external wallet load, or if the user replaced the chain data.
+    for (auto& [id, wtx] : pwallet->mapWallet) {
+        if (wtx.IsCoinBase() && wtx.isInactive()) {
+            pwallet->AbandonTransaction(wtx);
+        }
+    }
 
     return result;
 }
@@ -1239,6 +1250,21 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
         pwallet->UpgradeDescriptorCache();
     } catch (...) {
         result = DBErrors::CORRUPT;
+    }
+
+    // Since it was accidentally possible to "encrypt" a wallet with private keys disabled, we should check if this is
+    // such a wallet and remove the encryption key records to avoid any future issues.
+    // Although wallets without private keys should not have *ckey records, we should double check that.
+    // Removing the mkey records is only safe if there are no *ckey records.
+    if (pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && pwallet->HasEncryptionKeys() && !pwallet->HaveCryptedKeys()) {
+        pwallet->WalletLogPrintf("Detected extraneous encryption keys in this wallet without private keys. Removing extraneous encryption keys.\n");
+        for (const auto& [id, _] : pwallet->mapMasterKeys) {
+            if (!EraseMasterKey(id)) {
+                pwallet->WalletLogPrintf("Error: Unable to remove extraneous encryption key '%u'. Wallet corrupt.\n", id);
+                return DBErrors::CORRUPT;
+            }
+        }
+        pwallet->mapMasterKeys.clear();
     }
 
     return result;
@@ -1436,25 +1462,14 @@ std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const Databas
 
     // If the format is not specified or detected, choose the default format based on what is available. We prefer BDB over SQLite for now.
     if (!format) {
-#ifdef USE_SQLITE
         format = DatabaseFormat::SQLITE;
-#endif
 #ifdef USE_BDB
         format = DatabaseFormat::BERKELEY;
 #endif
     }
 
     if (format == DatabaseFormat::SQLITE) {
-#ifdef USE_SQLITE
-        if constexpr (true) {
-            return MakeSQLiteDatabase(path, options, status, error);
-        } else
-#endif
-        {
-            error = Untranslated(strprintf("Failed to open database path '%s'. Build does not support SQLite database format.", fs::PathToString(path)));
-            status = DatabaseStatus::FAILED_BAD_FORMAT;
-            return nullptr;
-        }
+        return MakeSQLiteDatabase(path, options, status, error);
     }
 
     if (format == DatabaseFormat::BERKELEY_RO) {

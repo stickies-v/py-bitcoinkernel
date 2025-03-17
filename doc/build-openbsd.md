@@ -1,6 +1,6 @@
 # OpenBSD Build Guide
 
-**Updated for OpenBSD [7.5](https://www.openbsd.org/75.html)**
+**Updated for OpenBSD [7.6](https://www.openbsd.org/76.html)**
 
 This guide describes how to build bitcoind, command-line utilities, and GUI on OpenBSD.
 
@@ -44,7 +44,7 @@ from ports. However you can build it yourself, [using depends](/depends).
 Refer to [depends/README.md](/depends/README.md) for detailed instructions.
 
 ```bash
-gmake -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_SQLITE=1 NO_ZMQ=1 NO_USDT=1
+gmake -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_ZMQ=1 NO_USDT=1
 ...
 to: /path/to/bitcoin/depends/*-unknown-openbsd*
 ```
@@ -90,7 +90,7 @@ There is an included test suite that is useful for testing code changes when dev
 To run the test suite (recommended), you will need to have Python 3 installed:
 
 ```bash
-pkg_add python  # Select the newest version of the package.
+pkg_add python py3-zmq  # Select the newest version of the python package if necessary.
 ```
 
 ## Building Bitcoin Core
@@ -103,7 +103,7 @@ There are many ways to configure Bitcoin Core, here are a few common examples:
 This enables descriptor wallet support and the GUI, assuming SQLite and Qt 5 are installed.
 
 ```bash
-cmake -B build -DWITH_SQLITE=ON -DBUILD_GUI=ON
+cmake -B build -DBUILD_GUI=ON
 ```
 
 Run `cmake -B build -LH` to see the full list of available options.

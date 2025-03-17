@@ -6,7 +6,7 @@
 
 export LC_ALL=C.UTF-8
 
-export CI_IMAGE_NAME_TAG="docker.io/ubuntu:24.04"
+export CI_IMAGE_NAME_TAG="mirror.gcr.io/ubuntu:24.04"
 
 # Only install BCC tracing packages in CI. Container has to match the host for BCC to work.
 if [[ "${INSTALL_BCC_TRACING_TOOLS}" == "true" ]]; then
@@ -19,7 +19,7 @@ else
 fi
 
 export CONTAINER_NAME=ci_native_asan
-export APT_LLVM_V="19"
+export APT_LLVM_V="20"
 export PACKAGES="systemtap-sdt-dev clang-${APT_LLVM_V} llvm-${APT_LLVM_V} libclang-rt-${APT_LLVM_V}-dev python3-zmq qtbase5-dev qttools5-dev qttools5-dev-tools libevent-dev libboost-dev libdb5.3++-dev libzmq3-dev libqrencode-dev libsqlite3-dev ${BPFCC_PACKAGE}"
 export NO_DEPENDS=1
 export GOAL="install"

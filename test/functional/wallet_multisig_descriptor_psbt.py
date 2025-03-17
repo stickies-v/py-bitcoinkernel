@@ -26,7 +26,6 @@ class WalletMultisigDescriptorPSBTTest(BitcoinTestFramework):
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
-        self.skip_if_no_sqlite()
 
     @staticmethod
     def _get_xpub(wallet, internal):
@@ -53,8 +52,8 @@ class WalletMultisigDescriptorPSBTTest(BitcoinTestFramework):
         for i, node in enumerate(self.nodes):
             node.createwallet(wallet_name=f"{self.name}_{i}", blank=True, descriptors=True, disable_private_keys=True)
             multisig = node.get_wallet_rpc(f"{self.name}_{i}")
-            external = multisig.getdescriptorinfo(f"wsh(sortedmulti({self.M},{f','.join(external_xpubs)}))")
-            internal = multisig.getdescriptorinfo(f"wsh(sortedmulti({self.M},{f','.join(internal_xpubs)}))")
+            external = multisig.getdescriptorinfo(f"wsh(sortedmulti({self.M},{','.join(external_xpubs)}))")
+            internal = multisig.getdescriptorinfo(f"wsh(sortedmulti({self.M},{','.join(internal_xpubs)}))")
             result = multisig.importdescriptors([
                 {  # receiving addresses (internal: False)
                     "desc": external["descriptor"],

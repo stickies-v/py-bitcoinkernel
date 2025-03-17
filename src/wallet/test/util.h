@@ -9,6 +9,7 @@
 
 #include <addresstype.h>
 #include <wallet/db.h>
+#include <wallet/scriptpubkeyman.h>
 
 #include <memory>
 
@@ -26,9 +27,7 @@ class WalletDatabase;
 struct WalletContext;
 
 static const DatabaseFormat DATABASE_FORMATS[] = {
-#ifdef USE_SQLITE
        DatabaseFormat::SQLITE,
-#endif
 #ifdef USE_BDB
        DatabaseFormat::BERKELEY,
 #endif
@@ -127,8 +126,9 @@ public:
 };
 
 std::unique_ptr<WalletDatabase> CreateMockableWalletDatabase(MockableData records = {});
-
 MockableDatabase& GetMockableDatabase(CWallet& wallet);
+
+ScriptPubKeyMan* CreateDescriptor(CWallet& keystore, const std::string& desc_str, const bool success);
 } // namespace wallet
 
 #endif // BITCOIN_WALLET_TEST_UTIL_H

@@ -194,13 +194,6 @@ BOOST_AUTO_TEST_CASE(cnetaddr_basic)
     BOOST_CHECK(!addr.IsBindAny());
     BOOST_CHECK_EQUAL(addr.ToStringAddr(), scoped_addr);
 
-    // Test that the delimiter "%" and default zone id of 0 can be omitted for the default scope.
-    addr = LookupHost(link_local + "%0", false).value();
-    BOOST_REQUIRE(addr.IsValid());
-    BOOST_REQUIRE(addr.IsIPv6());
-    BOOST_CHECK(!addr.IsBindAny());
-    BOOST_CHECK_EQUAL(addr.ToStringAddr(), link_local);
-
     // TORv2, no longer supported
     BOOST_CHECK(!addr.SetSpecial("6hzph5hv6337r6p2.onion"));
 
@@ -671,7 +664,7 @@ BOOST_AUTO_TEST_CASE(get_local_addr_for_peer_port)
                    /*addrIn=*/CAddress{CService{peer_out_in_addr, 8333}, NODE_NETWORK},
                    /*nKeyedNetGroupIn=*/0,
                    /*nLocalHostNonceIn=*/0,
-                   /*addrBindIn=*/CAddress{},
+                   /*addrBindIn=*/CService{},
                    /*addrNameIn=*/std::string{},
                    /*conn_type_in=*/ConnectionType::OUTBOUND_FULL_RELAY,
                    /*inbound_onion=*/false};
@@ -692,7 +685,7 @@ BOOST_AUTO_TEST_CASE(get_local_addr_for_peer_port)
                   /*addrIn=*/CAddress{CService{peer_in_in_addr, 8333}, NODE_NETWORK},
                   /*nKeyedNetGroupIn=*/0,
                   /*nLocalHostNonceIn=*/0,
-                  /*addrBindIn=*/CAddress{},
+                  /*addrBindIn=*/CService{},
                   /*addrNameIn=*/std::string{},
                   /*conn_type_in=*/ConnectionType::INBOUND,
                   /*inbound_onion=*/false};
@@ -829,7 +822,7 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
                /*addrIn=*/CAddress{CService{peer_in_addr, 8333}, NODE_NETWORK},
                /*nKeyedNetGroupIn=*/0,
                /*nLocalHostNonceIn=*/0,
-               /*addrBindIn=*/CAddress{},
+               /*addrBindIn=*/CService{},
                /*addrNameIn=*/std::string{},
                /*conn_type_in=*/ConnectionType::OUTBOUND_FULL_RELAY,
                /*inbound_onion=*/false};

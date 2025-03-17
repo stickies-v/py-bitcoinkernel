@@ -146,20 +146,22 @@ HeadersSyncSetup* g_testing_setup;
 
 void initialize()
 {
-    static auto setup = MakeNoLogFileContext<HeadersSyncSetup>(ChainType::MAIN, {.extra_args = {"-checkpoints=0"}});
+    static auto setup = MakeNoLogFileContext<HeadersSyncSetup>(ChainType::MAIN);
     g_testing_setup = setup.get();
 }
 } // namespace
 
 FUZZ_TARGET(p2p_headers_presync, .init = initialize)
 {
+    SeedRandomStateForTest(SeedRand::ZEROS);
+    FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
+    SetMockTime(ConsumeTime(fuzzed_data_provider));
+
     ChainstateManager& chainman = *g_testing_setup->m_node.chainman;
 
     LOCK(NetEventsInterface::g_msgproc_mutex);
 
     g_testing_setup->ResetAndInitialize();
-
-    FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
 
     CBlockHeader base{chainman.GetParams().GenesisBlock()};
     SetMockTime(base.nTime);

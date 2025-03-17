@@ -211,7 +211,7 @@ public:
     // Address of this peer
     CAddress addr;
     // Bind address of our side of the connection
-    CAddress addrBind;
+    CService addrBind;
     // Network the peer connected through
     Network m_network;
     uint32_t m_mapped_as;
@@ -707,7 +707,7 @@ public:
     // Address of this peer
     const CAddress addr;
     // Bind address of our side of the connection
-    const CAddress addrBind;
+    const CService addrBind;
     const std::string m_addr_name;
     /** The pszDest argument provided to ConnectNode(). Only used for reconnections. */
     const std::string m_dest;
@@ -883,7 +883,7 @@ public:
           const CAddress& addrIn,
           uint64_t nKeyedNetGroupIn,
           uint64_t nLocalHostNonceIn,
-          const CAddress& addrBindIn,
+          const CService& addrBindIn,
           const std::string& addrNameIn,
           ConnectionType conn_type_in,
           bool inbound_onion,
@@ -946,6 +946,22 @@ public:
     void CopyStats(CNodeStats& stats) EXCLUSIVE_LOCKS_REQUIRED(!m_subver_mutex, !m_addr_local_mutex, !cs_vSend, !cs_vRecv);
 
     std::string ConnectionTypeAsString() const { return ::ConnectionTypeAsString(m_conn_type); }
+
+    /**
+     * Helper function to optionally log the IP address.
+     *
+     * @param[in] log_ip whether to include the IP address
+     * @return " peeraddr=..." or ""
+     */
+    std::string LogIP(bool log_ip) const;
+
+    /**
+     * Helper function to log disconnects.
+     *
+     * @param[in] log_ip whether to include the IP address
+     * @return "disconnecting peer=..." and optionally "peeraddr=..."
+     */
+    std::string DisconnectMsg(bool log_ip) const;
 
     /** A ping-pong round trip has completed successfully. Update latest and minimum ping times. */
     void PongReceived(std::chrono::microseconds ping_time) {
@@ -1296,8 +1312,8 @@ private:
      */
     void CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
                                       NetPermissionFlags permission_flags,
-                                      const CAddress& addr_bind,
-                                      const CAddress& addr);
+                                      const CService& addr_bind,
+                                      const CService& addr);
 
     void DisconnectNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_reconnections_mutex, !m_nodes_mutex);
     void NotifyNumConnectionsChanged();
@@ -1334,7 +1350,7 @@ private:
     void ThreadSocketHandler() EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !mutexMsgProc, !m_nodes_mutex, !m_reconnections_mutex);
     void ThreadDNSAddressSeed() EXCLUSIVE_LOCKS_REQUIRED(!m_addr_fetches_mutex, !m_nodes_mutex);
 
-    uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
+    uint64_t CalculateKeyedNetGroup(const CNetAddr& ad) const;
 
     CNode* FindNode(const CNetAddr& ip);
     CNode* FindNode(const std::string& addrName);
