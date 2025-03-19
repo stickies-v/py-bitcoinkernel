@@ -66,10 +66,6 @@ class LoggingOptions(k.kernel_LoggingOptions):
         return ctypes.byref(self)
 
 
-def _simple_print(message: str):
-    print(message, end="")
-
-
 def is_valid_log_callback(fn: typing.Any) -> bool:
     """
     Best-effort attempt to check that `fn` adheres to the
@@ -111,7 +107,19 @@ def disable_log_category(category: LogCategory) -> None:
 
 
 class LoggingConnection(KernelOpaquePtr):
-    def __init__(self, cb=_simple_print, user_data=None, opts=LoggingOptions()):
+    """
+    Example (note: `print` is not thread-safe.):
+
+    ```py
+    def cb(msg):
+        print(msg, end="")
+    log = LoggingConnection(cb=cb)
+    ```
+    """
+
+    def __init__(
+        self, cb: typing.Callable[[str], None], user_data=None, opts=LoggingOptions()
+    ):
         if not is_valid_log_callback(cb):
             raise TypeError(
                 "Log callback must be a callable with 1 string parameter and no return value."
