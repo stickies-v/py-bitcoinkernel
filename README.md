@@ -99,14 +99,19 @@ The entry point for most current `libbitcoinkernel` usage is the
 
 ### Logging
 
-If you want to enable `libbitcoinkernel` built-in logging, create a
-`LoggingConnection()` object and keep it alive for the duration of your
-application:
+If you want to enable `libbitcoinkernel` built-in logging, configure
+python's `logging` module and then create a `KernelLogViewer()`.
 
 ```py
+import logging
 import pbk
-log = pbk.LoggingConnection()  # must be kept alive for the duration of the application
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
+log = pbk.KernelLogViewer()  # must be kept alive for the duration of the application
 ```
+
+See [doc/examples/logging.md](./doc/examples/logging.md) for more examples
+on different ways to configure logging.
 
 ### Loading a chainstate
 
