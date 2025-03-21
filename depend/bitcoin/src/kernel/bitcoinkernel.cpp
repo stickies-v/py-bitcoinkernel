@@ -240,11 +240,7 @@ public:
           m_interrupt{std::make_unique<util::SignalInterrupt>()},
           m_signals{std::make_unique<ValidationSignals>(std::make_unique<ImmediateTaskRunner>())}
     {
-        if (!options) {
-            m_notifications = std::make_unique<KernelNotifications>(kernel_NotificationInterfaceCallbacks{
-                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr});
-            m_chainparams = CChainParams::Main();
-        } else {
+        if (options) {
             LOCK(options->m_mutex);
             if (options->m_chainparams) {
                 m_chainparams = std::make_unique<const CChainParams>(*options->m_chainparams);
@@ -257,6 +253,14 @@ public:
                 m_signals->RegisterValidationInterface(m_validation_interface.get());
             }
 
+        }
+
+        if (!m_chainparams) {
+            m_chainparams = CChainParams::Main();
+        }
+        if (!m_notifications) {
+            m_notifications = std::make_unique<KernelNotifications>(kernel_NotificationInterfaceCallbacks{
+                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr});
         }
 
         if (!kernel::SanityChecks(*m_context)) {
@@ -980,7 +984,7 @@ kernel_BlockIndex* kernel_get_block_index_from_hash(const kernel_Context* contex
 {
     auto chainman{cast_chainstate_manager(chainman_)};
 
-    auto hash = uint256{Span<const unsigned char>{(*block_hash).hash, 32}};
+    auto hash = uint256{std::span<const unsigned char>{(*block_hash).hash, 32}};
     auto block_index = WITH_LOCK(::cs_main, return chainman->m_blockman.LookupBlockIndex(hash));
     if (!block_index) {
         LogDebug(BCLog::KERNEL, "A block with the given hash is not indexed.");
