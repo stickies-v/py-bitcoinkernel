@@ -2,7 +2,15 @@ import pbk.capi.bindings as k
 import pbk.util.type
 
 
-def initialize_callbacks(interface_callbacks: k.Structure, user_data=None, **callbacks):
+def _initialize_callbacks(
+    interface_callbacks: k.Structure, user_data=None, **callbacks
+):
+    """
+    Internal helper to wrap `user_data` and `callbacks` into ctypes,
+    preventing garbage collection issues.
+
+    This function is not thread-safe.
+    """
     # Store user_data
     interface_callbacks._user_data = pbk.util.type.UserData(user_data)
     interface_callbacks.user_data = interface_callbacks._user_data.c_void_p

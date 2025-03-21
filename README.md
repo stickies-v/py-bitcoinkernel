@@ -91,8 +91,8 @@ When installing from source, additional requirements apply:
 > is likely going to change, without concern for backwards compatibility.
 
 All the classes and functions that can be used are exposed in a single
-`pbk` package. Lifetimes are managed automatically. The application is
-currently not threadsafe.
+`pbk` package. Lifetimes are managed automatically. The library is
+[thread-safe](#concurrency).
 
 The entry point for most current `libbitcoinkernel` usage is the
 `ChainstateManager`.
@@ -177,6 +177,12 @@ print(f"Writing block {block_height}: {block_index.block_hash.hex} to disk ({fil
 with open(filename, "wb") as f:
     f.write(block.data)
 ```
+
+### Concurrency
+
+`py-bitcoinkernel` is thread-safe, but should not be used with
+`multiprocessing`. See [doc/concurrency.md](./doc/concurrency.md) for
+more information.
 
 ## Limitations
 

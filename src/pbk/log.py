@@ -17,6 +17,7 @@ from pbk.capi import KernelOpaquePtr
 # bitcoinkernel's logging setters require external synchronization
 LOGGING_LOCK = threading.RLock()
 
+
 class LogCategory(IntEnum):
     ALL = k.kernel_LOG_ALL
     BENCH = k.kernel_LOG_BENCH
