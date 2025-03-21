@@ -2,6 +2,7 @@ import ctypes
 import inspect
 import logging
 import re
+import threading
 import typing
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -12,6 +13,9 @@ from pathlib import Path
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 
+
+# bitcoinkernel's logging setters require external synchronization
+LOGGING_LOCK = threading.RLock()
 
 class LogCategory(IntEnum):
     ALL = k.kernel_LOG_ALL
@@ -89,21 +93,24 @@ def add_log_level_category(category: LogCategory, level: LogLevel) -> None:
     enable the selected categories. Use `enable_log_category` to start
     logging from a specific, or all categories.
     """
-    k.kernel_add_log_level_category(category, level)
+    with LOGGING_LOCK:
+        k.kernel_add_log_level_category(category, level)
 
 
 def enable_log_category(category: LogCategory) -> None:
     """
     Enable a specific log category for the global internal logger.
     """
-    k.kernel_enable_log_category(category)
+    with LOGGING_LOCK:
+        k.kernel_enable_log_category(category)
 
 
 def disable_log_category(category: LogCategory) -> None:
     """
     Disable a specific log category for the global internal logger.
     """
-    k.kernel_disable_log_category(category)
+    with LOGGING_LOCK:
+        k.kernel_disable_log_category(category)
 
 
 class LoggingConnection(KernelOpaquePtr):
