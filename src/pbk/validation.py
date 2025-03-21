@@ -5,7 +5,7 @@ import pbk.util.callbacks
 class ValidationInterfaceCallbacks(k.kernel_ValidationInterfaceCallbacks):
     def __init__(self, user_data=None, **callbacks):
         super().__init__()
-        pbk.util.callbacks.initialize_callbacks(self, user_data, **callbacks)
+        pbk.util.callbacks._initialize_callbacks(self, user_data, **callbacks)
 
 
 default_validation_callbacks = ValidationInterfaceCallbacks(

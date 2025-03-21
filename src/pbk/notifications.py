@@ -7,7 +7,7 @@ import pbk.util.callbacks
 class NotificationInterfaceCallbacks(k.kernel_NotificationInterfaceCallbacks):
     def __init__(self, user_data=None, **callbacks):
         super().__init__()
-        pbk.util.callbacks.initialize_callbacks(self, user_data, **callbacks)
+        pbk.util.callbacks._initialize_callbacks(self, user_data, **callbacks)
 
 
 default_notification_callbacks = NotificationInterfaceCallbacks(
