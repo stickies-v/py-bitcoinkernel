@@ -1,4 +1,0 @@
-exclude = [
-    "depend",
-    "bindings.py",
-]

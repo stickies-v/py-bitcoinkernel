@@ -1,194 +1,79 @@
-# py-bitcoinkernel
-[![pypi](https://img.shields.io/pypi/v/py-bitcoinkernel.svg)](https://pypi.python.org/pypi/py-bitcoinkernel)
-[![versions](https://img.shields.io/pypi/pyversions/py-bitcoinkernel.svg)](https://github.com/stickies-v/py-bitcoinkernel)
-[![license](https://img.shields.io/github/license/stickies-v/py-bitcoinkernel.svg)](https://github.com/stickies-v/py-bitcoinkernel/blob/main/LICENSE)
+Bitcoin Core integration/staging tree
+=====================================
 
-`py-bitcoinkernel` (or `pbk` in short) is a Python wrapper around
-[`libbitcoinkernel`](https://github.com/bitcoin/bitcoin/pull/30595)
-providing a clean, Pythonic interface while handling the low-level
-ctypes bindings and memory management.
+https://bitcoincore.org
 
-In its current alpha state, it is primarily intended as a tool to:
-1) help developers experiment with the `libbitcoinkernel` library and to
-   help inform its development and interface design.
-2) help data scientists access and parse Bitcoin blockchain data for
-   research purposes, instead of using alternative interfaces like the
-   Bitcoin Core RPC interface or manually parsing block data files.
+For an immediately usable, binary version of the Bitcoin Core software, see
+https://bitcoincore.org/en/download/.
 
-> [!WARNING]
-> `py-bitcoinkernel` is highly experimental software, and should in no
-> way be used in software that is consensus-critical, deals with
-> (mainnet) coins, or is generally used in any production environment.
+What is Bitcoin Core?
+---------------------
 
-## Table of contents
+Bitcoin Core connects to the Bitcoin peer-to-peer network to download and fully
+validate blocks and transactions. It also includes a wallet and graphical user
+interface, which can be optionally built.
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Limitations](#limitations)
+Further information about Bitcoin Core is available in the [doc folder](/doc).
 
-## Installation
+License
+-------
 
-There are two main ways to install `py-bitcoinkernel`:
-1) Installing a pre-compiled wheel from PyPI, if it is available for
-   your platform. This is the fastest way to install `py-bitcoinkernel`,
-   and does not introduce any further dependencies. This approach
-   requires you to trust the wheel build system.
-2) Installing from source and letting `pip` compile the dependencies
-   locally. This allows you to compile `libbitcoinkernel` from source,
-   and is the only way to install `py-bitcoinkernel` on platforms where
-   a pre-compiled wheel is not available. It is significantly slower than
-   installing a wheel, and requires a number of dependencies to be
-   installed.
+Bitcoin Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
+information or see https://opensource.org/licenses/MIT.
 
-### Install from wheel
+Development Process
+-------------------
 
-To install a pre-compiled wheel from PyPI, simply run:
+The `master` branch is regularly built (see `doc/build-*.md` for instructions) and tested, but it is not guaranteed to be
+completely stable. [Tags](https://github.com/bitcoin/bitcoin/tags) are created
+regularly from release branches to indicate new official, stable release versions of Bitcoin Core.
 
-```
-pip install py-bitcoinkernel
-```
+The https://github.com/bitcoin-core/gui repository is used exclusively for the
+development of the GUI. Its master branch is identical in all monotree
+repositories. Release branches and tags do not exist, so please do not fork
+that repository unless it is for development reasons.
 
-### Install from source
+The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md)
+and useful hints for developers can be found in [doc/developer-notes.md](doc/developer-notes.md).
 
-You can clone this repository and run:
+Testing
+-------
 
-```
-pip install .
-```
+Testing and code review is the bottleneck for development; we get more pull
+requests than we can review and test on short notice. Please be patient and help out by testing
+other people's pull requests, and remember this is a security-critical project where any mistake might cost people
+lots of money.
 
-Alternatively, you can install the source distribution from PyPI:
+### Automated Testing
 
-```
-pip install py-bitcoinkernel --no-binary :all:
-```
+Developers are strongly encouraged to write [unit tests](src/test/README.md) for new code, and to
+submit new unit tests for old code. Unit tests can be compiled and run
+(assuming they weren't disabled during the generation of the build system) with: `ctest`. Further details on running
+and extending unit tests can be found in [/src/test/README.md](/src/test/README.md).
 
-> [!NOTE]
-> When installing from source, `pip` will automatically compile
-> `libbitcoinkernel` from the bundled source code in `depend/bitcoin/`.
-> This process may take a while. To inspect the build progress, add -`v`
-> to your `pip` command, e.g.  `pip install . -v`.
+There are also [regression and integration tests](/test), written
+in Python.
+These tests can be run (if the [test dependencies](/test) are installed) with: `build/test/functional/test_runner.py`
+(assuming `build` is your build directory).
 
-### Requirements
+The CI (Continuous Integration) systems make sure that every pull request is built for Windows, Linux, and macOS,
+and that unit/sanity tests are run automatically.
 
-This project requires Python 3.10+ and `pip`.
+### Manual Quality Assurance (QA) Testing
 
-When installing from source, additional requirements apply:
-- The minimum system requirements, build requirements and dependencies
-  to compile `libbitcoinkernel` from source. See Bitcoin Core's
-  documentation
-  ([Unix](./depend/bitcoin/doc/build-unix.md),
-  [macOS](./depend/bitcoin/doc/build-osx.md),
-  [Windows](./depend/bitcoin/doc/build-windows.md))
-  for more information.
-  - Note: `libevent` is a required dependency for Bitcoin Core, but not
-    for `libbitcoinkernel`.
+Changes should be tested by somebody other than the developer who wrote the
+code. This is especially important for large or high-risk changes. It is useful
+to add a test plan to the pull request description if testing the changes is
+not straightforward.
 
-## Usage
+Translations
+------------
 
-> [!WARNING]
-> This code is highly experimental and not ready for use in
-> production software. The interface is under active development and
-> is likely going to change, without concern for backwards compatibility.
+Changes to translations as well as new translations can be submitted to
+[Bitcoin Core's Transifex page](https://www.transifex.com/bitcoin/bitcoin/).
 
-All the classes and functions that can be used are exposed in a single
-`pbk` package. Lifetimes are managed automatically. The application is
-currently not threadsafe.
+Translations are periodically pulled from Transifex and merged into the git repository. See the
+[translation process](doc/translation_process.md) for details on how this works.
 
-The entry point for most current `libbitcoinkernel` usage is the
-`ChainstateManager`.
-
-### Logging
-
-If you want to enable `libbitcoinkernel` built-in logging, create a
-`LoggingConnection()` object and keep it alive for the duration of your
-application:
-
-```py
-import pbk
-log = pbk.LoggingConnection()  # must be kept alive for the duration of the application
-```
-
-### Loading a chainstate
-
-First, we'll instantiate a `ChainstateManager` object. If you want
-`py-bitcoinkernel` to use an existing `Bitcoin Core` chainstate, copy
-the data directory to a new location and point `datadir` at it.
-
-**IMPORTANT**: `py-bitcoinkernel` requires exclusive access to the data
-directory. Sharing a data directory with Bitcoin Core will ONLY work
-when only one of both programs is running at a time.
-
-```py
-from pathlib import Path
-import pbk
-
-datadir = Path("/tmp/bitcoin/signet")
-chainman = pbk.load_chainman(datadir, pbk.ChainType.SIGNET)
-```
-
-If you're starting from an empty data directory, you'll likely want to
-import blocks from disk first:
-
-```py
-with open("raw_blocks.txt", "r") as file:
-    for line in file.readlines():
-        block = pbk.Block(bytes.fromhex(line))
-        chainman.process_block(block, new_block=True)
-```
-
-### Common operations
-
-> [!NOTE]
-> See [doc/examples](./doc/examples/) for more common usage examples of
-> `pbk`
-
-ChainstateManager exposes a range of functionality to interact with the
-chainstate. For example, to print the current block tip:
-
-```py
-tip = chainman.get_block_index_from_tip()
-print(f"Current block tip: {tip.block_hash.hex} at height {tip.height}")
-```
-
-To lazily iterate over the last 10 block indexes, use the
-`block_index_generator` function:
-
-```py
-from_block = -10  # Negative indexes are relative to the tip
-to_block = -1     # -1 is the chain tip
-for block_index in pbk.block_index_generator(chainman, from_block, to_block):
-    print(f"Block {block_index.height}: {block_index.block_hash.hex}")
-```
-
-Block indexes can be used for other operations, like reading blocks from
-disk:
-
-```py
-block_height = 1
-block_index = chainman.get_block_index_from_height(block_height)
-block = chainman.read_block_from_disk(block_index)
-filename = f"block_{block_height}.bin"
-print(f"Writing block {block_height}: {block_index.block_hash.hex} to disk ({filename})...")
-with open(filename, "wb") as f:
-    f.write(block.data)
-```
-
-## Limitations
-
-- `Bitcoin Core` requires exclusive access to its data directory. If you
-  want to use `py-bitcoinkernel` with an existing chainstate, you'll
-  need to either first shut down `Bitcoin Core`, or clone the `blocks/`
-  and `chainstate/` directories to a new location.
-- The `bitcoinkernel` API currently does not offer granular inspection
-  of most kernel objects. See [doc/examples](./doc/examples/) for ideas
-  on using third-party (de)serialization libraries to convert kernel
-  objects to/from bytes.
-
-## Resources
-Some helpful resources for learning about `libbitcoinkernel`:
-
-- The [Bitcoin Core PR](https://github.com/bitcoin/bitcoin/pull/30595)
-  that introduces the `libbitcoinkernel` C API.
-- The `libbitcoinkernel` project [tracking issue](https://github.com/bitcoin/bitcoin/issues/27587).
-- ["The Bitcoin Core Kernel"](https://thecharlatan.ch/Kernel/) blog post by TheCharlatan
-- The rust-bitcoinkernel [repository](https://github.com/TheCharlatan/rust-bitcoinkernel/)
+**Important**: We do not accept translation changes as GitHub pull requests because the next
+pull from Transifex would automatically overwrite them again.
