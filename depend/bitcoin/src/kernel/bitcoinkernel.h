@@ -571,7 +571,7 @@ BITCOINKERNEL_API void kernel_disable_logging();
  * logging from a specific, or all categories. This function is not thread
  * safe. Mutiple calls from different threads are allowed but must be
  * synchronized. This changes a global setting and will override settings for
- * all existing `kernelLoggingConnection instances.
+ * all existing @ref kernel_LoggingConnection instances.
  *
  * @param[in] category If kernel_LOG_ALL is chosen, all messages at the specified level
  *                     will be logged. Otherwise only messages from the specified category
@@ -584,7 +584,7 @@ BITCOINKERNEL_API void kernel_add_log_level_category(const kernel_LogCategory ca
  * @brief Enable a specific log category for the global internal logger. This
  * function is not thread safe. Mutiple calls from different threads are
  * allowed but must be synchronized. This changes a global setting and will
- * override settings for all existing `kernelLoggingConnection instances.
+ * override settings for all existing @ref kernel_LoggingConnection instances.
  *
  * @param[in] category If kernel_LOG_ALL is chosen, all categories will be enabled.
  */
@@ -594,7 +594,7 @@ BITCOINKERNEL_API void kernel_enable_log_category(const kernel_LogCategory categ
  * @brief Disable a specific log category for the global internal logger. This
  * function is not thread safe. Mutiple calls from different threads are
  * allowed but must be synchronized. This changes a global setting and will
- * override settings for all existing `kernelLoggingConnection instances.
+ * override settings for all existing @ref kernel_LoggingConnection instances.
  *
  * @param[in] category If kernel_LOG_ALL is chosen, all categories will be disabled.
  */
