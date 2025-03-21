@@ -30,6 +30,8 @@ class KernelPtr:
         return instance
 
     def __del__(self):
+        # In theory, this is not thread-safe. In practice, this should
+        # never be reached from multiple threads.
         if self._as_parameter_ and self._owns_ptr:
             self._destroy()
             self._as_parameter_ = None  # type: ignore

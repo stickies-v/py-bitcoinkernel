@@ -68,5 +68,12 @@ class BlockUndo(KernelOpaquePtr):
         return k.kernel_block_undo_size(self)
 
     def iter_transactions(self) -> typing.Generator[TransactionUndo, None, None]:
+        """
+        Generator that yields all the TransactionUndo objects in this
+        BlockUndo.
+
+        Synchronization is required if this generator is shared across
+        threads.
+        """
         for i in range(self.transaction_count):
             yield TransactionUndo(self, i)
