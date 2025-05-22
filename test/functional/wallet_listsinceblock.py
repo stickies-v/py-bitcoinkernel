@@ -13,15 +13,13 @@ from test_framework.util import (
     assert_array_result,
     assert_equal,
     assert_raises_rpc_error,
+    wallet_importprivkey,
 )
 from test_framework.wallet_util import generate_keypair
 
 from decimal import Decimal
 
 class ListSinceBlockTest(BitcoinTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser)
-
     def set_test_params(self):
         self.num_nodes = 4
         self.setup_clean_chain = True
@@ -45,8 +43,7 @@ class ListSinceBlockTest(BitcoinTestFramework):
         self.test_double_send()
         self.double_spends_filtered()
         self.test_targetconfirmations()
-        if self.options.descriptors:
-            self.test_desc()
+        self.test_desc()
         self.test_send_to_self()
         self.test_op_return()
         self.test_label()
@@ -231,10 +228,10 @@ class ListSinceBlockTest(BitcoinTestFramework):
         address = key_to_p2wpkh(pubkey)
         self.nodes[2].sendtoaddress(address, 10)
         self.generate(self.nodes[2], 6)
-        self.nodes[2].importprivkey(privkey)
+        wallet_importprivkey(self.nodes[2], privkey, "now")
         utxos = self.nodes[2].listunspent()
         utxo = [u for u in utxos if u["address"] == address][0]
-        self.nodes[1].importprivkey(privkey)
+        wallet_importprivkey(self.nodes[1], privkey, "now")
 
         # Split network into two
         self.split_network()

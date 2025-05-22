@@ -41,10 +41,6 @@
 #include <string.h>
 #endif
 
-#if HAVE_DECL_GETIFADDRS && HAVE_DECL_FREEIFADDRS
-#include <ifaddrs.h>
-#endif
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -367,7 +363,7 @@ CNode* CConnman::FindNode(const CService& addr)
 
 bool CConnman::AlreadyConnectedToAddress(const CAddress& addr)
 {
-    return FindNode(static_cast<CNetAddr>(addr)) || FindNode(addr.ToStringAddrPort());
+    return FindNode(static_cast<CNetAddr>(addr));
 }
 
 bool CConnman::CheckIncomingNonce(uint64_t nonce)
@@ -761,6 +757,8 @@ int V1Transport::readHeader(std::span<const uint8_t> msg_bytes)
     }
 
     // reject messages larger than MAX_SIZE or MAX_PROTOCOL_MESSAGE_LENGTH
+    // NOTE: failing to perform this check previously allowed a malicious peer to make us allocate 32MiB of memory per
+    // connection. See https://bitcoincore.org/en/2024/07/03/disclose_receive_buffer_oom.
     if (hdr.nMessageSize > MAX_SIZE || hdr.nMessageSize > MAX_PROTOCOL_MESSAGE_LENGTH) {
         LogDebug(BCLog::NET, "Header error: Size too large (%s, %u bytes), peer=%d\n", SanitizeString(hdr.GetMessageType()), hdr.nMessageSize, m_node_id);
         return -1;
@@ -1910,7 +1908,8 @@ void CConnman::DisconnectNodes()
     {
         LOCK(m_nodes_mutex);
 
-        if (!fNetworkActive) {
+        const bool network_active{fNetworkActive};
+        if (!network_active) {
             // Disconnect any connected nodes
             for (CNode* pnode : m_nodes) {
                 if (!pnode->fDisconnect) {
@@ -1932,7 +1931,7 @@ void CConnman::DisconnectNodes()
                 // Add to reconnection list if appropriate. We don't reconnect right here, because
                 // the creation of a connection is a blocking operation (up to several seconds),
                 // and we don't want to hold up the socket handler thread for that long.
-                if (pnode->m_transport->ShouldReconnectV1()) {
+                if (network_active && pnode->m_transport->ShouldReconnectV1()) {
                     reconnections_to_add.push_back({
                         .addr_connect = pnode->addr,
                         .grant = std::move(pnode->grantOutbound),
