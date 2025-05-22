@@ -193,7 +193,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     // Double-clicking on a transaction on the transaction history page shows details
     connect(this, &TransactionView::doubleClicked, this, &TransactionView::showDetails);
     // Highlight transaction after fee bump
-    connect(this, &TransactionView::bumpedFee, [this](const uint256& txid) {
+    connect(this, &TransactionView::bumpedFee, [this](const Txid& txid) {
       focusTransaction(txid);
     });
 }
@@ -221,7 +221,7 @@ void TransactionView::setModel(WalletModel *_model)
         if (_model->getOptionsModel())
         {
             // Add third party transaction URLs to context menu
-            QStringList listUrls = GUIUtil::SplitSkipEmptyParts(_model->getOptionsModel()->getThirdPartyTxUrls(), "|");
+            QStringList listUrls = _model->getOptionsModel()->getThirdPartyTxUrls().split("|", Qt::SkipEmptyParts);
             bool actions_created = false;
             for (int i = 0; i < listUrls.size(); ++i)
             {
@@ -241,11 +241,8 @@ void TransactionView::setModel(WalletModel *_model)
             }
         }
 
-        // show/hide column Watch-only
-        updateWatchOnlyColumn(_model->wallet().haveWatchOnly());
-
-        // Watch-only signal
-        connect(_model, &WalletModel::notifyWatchonlyChanged, this, &TransactionView::updateWatchOnlyColumn);
+        // hide column Watch-only
+        updateWatchOnlyColumn(false);
     }
 }
 
@@ -368,8 +365,6 @@ void TransactionView::exportClicked()
     // name, column, role
     writer.setModel(transactionProxyModel);
     writer.addColumn(tr("Confirmed"), 0, TransactionTableModel::ConfirmedRole);
-    if (model->wallet().haveWatchOnly())
-        writer.addColumn(tr("Watch-only"), TransactionTableModel::Watchonly);
     writer.addColumn(tr("Date"), 0, TransactionTableModel::DateRole);
     writer.addColumn(tr("Type"), TransactionTableModel::Type, Qt::EditRole);
     writer.addColumn(tr("Label"), 0, TransactionTableModel::LabelRole);
@@ -394,9 +389,13 @@ void TransactionView::contextualMenu(const QPoint &point)
     if (selection.empty())
         return;
 
-    // check if transaction can be abandoned, disable context menu action in case it doesn't
-    uint256 hash;
-    hash.SetHexDeprecated(selection.at(0).data(TransactionTableModel::TxHashRole).toString().toStdString());
+    // If the hash from the TxHashRole (QVariant / QString) is invalid, exit
+    QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
+    std::optional<Txid> maybeHash = Txid::FromHex(hashQStr.toStdString());
+    if (!maybeHash)
+        return;
+
+    Txid hash = *maybeHash;
     abandonAction->setEnabled(model->wallet().transactionCanBeAbandoned(hash));
     bumpFeeAction->setEnabled(model->wallet().transactionCanBeBumped(hash));
     copyAddressAction->setEnabled(GUIUtil::hasEntryData(transactionView, 0, TransactionTableModel::AddressRole));
@@ -414,9 +413,8 @@ void TransactionView::abandonTx()
     QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
 
     // get the hash from the TxHashRole (QVariant / QString)
-    uint256 hash;
     QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
-    hash.SetHexDeprecated(hashQStr.toStdString());
+    Txid hash = Txid::FromHex(hashQStr.toStdString()).value();
 
     // Abandon the wallet transaction over the walletModel
     model->wallet().abandonTransaction(hash);
@@ -429,12 +427,11 @@ void TransactionView::bumpFee([[maybe_unused]] bool checked)
     QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
 
     // get the hash from the TxHashRole (QVariant / QString)
-    uint256 hash;
     QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
-    hash.SetHexDeprecated(hashQStr.toStdString());
+    Txid hash = Txid::FromHex(hashQStr.toStdString()).value();
 
     // Bump tx fee over the walletModel
-    uint256 newHash;
+    Txid newHash;
     if (model->bumpFee(hash, newHash)) {
         // Update the table
         transactionView->selectionModel()->clearSelection();
@@ -602,7 +599,7 @@ void TransactionView::focusTransaction(const QModelIndex &idx)
     transactionView->setFocus();
 }
 
-void TransactionView::focusTransaction(const uint256& txid)
+void TransactionView::focusTransaction(const Txid& txid)
 {
     if (!transactionProxyModel)
         return;

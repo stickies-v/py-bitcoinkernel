@@ -35,6 +35,7 @@ from .util import (
     initialize_datadir,
     p2p_port,
     wait_until_helper_internal,
+    wallet_importprivkey,
 )
 
 
@@ -87,6 +88,10 @@ class Binaries:
     def wallet_argv(self):
         "Return argv array that should be used to invoke bitcoin-wallet"
         return self._argv(self.paths.bitcoinwallet)
+
+    def chainstate_argv(self):
+        "Return argv array that should be used to invoke bitcoin-chainstate"
+        return self._argv(self.paths.bitcoinchainstate)
 
     def _argv(self, bin_path):
         """Return argv array that should be used to invoke the command.
@@ -147,7 +152,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.supports_cli = True
         self.bind_to_localhost_only = True
         self.parse_args(test_file)
-        self.default_wallet_name = "default_wallet" if self.options.descriptors else ""
+        self.default_wallet_name = "default_wallet"
         self.wallet_data_filename = "wallet.dat"
         # Optional list of wallet names that can be set in set_test_params to
         # create and import keys to. If unset, default is len(nodes) *
@@ -156,8 +161,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         # are not imported.
         self.wallet_names = None
         # By default the wallet is not required. Set to true by skip_if_no_wallet().
-        # When False, we ignore wallet_names regardless of what it is.
-        self._requires_wallet = False
+        # Can also be set to None to indicate that the wallet will be used if available.
+        # When False or None, we ignore wallet_names in setup_nodes().
+        self.uses_wallet = False
         # Disable ThreadOpenConnections by default, so that adding entries to
         # addrman will not result in automatic connections to them.
         self.disable_autoconnect = True
@@ -267,20 +273,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if self.options.v1transport:
             self.options.v2transport=False
 
-        if "descriptors" not in self.options:
-            # Wallet is not required by the test at all and the value of self.options.descriptors won't matter.
-            # It still needs to exist and be None in order for tests to work however.
-            # So set it to None to force -disablewallet, because the wallet is not needed.
-            self.options.descriptors = None
-        elif self.options.descriptors is None:
-            if self.is_wallet_compiled():
-                self.options.descriptors = True
-            else:
-                # Tests requiring a wallet will be skipped and the value of self.options.descriptors won't matter
-                # It still needs to exist and be None in order for tests to work however.
-                # So set it to None, which will also set -disablewallet.
-                self.options.descriptors = None
-
         PortSeed.n = self.options.port_seed
 
     def get_binary_paths(self):
@@ -291,6 +283,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             "bitcoind": ("bitcoind", "BITCOIND"),
             "bitcoin-cli": ("bitcoincli", "BITCOINCLI"),
             "bitcoin-util": ("bitcoinutil", "BITCOINUTIL"),
+            "bitcoin-chainstate": ("bitcoinchainstate", "BITCOINCHAINSTATE"),
             "bitcoin-wallet": ("bitcoinwallet", "BITCOINWALLET"),
         }
         for binary, [attribute_name, env_variable_name] in binaries.items():
@@ -467,7 +460,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Override this method to customize test node setup"""
         self.add_nodes(self.num_nodes, self.extra_args)
         self.start_nodes()
-        if self._requires_wallet:
+        if self.uses_wallet:
             self.import_deterministic_coinbase_privkeys()
         if not self.setup_clean_chain:
             for n in self.nodes:
@@ -492,33 +485,14 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if wallet_name is not False:
             n = self.nodes[node]
             if wallet_name is not None:
-                n.createwallet(wallet_name=wallet_name, descriptors=self.options.descriptors, load_on_startup=True)
-            n.importprivkey(privkey=n.get_deterministic_priv_key().key, label='coinbase', rescan=True)
-
-    # Only enables wallet support when the module is available
-    def enable_wallet_if_possible(self):
-        self._requires_wallet = self.is_wallet_compiled()
+                n.createwallet(wallet_name=wallet_name, load_on_startup=True)
+            wallet_importprivkey(n.get_wallet_rpc(wallet_name), n.get_deterministic_priv_key().key, 0, label="coinbase")
 
     def run_test(self):
         """Tests must override this method to define test logic"""
         raise NotImplementedError
 
     # Public helper methods. These can be accessed by the subclass test scripts.
-
-    def add_wallet_options(self, parser, *, descriptors=True, legacy=True):
-        kwargs = {}
-        if descriptors + legacy == 1:
-            # If only one type can be chosen, set it as default
-            kwargs["default"] = descriptors
-        group = parser.add_mutually_exclusive_group(
-            # If only one type is allowed, require it to be set in test_runner.py
-            required=os.getenv("REQUIRE_WALLET_TYPE_SET") == "1" and "default" in kwargs)
-        if descriptors:
-            group.add_argument("--descriptors", action='store_const', const=True, **kwargs,
-                               help="Run test using a descriptor wallet", dest='descriptors')
-        if legacy:
-            group.add_argument("--legacy-wallet", action='store_const', const=False, **kwargs,
-                               help="Run test using legacy wallets", dest='descriptors')
 
     def add_nodes(self, num_nodes: int, extra_args=None, *, rpchost=None, versions=None):
         """Instantiate TestNode objects.
@@ -593,8 +567,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 use_cli=self.options.usecli,
                 start_perf=self.options.perf,
                 use_valgrind=self.options.valgrind,
-                descriptors=self.options.descriptors,
                 v2transport=self.options.v2transport,
+                uses_wallet=self.uses_wallet,
             )
             self.nodes.append(test_node_i)
             if not test_node_i.version_is_at_least(170000):
@@ -641,9 +615,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             # Wait for nodes to stop
             node.wait_until_stopped()
 
-    def restart_node(self, i, extra_args=None, clear_addrman=False):
+    def restart_node(self, i, extra_args=None, clear_addrman=False, *, expected_stderr=''):
         """Stop and start a test node"""
-        self.stop_node(i)
+        self.stop_node(i, expected_stderr=expected_stderr)
         if clear_addrman:
             peers_dat = self.nodes[i].chain_path / "peers.dat"
             os.remove(peers_dat)
@@ -898,7 +872,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     binaries=self.get_binaries(),
                     coverage_dir=None,
                     cwd=self.options.tmpdir,
-                    descriptors=self.options.descriptors,
+                    uses_wallet=self.uses_wallet,
                 ))
             self.start_node(CACHE_NODE_ID)
             cache_node = self.nodes[CACHE_NODE_ID]
@@ -1001,16 +975,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
     def skip_if_no_wallet(self):
         """Skip the running test if wallet has not been compiled."""
-        self._requires_wallet = True
+        self.uses_wallet = True
         if not self.is_wallet_compiled():
             raise SkipTest("wallet has not been compiled.")
-        if not self.options.descriptors:
-            self.skip_if_no_bdb()
-
-    def skip_if_no_bdb(self):
-        """Skip the running test if BDB has not been compiled."""
-        if not self.is_bdb_compiled():
-            raise SkipTest("BDB has not been compiled.")
 
     def skip_if_no_wallet_tool(self):
         """Skip the running test if bitcoin-wallet has not been compiled."""
@@ -1021,6 +988,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Skip the running test if bitcoin-util has not been compiled."""
         if not self.is_bitcoin_util_compiled():
             raise SkipTest("bitcoin-util has not been compiled")
+
+    def skip_if_no_bitcoin_chainstate(self):
+        """Skip the running test if bitcoin-chainstate has not been compiled."""
+        if not self.is_bitcoin_chainstate_compiled():
+            raise SkipTest("bitcoin-chainstate has not been compiled")
 
     def skip_if_no_cli(self):
         """Skip the running test if bitcoin-cli has not been compiled."""
@@ -1045,6 +1017,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if not self.is_external_signer_compiled():
             raise SkipTest("external signer support has not been compiled.")
 
+    def skip_if_running_under_valgrind(self):
+        """Skip the running test if Valgrind is being used."""
+        if self.options.valgrind:
+            raise SkipTest("This test is not compatible with Valgrind.")
+
     def is_cli_compiled(self):
         """Checks whether bitcoin-cli was compiled."""
         return self.config["components"].getboolean("ENABLE_CLI")
@@ -1057,14 +1034,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Checks whether the wallet module was compiled."""
         return self.config["components"].getboolean("ENABLE_WALLET")
 
-    def is_specified_wallet_compiled(self):
-        """Checks whether wallet support for the specified type
-           (legacy or descriptor wallet) was compiled."""
-        if self.options.descriptors:
-            return self.is_wallet_compiled()
-        else:
-            return self.is_bdb_compiled()
-
     def is_wallet_tool_compiled(self):
         """Checks whether bitcoin-wallet was compiled."""
         return self.config["components"].getboolean("ENABLE_WALLET_TOOL")
@@ -1073,6 +1042,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Checks whether bitcoin-util was compiled."""
         return self.config["components"].getboolean("ENABLE_BITCOIN_UTIL")
 
+    def is_bitcoin_chainstate_compiled(self):
+        """Checks whether bitcoin-chainstate was compiled."""
+        return self.config["components"].getboolean("ENABLE_BITCOIN_CHAINSTATE")
+
     def is_zmq_compiled(self):
         """Checks whether the zmq module was compiled."""
         return self.config["components"].getboolean("ENABLE_ZMQ")
@@ -1080,10 +1053,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
     def is_usdt_compiled(self):
         """Checks whether the USDT tracepoints were compiled."""
         return self.config["components"].getboolean("ENABLE_USDT_TRACEPOINTS")
-
-    def is_bdb_compiled(self):
-        """Checks whether the wallet module was compiled with BDB support."""
-        return self.config["components"].getboolean("USE_BDB")
 
     def has_blockfile(self, node, filenum: str):
         return (node.blocks_path/ f"blk{filenum}.dat").is_file()

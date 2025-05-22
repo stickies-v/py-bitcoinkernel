@@ -699,7 +699,7 @@ void BerkeleyRODatabase::Open()
     }
 }
 
-std::unique_ptr<DatabaseBatch> BerkeleyRODatabase::MakeBatch(bool flush_on_close)
+std::unique_ptr<DatabaseBatch> BerkeleyRODatabase::MakeBatch()
 {
     return std::make_unique<BerkeleyROBatch>(*this);
 }
@@ -722,7 +722,7 @@ bool BerkeleyRODatabase::Backup(const std::string& dest) const
         LogPrintf("copied %s to %s\n", fs::PathToString(m_filepath), fs::PathToString(dst));
         return true;
     } catch (const fs::filesystem_error& e) {
-        LogPrintf("error copying %s to %s - %s\n", fs::PathToString(m_filepath), fs::PathToString(dst), fsbridge::get_filesystem_error_message(e));
+        LogWarning("error copying %s to %s - %s\n", fs::PathToString(m_filepath), fs::PathToString(dst), e.code().message());
         return false;
     }
 }

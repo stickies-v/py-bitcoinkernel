@@ -11,8 +11,6 @@ Supporting RPCs are:
   addresses.
 - `listunspent` outputs a specialized descriptor for the reported unspent outputs.
 - `getaddressinfo` outputs a descriptor for solvable addresses (since v0.18).
-- `importmulti` takes as input descriptors to import into a legacy wallet
-  (since v0.18).
 - `generatetodescriptor` takes as input a descriptor and generates coins to it
   (`regtest` only, since v0.19).
 - `utxoupdatepsbt` takes as input descriptors to add information to the psbt
@@ -288,11 +286,11 @@ For example, a descriptor of the form:
 
     multi(2,xpub.../<0;1;2>/0/*,xpub.../<2;3;4>/*)
 
-will expand to the two descriptors
+will expand to the 3 descriptors
 
-   multi(2,xpub.../0/0/*,xpub.../2/*)
-   multi(2,xpub.../1/0/*,xpub.../3/*)
-   multi(2,xpub.../2/0/*,xpub.../4*)
+    multi(2,xpub.../0/0/*,xpub.../2/*)
+    multi(2,xpub.../1/0/*,xpub.../3/*)
+    multi(2,xpub.../2/0/*,xpub.../4/*)
 
 When this tuple contains only two elements, wallet implementations can use the
 first descriptor for receiving addresses and the second descriptor for change addresses.
@@ -319,5 +317,5 @@ roughly 1 in a trillion chance of not detecting the errors.
 
 All RPCs in Bitcoin Core will include the checksum in their output. Only
 certain RPCs require checksums on input, including `deriveaddresses` and
-`importmulti`. The checksum for a descriptor without one can be computed
+`importdescriptors`. The checksum for a descriptor without one can be computed
 using the `getdescriptorinfo` RPC.

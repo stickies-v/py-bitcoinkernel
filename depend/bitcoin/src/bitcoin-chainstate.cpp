@@ -1,13 +1,48 @@
-#include <kernel/bitcoinkernel_wrapper.h>
+#include <kernel/bitcoinkernel.hpp>
+
+#include <kernel/validation_state.h>
+#include <util/chaintype.h>
 
 #include <cassert>
+#include <cstddef>
 #include <charconv>
 #include <filesystem>
+#include <functional>
 #include <iostream>
-#include <optional>
+#include <memory>
+#include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
+
+enum class SynchronizationState;
+namespace kernel { enum class Warning; }
+
+using kernel_header::Block;
+using kernel_header::BlockIndex;
+using kernel_header::ChainParameters;
+using kernel_header::ChainstateManager;
+using kernel_header::ChainstateManagerOptions;
+using kernel_header::Context;
+using kernel_header::ContextOptions;
+using kernel_header::KernelNotifications;
+using kernel_header::Logger;
+using kernel_header::UnownedBlock;
+using kernel_header::ValidationInterface;
+
+using kernel_header::SetLogAlwaysPrintCategoryLevel;
+using kernel_header::SetLogSourcelocations;
+using kernel_header::SetLogThreadnames;
+using kernel_header::SetLogTimeMicros;
+using kernel_header::SetLogTimestamps;
+
+#ifdef WIN32
+#include <windows.h>
+#include <codecvt>
+#include <shellapi.h>
+#include <locale>
+#endif
 
 std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
 {
@@ -24,76 +59,61 @@ std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
     return bytes;
 }
 
-class KernelLog
-{
-public:
-    void LogMessage(std::string_view message)
-    {
-        std::cout << "kernel: " << message;
-    }
-};
-
-class TestValidationInterface : public ValidationInterface<TestValidationInterface>
+class TestValidationInterface : public ValidationInterface
 {
 public:
     TestValidationInterface() : ValidationInterface() {}
 
-    std::optional<std::string> m_expected_valid_block = std::nullopt;
-
-    void BlockChecked(const UnownedBlock block, const BlockValidationState state) override
+    void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState state) override
     {
-        auto mode{state.ValidationMode()};
-        switch (mode) {
-        case kernel_ValidationMode::kernel_VALIDATION_STATE_VALID: {
+        if (state.IsValid()) {
             std::cout << "Valid block" << std::endl;
             return;
         }
-        case kernel_ValidationMode::kernel_VALIDATION_STATE_INVALID: {
-            std::cout << "Invalid block: ";
-            auto result{state.BlockValidationResult()};
-            switch (result) {
-            case kernel_BlockValidationResult::kernel_BLOCK_RESULT_UNSET:
-                std::cout << "initial value. Block has not yet been rejected" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_HEADER_LOW_WORK:
-                std::cout << "the block header may be on a too-little-work chain" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_CONSENSUS:
-                std::cout << "invalid by consensus rules (excluding any below reasons)" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_CACHED_INVALID:
-                std::cout << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_INVALID_HEADER:
-                std::cout << "invalid proof of work or time too old" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_MUTATED:
-                std::cout << "the block's data didn't match the data committed to by the PoW" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_MISSING_PREV:
-                std::cout << "We don't have the previous block the checked one is built on" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_INVALID_PREV:
-                std::cout << "A block this one builds on is invalid" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE:
-                std::cout << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
-                break;
-            }
-            return;
-        }
-        case kernel_ValidationMode::kernel_VALIDATION_STATE_ERROR: {
+
+        if (state.IsError()) {
             std::cout << "Internal error" << std::endl;
             return;
         }
+
+        std::cout << "Invalid block: ";
+        auto result{state.GetResult()};
+        switch (result) {
+        case BlockValidationResult::BLOCK_RESULT_UNSET:
+            std::cout << "initial value. Block has not yet been rejected" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
+            std::cout << "the block header may be on a too-little-work chain" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_CONSENSUS:
+            std::cout << "invalid by consensus rules (excluding any below reasons)" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_CACHED_INVALID:
+            std::cout << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_INVALID_HEADER:
+            std::cout << "invalid proof of work or time too old" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_MUTATED:
+            std::cout << "the block's data didn't match the data committed to by the PoW" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_MISSING_PREV:
+            std::cout << "We don't have the previous block the checked one is built on" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_INVALID_PREV:
+            std::cout << "A block this one builds on is invalid" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_TIME_FUTURE:
+            std::cout << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
+            break;
         }
     }
 };
 
-class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
+class TestKernelNotifications : public KernelNotifications
 {
 public:
-    void BlockTipHandler(kernel_SynchronizationState state, const kernel_BlockIndex* index) override
+    void BlockTipHandler(SynchronizationState state, const BlockIndex index) override
     {
         std::cout << "Block tip changed" << std::endl;
     }
@@ -103,14 +123,14 @@ public:
         std::cout << "Made progress: " << title << " " << progress_percent << "%" << std::endl;
     }
 
-    void WarningSetHandler(kernel_Warning warning, std::string_view message) override
+    void WarningSetHandler(kernel::Warning warning, std::string_view message) override
     {
         std::cout << message << std::endl;
     }
 
-    void WarningUnsetHandler(kernel_Warning warning) override
+    void WarningUnsetHandler(kernel::Warning warning) override
     {
-        std::cout << "Warning unset: " << warning << std::endl;
+        std::cout << "Warning unset. " << std::endl;
     }
 
     void FlushErrorHandler(std::string_view error) override
@@ -136,26 +156,40 @@ int main(int argc, char* argv[])
             << "           BREAK IN FUTURE VERSIONS. DO NOT USE ON YOUR ACTUAL DATADIR." << std::endl;
         return 1;
     }
+
+#ifdef WIN32
+    int win_argc;
+    wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &win_argc);
+    std::vector<std::string> utf8_args(win_argc);
+    std::vector<char*> win_argv(win_argc);
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf8_cvt;
+    for (int i = 0; i < win_argc; i++) {
+        utf8_args[i] = utf8_cvt.to_bytes(wargv[i]);
+        win_argv[i] = &utf8_args[i][0];
+    }
+    LocalFree(wargv);
+    argc = win_argc;
+    argv = win_argv.data();
+#endif
+
     std::filesystem::path abs_datadir{std::filesystem::absolute(argv[1])};
     std::filesystem::create_directories(abs_datadir);
 
-    kernel_LoggingOptions logging_options = {
-        .log_timestamps = true,
-        .log_time_micros = false,
-        .log_threadnames = false,
-        .log_sourcelocations = false,
-        .always_print_category_levels = true,
-    };
+    SetLogTimestamps(true);
+    SetLogTimeMicros(false);
+    SetLogThreadnames(false);
+    SetLogSourcelocations(false);
+    SetLogAlwaysPrintCategoryLevel(true);
 
-    Logger logger{std::make_unique<KernelLog>(KernelLog{}), logging_options};
+    Logger logger{[](std::string_view message) { std::cout << "kernel: " << message; }};
 
     ContextOptions options{};
-    ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_REGTEST};
-    options.SetChainParams(params);
+    ChainParameters params{ChainType::MAIN};
+    options.SetChainParameters(params);
 
-    TestKernelNotifications notifications{};
+    auto notifications{std::make_shared<TestKernelNotifications>()};
     options.SetNotifications(notifications);
-    TestValidationInterface validation_interface{};
+    auto validation_interface{std::make_shared<TestValidationInterface>()};
     options.SetValidationInterface(validation_interface);
 
     Context context{options};
@@ -165,7 +199,7 @@ int main(int argc, char* argv[])
     assert(chainman_opts);
     chainman_opts.SetWorkerThreads(4);
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts)};
+    auto chainman{std::make_unique<ChainstateManager>(context, chainman_opts)};
     if (!*chainman) {
         return 1;
     }
@@ -181,19 +215,19 @@ int main(int argc, char* argv[])
         auto raw_block{hex_string_to_char_vec(line)};
         auto block = Block{raw_block};
         if (!block) {
-            std::cout << "Failed to parse entered block, try again:" << std::endl;
+            std::cerr << "Block decode failed, try again:" << std::endl;
             continue;
         }
 
         bool new_block = false;
-        bool accepted = chainman->ProcessBlock(block, &new_block);
+        bool accepted = chainman->ProcessBlock(block, new_block);
         if (accepted) {
-            std::cout << "Validated block successfully." << std::endl;
+            std::cerr << "Block has not yet been rejected" << std::endl;
         } else {
-            std::cout << "Block was not accepted" << std::endl;
+            std::cerr << "Block was not accepted" << std::endl;
         }
         if (!new_block) {
-            std::cout << "Block is a duplicate" << std::endl;
+            std::cerr << "Block is a duplicate" << std::endl;
         }
     }
 }

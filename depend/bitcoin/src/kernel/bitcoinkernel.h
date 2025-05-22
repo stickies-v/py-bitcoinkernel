@@ -56,6 +56,14 @@ extern "C" {
 /**
  * @page remarks Remarks
  *
+ * @section purpose Purpose
+ *
+ * This header currently exposes an API for interacting with parts of Bitcoin
+ * Core's consensus code. Users can validate blocks, iterate the block index,
+ * read block und undo data from disk, and validate scripts. The header is
+ * unversioned and not stable yet. Users should expect breaking changes. It is
+ * also not yet included in releases of Bitcoin Core.
+ *
  * @section context Context
  *
  * The library provides a built-in static constant kernel context. This static
@@ -358,18 +366,6 @@ typedef struct {
 } kernel_LoggingOptions;
 
 /**
- * A collection of status codes that may be issued by the script verify function.
- */
-typedef enum {
-    kernel_SCRIPT_VERIFY_OK = 0,
-    kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX, //!< The provided input index is out of range of the actual number of inputs of the transaction.
-    kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS, //!< The provided bitfield for the flags was invalid.
-    kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION, //!< The flags very combined in an invalid way.
-    kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED, //!< The taproot flag was set, so valid spent_outputs have to be provided.
-    kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH, //!< The number of spent outputs does not match the number of inputs of the tx.
-} kernel_ScriptVerifyStatus;
-
-/**
  * Script verification flags that may be composed with each other.
  */
 typedef enum
@@ -535,8 +531,6 @@ BITCOINKERNEL_API void kernel_transaction_output_destroy(kernel_TransactionOutpu
  * @param[in] spent_outputs_len Length of the spent_outputs array.
  * @param[in] input_index       Index of the input in tx_to spending the script_pubkey.
  * @param[in] flags             Bitfield of kernel_ScriptFlags controlling validation constraints.
- * @param[out] status           Nullable, will be set to an error code if the operation fails.
- *                              Should be set to kernel_SCRIPT_VERIFY_OK.
  * @return                      True if the script is valid.
  */
 BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_verify_script(
@@ -545,8 +539,7 @@ BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT kernel_verify_script(
     const kernel_Transaction* tx_to,
     const kernel_TransactionOutput** spent_outputs, size_t spent_outputs_len,
     unsigned int input_index,
-    unsigned int flags,
-    kernel_ScriptVerifyStatus* status
+    unsigned int flags
 ) BITCOINKERNEL_ARG_NONNULL(1, 3);
 
 ///@}
@@ -601,6 +594,46 @@ BITCOINKERNEL_API void kernel_enable_log_category(const kernel_LogCategory categ
 BITCOINKERNEL_API void kernel_disable_log_category(const kernel_LogCategory category);
 
 /**
+ * @brief Prepend the category and level to log messages. This function is not thread
+ * safe. Mutiple calls from different threads are allowed but must be synchronized.
+ * This changes a global setting and will override settings for all existing @ref
+ * kernel_LoggingConnection instances.
+ */
+BITCOINKERNEL_API void kernel_set_log_always_print_category_level(bool log_always_print_category_level);
+
+/**
+ * @brief Prepend a timestamp to log messages. This function is not thread safe.
+ * Mutiple calls from different threads are allowed but must be synchronized.
+ * This changes a global setting and will override settings for all existing @ref
+ * kernel_LoggingConnection instances.
+ */
+BITCOINKERNEL_API void kernel_set_log_timestamps(bool log_timestamps);
+
+/**
+ * @brief Log timestamps in microsecond precision. This function is not thread safe.
+ * Mutiple calls from different threads are allowed but must be synchronized.
+ * This changes a global setting and will override settings for all existing @ref
+ * kernel_LoggingConnection instances.
+ */
+BITCOINKERNEL_API void kernel_set_log_time_micros(bool log_time_micros);
+
+/**
+ * @brief Prepend the name of the thread to log messages. This function is not thread
+ * safe. Mutiple calls from different threads are allowed but must be synchronized.
+ * This changes a global setting and will override settings for all existing @ref
+ * kernel_LoggingConnection instances.
+ */
+BITCOINKERNEL_API void kernel_set_log_threadname(bool log_threadnames);
+
+/**
+ * @brief Prepend the source location to log messages. This function is not thread
+ * safe. Mutiple calls from different threads are allowed but must be synchronized.
+ * This changes a global setting and will override settings for all existing @ref
+ * kernel_LoggingConnection instances.
+ */
+BITCOINKERNEL_API void kernel_set_log_sourcelocations(bool log_sourcelocations);
+
+/**
  * @brief Start logging messages through the provided callback. Log messages
  * produced before this function is first called are buffered and on calling this
  * function are logged immediately.
@@ -613,7 +646,7 @@ BITCOINKERNEL_API void kernel_disable_log_category(const kernel_LogCategory cate
  */
 BITCOINKERNEL_API kernel_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_logging_connection_create(
     kernel_LogCallback callback,
-    const void* user_data,
+    void* user_data,
     const kernel_LoggingOptions options
 ) BITCOINKERNEL_ARG_NONNULL(1);
 
@@ -1092,7 +1125,6 @@ BITCOINKERNEL_API kernel_BlockIndex* BITCOINKERNEL_WARN_UNUSED_RESULT kernel_get
 BITCOINKERNEL_API int32_t BITCOINKERNEL_WARN_UNUSED_RESULT kernel_block_index_get_height(
     const kernel_BlockIndex* block_index
 ) BITCOINKERNEL_ARG_NONNULL(1);
-
 
 /**
  * @brief Destroy the block index.

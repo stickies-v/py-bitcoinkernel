@@ -12,15 +12,13 @@ from test_framework.descriptors import (
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
+    assert_not_equal,
     assert_equal,
     assert_raises_rpc_error,
 )
 
 
 class ListDescriptorsTest(BitcoinTestFramework):
-    def add_options(self, parser):
-        self.add_wallet_options(parser, legacy=False)
-
     def set_test_params(self):
         self.num_nodes = 1
 
@@ -35,11 +33,6 @@ class ListDescriptorsTest(BitcoinTestFramework):
         node = self.nodes[0]
         assert_raises_rpc_error(-18, 'No wallet is loaded.', node.listdescriptors)
 
-        if self.is_bdb_compiled():
-            self.log.info('Test that the command is not available for legacy wallets.')
-            node.createwallet(wallet_name='w1', descriptors=False)
-            assert_raises_rpc_error(-4, 'listdescriptors is not available for non-descriptor wallets', node.listdescriptors)
-
         self.log.info('Test the command for empty descriptors wallet.')
         node.createwallet(wallet_name='w2', blank=True, descriptors=True)
         assert_equal(0, len(node.get_wallet_rpc('w2').listdescriptors()['descriptors']))
@@ -52,7 +45,7 @@ class ListDescriptorsTest(BitcoinTestFramework):
         assert_equal(8, len([d for d in result['descriptors'] if d['active']]))
         assert_equal(4, len([d for d in result['descriptors'] if d['internal']]))
         for item in result['descriptors']:
-            assert item['desc'] != ''
+            assert_not_equal(item['desc'], '')
             assert item['next_index'] == 0
             assert item['range'] == [0, 0]
             assert item['timestamp'] is not None

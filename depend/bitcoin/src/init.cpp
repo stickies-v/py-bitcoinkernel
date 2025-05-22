@@ -298,9 +298,6 @@ void Shutdown(NodeContext& node)
     StopREST();
     StopRPC();
     StopHTTPServer();
-    for (const auto& client : node.chain_clients) {
-        client->flush();
-    }
     StopMapPort();
 
     // Because these depend on each-other, we make sure that neither can be
@@ -564,8 +561,6 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-peertimeout=<n>", strprintf("Specify a p2p connection timeout delay in seconds. After connecting to a peer, wait this amount of time before considering disconnection based on inactivity (minimum: 1, default: %d)", DEFAULT_PEER_CONNECT_TIMEOUT), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CONNECTION);
     argsman.AddArg("-torcontrol=<ip>:<port>", strprintf("Tor control host and port to use if onion listening enabled (default: %s). If no port is specified, the default port of %i will be used.", DEFAULT_TOR_CONTROL, DEFAULT_TOR_CONTROL_PORT), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-torpassword=<pass>", "Tor control port password (default: empty)", ArgsManager::ALLOW_ANY | ArgsManager::SENSITIVE, OptionsCategory::CONNECTION);
-    // UPnP support was dropped. We keep `-upnp` as a hidden arg to display a more user friendly error when set. TODO: remove (here and below) for 30.0. NOTE: removing this option may prevent the GUI from starting, see https://github.com/bitcoin-core/gui/issues/843.
-    argsman.AddArg("-upnp", "", ArgsManager::ALLOW_ANY, OptionsCategory::HIDDEN);
     argsman.AddArg("-natpmp", strprintf("Use PCP or NAT-PMP to map the listening port (default: %u)", DEFAULT_NATPMP), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
     argsman.AddArg("-whitebind=<[permissions@]addr>", "Bind to the given address and add permission flags to the peers connecting to it. "
         "Use [host]:port notation for IPv6. Allowed permissions: " + Join(NET_PERMISSIONS_DOC, ", ") + ". "
@@ -794,32 +789,6 @@ void InitParameterInteraction(ArgsManager& args)
             LogInfo("parameter interaction: -onlynet excludes IPv4 and IPv6 -> setting -dnsseed=0\n");
         }
     }
-
-    // If settings.json contains a "upnp" option, migrate it to use "natpmp" instead
-    bool settings_changed{false}; // Whether settings.json file needs to be rewritten
-    args.LockSettings([&](common::Settings& settings) {
-        if (auto* upnp{common::FindKey(settings.rw_settings, "upnp")}) {
-            if (common::FindKey(settings.rw_settings, "natpmp") == nullptr) {
-                LogWarning(R"(Adding "natpmp": %s to settings.json to replace obsolete "upnp" setting)", upnp->write());
-                settings.rw_settings["natpmp"] = *upnp;
-            }
-            LogWarning(R"(Removing obsolete "upnp" setting from settings.json)");
-            settings.rw_settings.erase("upnp");
-            settings_changed = true;
-        }
-    });
-    if (settings_changed) args.WriteSettingsFile();
-
-    // We dropped UPnP support but kept the arg as hidden for now to display a friendlier error to user who has the
-    // option in their config, and migrate the setting to -natpmp.
-    if (const auto arg{args.GetBoolArg("-upnp")}) {
-        std::string message;
-        if (args.SoftSetBoolArg("-natpmp", *arg)) {
-            message = strprintf(" Substituting '-natpmp=%s'.", *arg);
-        }
-        LogWarning("Option '-upnp=%s' is given but UPnP support was dropped in version 29.0.%s",
-                *arg, message);
-    }
 }
 
 /**
@@ -1036,22 +1005,20 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         return InitError(Untranslated("peertimeout must be a positive integer."));
     }
 
-    // Sanity check argument for min fee for including tx in block
-    // TODO: Harmonize which arguments need sanity checking and where that happens
-    if (args.IsArgSet("-blockmintxfee")) {
-        if (!ParseMoney(args.GetArg("-blockmintxfee", ""))) {
-            return InitError(AmountErrMsg("blockmintxfee", args.GetArg("-blockmintxfee", "")));
+    if (const auto arg{args.GetArg("-blockmintxfee")}) {
+        if (!ParseMoney(*arg)) {
+            return InitError(AmountErrMsg("blockmintxfee", *arg));
         }
     }
 
-    if (args.IsArgSet("-blockmaxweight")) {
+    {
         const auto max_block_weight = args.GetIntArg("-blockmaxweight", DEFAULT_BLOCK_MAX_WEIGHT);
         if (max_block_weight > MAX_BLOCK_WEIGHT) {
             return InitError(strprintf(_("Specified -blockmaxweight (%d) exceeds consensus maximum block weight (%d)"), max_block_weight, MAX_BLOCK_WEIGHT));
         }
     }
 
-    if (args.IsArgSet("-blockreservedweight")) {
+    {
         const auto block_reserved_weight = args.GetIntArg("-blockreservedweight", DEFAULT_BLOCK_RESERVED_WEIGHT);
         if (block_reserved_weight > MAX_BLOCK_WEIGHT) {
             return InitError(strprintf(_("Specified -blockreservedweight (%d) exceeds consensus maximum block weight (%d)"), block_reserved_weight, MAX_BLOCK_WEIGHT));
@@ -1183,11 +1150,10 @@ bool CheckHostPortOptions(const ArgsManager& args) {
         "-port",
         "-rpcport",
     }) {
-        if (args.IsArgSet(port_option)) {
-            const std::string port = args.GetArg(port_option, "");
+        if (const auto port{args.GetArg(port_option)}) {
             uint16_t n;
-            if (!ParseUInt16(port, &n) || n == 0) {
-                return InitError(InvalidPortErrMsg(port_option, port));
+            if (!ParseUInt16(*port, &n) || n == 0) {
+                return InitError(InvalidPortErrMsg(port_option, *port));
             }
         }
     }
@@ -1581,14 +1547,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (proxyArg != "" && proxyArg != "0") {
         Proxy addrProxy;
         if (IsUnixSocketPath(proxyArg)) {
-            addrProxy = Proxy(proxyArg, proxyRandomize);
+            addrProxy = Proxy(proxyArg, /*tor_stream_isolation=*/proxyRandomize);
         } else {
             const std::optional<CService> proxyAddr{Lookup(proxyArg, 9050, fNameLookup)};
             if (!proxyAddr.has_value()) {
                 return InitError(strprintf(_("Invalid -proxy address or hostname: '%s'"), proxyArg));
             }
 
-            addrProxy = Proxy(proxyAddr.value(), proxyRandomize);
+            addrProxy = Proxy(proxyAddr.value(), /*tor_stream_isolation=*/proxyRandomize);
         }
 
         if (!addrProxy.IsValid())
@@ -1617,14 +1583,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             }
         } else {
             if (IsUnixSocketPath(onionArg)) {
-                onion_proxy = Proxy(onionArg, proxyRandomize);
+                onion_proxy = Proxy(onionArg, /*tor_stream_isolation=*/proxyRandomize);
             } else {
                 const std::optional<CService> addr{Lookup(onionArg, 9050, fNameLookup)};
                 if (!addr.has_value() || !addr->IsValid()) {
                     return InitError(strprintf(_("Invalid -onion address or hostname: '%s'"), onionArg));
                 }
 
-                onion_proxy = Proxy(addr.value(), proxyRandomize);
+                onion_proxy = Proxy(addr.value(), /*tor_stream_isolation=*/proxyRandomize);
             }
         }
     }
@@ -1850,7 +1816,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
         // Start indexes initial sync
         if (!StartIndexBackgroundSync(node)) {
-            bilingual_str err_str = _("Failed to start indexes, shutting down..");
+            bilingual_str err_str = _("Failed to start indexes, shutting down…");
             chainman.GetNotifications().fatalError(err_str);
             return;
         }

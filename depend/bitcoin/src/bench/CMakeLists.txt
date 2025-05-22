@@ -18,6 +18,7 @@ add_executable(bench_bitcoin
   checkblockindex.cpp
   checkqueue.cpp
   cluster_linearize.cpp
+  connectblock.cpp
   crypto_hash.cpp
   descriptors.cpp
   disconnected_transactions.cpp
@@ -78,8 +79,8 @@ if(ENABLE_WALLET)
   target_link_libraries(bench_bitcoin bitcoin_wallet)
 endif()
 
-add_test(NAME bench_sanity_check_high_priority
-  COMMAND bench_bitcoin -sanity-check -priority-level=high
+add_test(NAME bench_sanity_check
+  COMMAND bench_bitcoin -sanity-check
 )
 
 install_binary_component(bench_bitcoin)

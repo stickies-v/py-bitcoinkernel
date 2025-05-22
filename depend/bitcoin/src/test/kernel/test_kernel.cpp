@@ -2,10 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <kernel/bitcoinkernel.h>
-#include <kernel/bitcoinkernel_wrapper.h>
+#include <kernel/bitcoinkernel.hpp>
 
 #include <test/kernel/block_data.h>
+
+#include <consensus/amount.h>
+#include <util/chaintype.h>
 
 #include <cassert>
 #include <charconv>
@@ -18,8 +20,34 @@
 #include <random>
 #include <span>
 #include <string>
-#include <string_view>
 #include <vector>
+
+using kernel_header::Block;
+using kernel_header::BlockIndex;
+using kernel_header::ChainParameters;
+using kernel_header::ChainstateManager;
+using kernel_header::ChainstateManagerOptions;
+using kernel_header::Context;
+using kernel_header::ContextOptions;
+using kernel_header::KernelNotifications;
+using kernel_header::Logger;
+using kernel_header::ScriptPubkey;
+using kernel_header::Transaction;
+using kernel_header::TransactionOutput;
+using kernel_header::UnownedBlock;
+using kernel_header::ValidationInterface;
+
+using kernel_header::AddLogLevelCategory;
+using kernel_header::DisableLogCategory;
+using kernel_header::EnableLogCategory;
+using kernel_header::SetLogAlwaysPrintCategoryLevel;
+using kernel_header::SetLogSourcelocations;
+using kernel_header::SetLogThreadnames;
+using kernel_header::SetLogTimeMicros;
+using kernel_header::SetLogTimestamps;
+
+using BCLog::Level;
+using BCLog::LogFlags;
 
 std::string random_string(uint32_t length)
 {
@@ -54,14 +82,18 @@ std::vector<unsigned char> hex_string_to_char_vec(std::string_view hex)
     return bytes;
 }
 
-class TestLog
+constexpr auto VERIFY_ALL_PRE_SEGWIT{SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_DERSIG |
+                                     SCRIPT_VERIFY_NULLDUMMY | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY |
+                                     SCRIPT_VERIFY_CHECKSEQUENCEVERIFY};
+constexpr auto VERIFY_ALL_PRE_TAPROOT{VERIFY_ALL_PRE_SEGWIT | SCRIPT_VERIFY_WITNESS};
+constexpr auto VERIFY_ALL{((SCRIPT_VERIFY_END_MARKER - 1) << 1) - 1};
+
+std::vector<std::byte> char_vec_to_byte_vec(std::vector<unsigned char> vec)
 {
-public:
-    void LogMessage(std::string_view message)
-    {
-        std::cout << "kernel: " << message;
-    }
-};
+    return std::vector<std::byte>(
+        reinterpret_cast<const std::byte*>(vec.data()),
+        reinterpret_cast<const std::byte*>(vec.data() + vec.size()));
+}
 
 struct TestDirectory {
     std::filesystem::path m_directory;
@@ -77,15 +109,15 @@ struct TestDirectory {
     }
 };
 
-class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
+class TestKernelNotifications : public KernelNotifications
 {
 public:
-    void BlockTipHandler(kernel_SynchronizationState state, const kernel_BlockIndex* index) override
+    void BlockTipHandler(SynchronizationState state, BlockIndex index) override
     {
         std::cout << "Block tip changed" << std::endl;
     }
 
-    void HeaderTipHandler(kernel_SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
+    void HeaderTipHandler(SynchronizationState state, int64_t height, int64_t timestamp, bool presync) override
     {
         assert(timestamp > 0);
     }
@@ -95,12 +127,12 @@ public:
         std::cout << "Made progress: " << title << " " << progress_percent << "%" << std::endl;
     }
 
-    void WarningSetHandler(kernel_Warning warning, std::string_view message) override
+    void WarningSetHandler(kernel::Warning warning, std::string_view message) override
     {
         std::cout << "Kernel warning is set: " << message << std::endl;
     }
 
-    void WarningUnsetHandler(kernel_Warning warning) override
+    void WarningUnsetHandler(kernel::Warning warning) override
     {
         std::cout << "Kernel warning was unset." << std::endl;
     }
@@ -116,15 +148,14 @@ public:
     }
 };
 
-class TestValidationInterface : public ValidationInterface<TestValidationInterface>
+class TestValidationInterface : public ValidationInterface
 {
 public:
-    TestValidationInterface() : ValidationInterface() {}
+    std::optional<std::vector<std::byte>> m_expected_valid_block = std::nullopt;
 
-    std::optional<std::vector<unsigned char>> m_expected_valid_block = std::nullopt;
-
-    void BlockChecked(const UnownedBlock block, const BlockValidationState state) override
+    void BlockCheckedHandler(const UnownedBlock block, const BlockValidationState state) override
     {
+        std::cout << "Block checked: ";
         {
             auto serialized_block{block.GetBlockData()};
             if (m_expected_valid_block.has_value()) {
@@ -132,134 +163,103 @@ public:
             }
         }
 
-        auto mode{state.ValidationMode()};
-        switch (mode) {
-        case kernel_ValidationMode::kernel_VALIDATION_STATE_VALID: {
+        if (state.IsValid()) {
             std::cout << "Valid block" << std::endl;
             return;
         }
-        case kernel_ValidationMode::kernel_VALIDATION_STATE_INVALID: {
-            std::cout << "Invalid block: ";
-            auto result{state.BlockValidationResult()};
-            switch (result) {
-            case kernel_BlockValidationResult::kernel_BLOCK_RESULT_UNSET:
-                std::cout << "initial value. Block has not yet been rejected" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_HEADER_LOW_WORK:
-                std::cout << "the block header may be on a too-little-work chain" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_CONSENSUS:
-                std::cout << "invalid by consensus rules (excluding any below reasons)" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_CACHED_INVALID:
-                std::cout << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_INVALID_HEADER:
-                std::cout << "invalid proof of work or time too old" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_MUTATED:
-                std::cout << "the block's data didn't match the data committed to by the PoW" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_MISSING_PREV:
-                std::cout << "We don't have the previous block the checked one is built on" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_INVALID_PREV:
-                std::cout << "A block this one builds on is invalid" << std::endl;
-                break;
-            case kernel_BlockValidationResult::kernel_BLOCK_TIME_FUTURE:
-                std::cout << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
-                break;
-            }
-            return;
-        }
-        case kernel_ValidationMode::kernel_VALIDATION_STATE_ERROR: {
+        if (state.IsError()) {
             std::cout << "Internal error" << std::endl;
             return;
         }
+
+        auto result{state.GetResult()};
+        switch (result) {
+        case BlockValidationResult::BLOCK_RESULT_UNSET:
+            std::cout << "initial value. Block has not yet been rejected" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_HEADER_LOW_WORK:
+            std::cout << "the block header may be on a too-little-work chain" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_CONSENSUS:
+            std::cout << "invalid by consensus rules (excluding any below reasons)" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_CACHED_INVALID:
+            std::cout << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_INVALID_HEADER:
+            std::cout << "invalid proof of work or time too old" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_MUTATED:
+            std::cout << "the block's data didn't match the data committed to by the PoW" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_MISSING_PREV:
+            std::cout << "We don't have the previous block the checked one is built on" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_INVALID_PREV:
+            std::cout << "A block this one builds on is invalid" << std::endl;
+            break;
+        case BlockValidationResult::BLOCK_TIME_FUTURE:
+            std::cout << "block timestamp was > 2 hours in the future (or our clock is bad)" << std::endl;
+            return;
         }
+        assert(false);
     }
 };
-
-constexpr auto VERIFY_ALL_PRE_SEGWIT{kernel_SCRIPT_FLAGS_VERIFY_P2SH | kernel_SCRIPT_FLAGS_VERIFY_DERSIG |
-                                     kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY | kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY |
-                                     kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY};
-constexpr auto VERIFY_ALL_PRE_TAPROOT{VERIFY_ALL_PRE_SEGWIT | kernel_SCRIPT_FLAGS_VERIFY_WITNESS};
 
 void run_verify_test(
     const ScriptPubkey& spent_script_pubkey,
     const Transaction& spending_tx,
     std::span<TransactionOutput> spent_outputs,
-    int64_t amount,
+    CAmount amount,
     unsigned int input_index,
     bool taproot)
 {
     assert(spending_tx);
     assert(spent_script_pubkey);
-    auto status = kernel_ScriptVerifyStatus::kernel_SCRIPT_VERIFY_OK;
 
     if (taproot) {
-        assert(verify_script(
-            spent_script_pubkey,
+        assert(spent_script_pubkey.VerifyScript(
             amount,
             spending_tx,
             spent_outputs,
             input_index,
-            kernel_SCRIPT_FLAGS_VERIFY_ALL,
-            status));
-        assert(status == kernel_SCRIPT_VERIFY_OK);
+            VERIFY_ALL));
     } else {
-        assert(!verify_script(
-            spent_script_pubkey,
+        assert(!spent_script_pubkey.VerifyScript(
             amount,
             spending_tx,
             spent_outputs,
             input_index,
-            kernel_SCRIPT_FLAGS_VERIFY_ALL,
-            status));
-        assert(status == kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED);
-        status = kernel_SCRIPT_VERIFY_OK;
+            VERIFY_ALL));
     }
 
-    assert(verify_script(
-        spent_script_pubkey,
+    assert(spent_script_pubkey.VerifyScript(
         amount,
         spending_tx,
         spent_outputs,
         input_index,
-        VERIFY_ALL_PRE_TAPROOT,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_OK);
+        VERIFY_ALL_PRE_TAPROOT));
 
-    assert(verify_script(
-        spent_script_pubkey,
+    assert(spent_script_pubkey.VerifyScript(
         0,
         spending_tx,
         spent_outputs,
         input_index,
-        VERIFY_ALL_PRE_SEGWIT,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_OK);
+        VERIFY_ALL_PRE_SEGWIT));
 
-    assert(!verify_script(
-        spent_script_pubkey,
+    assert(!spent_script_pubkey.VerifyScript(
         amount,
         spending_tx,
         spent_outputs,
         input_index,
-        VERIFY_ALL_PRE_TAPROOT << 2,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS);
+        VERIFY_ALL_PRE_TAPROOT << 2));
 
-    assert(!verify_script(
-        spent_script_pubkey,
+    assert(!spent_script_pubkey.VerifyScript(
         amount,
         spending_tx,
         spent_outputs,
         5,
-        VERIFY_ALL_PRE_TAPROOT,
-        status));
-    assert(status == kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX);
-    status = kernel_SCRIPT_VERIFY_OK;
+        VERIFY_ALL_PRE_TAPROOT));
 }
 
 void transaction_test()
@@ -307,29 +307,29 @@ void script_verify_test()
 
 void logging_test()
 {
-    kernel_LoggingOptions logging_options = {
-        .log_timestamps = true,
-        .log_time_micros = true,
-        .log_threadnames = false,
-        .log_sourcelocations = false,
-        .always_print_category_levels = true,
-    };
+    SetLogTimestamps(true);
+    SetLogTimeMicros(true);
+    SetLogThreadnames(false);
+    SetLogSourcelocations(false);
+    SetLogAlwaysPrintCategoryLevel(true);
 
-    kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_BENCH, kernel_LogLevel::kernel_LOG_TRACE);
-    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_BENCH);
-    kernel_enable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
-    kernel_disable_log_category(kernel_LogCategory::kernel_LOG_VALIDATION);
+    AddLogLevelCategory(LogFlags::BENCH, Level::Trace);
+    DisableLogCategory(LogFlags::BENCH);
+    EnableLogCategory(LogFlags::VALIDATION);
+    DisableLogCategory(LogFlags::VALIDATION);
 
     // Check that connecting, connecting another, and then disconnecting and connecting a logger again works.
     {
-        kernel_add_log_level_category(kernel_LogCategory::kernel_LOG_KERNEL, kernel_LogLevel::kernel_LOG_TRACE);
-        kernel_enable_log_category(kernel_LogCategory::kernel_LOG_KERNEL);
-        Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+        AddLogLevelCategory(LogFlags::KERNEL, Level::Trace);
+        EnableLogCategory(LogFlags::KERNEL);
+        auto log_func = [](std::string_view message) { std::cout << message; };
+        Logger logger{log_func};
         assert(logger);
-        Logger logger_2{std::make_unique<TestLog>(TestLog{}), logging_options};
+        Logger logger_2{log_func};
         assert(logger_2);
     }
-    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+    auto log_func = [](std::string_view message) { std::cout << message; };
+    Logger logger{log_func};
     assert(logger);
 }
 
@@ -341,30 +341,30 @@ void context_test()
     }
 
     { // test with context options, but not options set
-      ContextOptions options{};
-      Context context{options};
-      assert(context);
+        ContextOptions options{};
+        Context context{options};
+        assert(context);
     }
 
     { // test with context options
-        TestKernelNotifications notifications{};
+        auto notifications{std::make_shared<TestKernelNotifications>()};
         ContextOptions options{};
-        ChainParams params{kernel_ChainType::kernel_CHAIN_TYPE_MAINNET};
-        options.SetChainParams(params);
+        ChainParameters params{ChainType::MAIN};
+        options.SetChainParameters(params);
         options.SetNotifications(notifications);
         Context context{options};
         assert(context);
     }
 }
 
-Context create_context(TestKernelNotifications& notifications, kernel_ChainType chain_type, TestValidationInterface* validation_interface = nullptr)
+Context create_context(std::shared_ptr<TestKernelNotifications> notifications, ChainType chain_type, std::shared_ptr<TestValidationInterface> validation_interface = nullptr)
 {
     ContextOptions options{};
-    ChainParams params{chain_type};
-    options.SetChainParams(params);
+    ChainParameters params{chain_type};
+    options.SetChainParameters(params);
     options.SetNotifications(notifications);
     if (validation_interface) {
-        options.SetValidationInterface(*validation_interface);
+        options.SetValidationInterface(validation_interface);
     }
     return Context{options};
 }
@@ -378,7 +378,7 @@ void chainman_test()
         assert(context);
         ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
         assert(chainman_opts);
-        ChainMan chainman{context, chainman_opts};
+        ChainstateManager chainman{context, chainman_opts};
         assert(chainman);
     }
 
@@ -388,28 +388,30 @@ void chainman_test()
         assert(context);
         ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
         assert(chainman_opts);
-        ChainMan chainman{context, chainman_opts};
+        ChainstateManager chainman{context, chainman_opts};
         assert(chainman);
     }
 
-    TestKernelNotifications notifications{};
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto context{create_context(notifications, ChainType::MAIN)};
+    assert(context);
 
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(chainman_opts);
     chainman_opts.SetWorkerThreads(4);
     assert(chainman_opts.SetWipeDbs(/*wipe_block_tree=*/false, /*wipe_chainstate=*/false));
     assert(!chainman_opts.SetWipeDbs(/*wipe_block_tree=*/true, /*wipe_chainstate=*/false));
-    ChainMan chainman{context, chainman_opts};
+
+    ChainstateManager chainman{context, chainman_opts};
     assert(chainman);
 }
 
-std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
-                                          bool reindex,
-                                          bool wipe_chainstate,
-                                          bool block_tree_db_in_memory,
-                                          bool chainstate_db_in_memory,
-                                          Context& context)
+std::unique_ptr<ChainstateManager> create_chainman(TestDirectory& test_directory,
+                                                   bool reindex,
+                                                   bool wipe_chainstate,
+                                                   bool block_tree_db_in_memory,
+                                                   bool chainstate_db_in_memory,
+                                                   Context& context)
 {
     ChainstateManagerOptions chainman_opts{context, test_directory.m_directory.string(), (test_directory.m_directory / "blocks").string()};
     assert(chainman_opts);
@@ -427,24 +429,22 @@ std::unique_ptr<ChainMan> create_chainman(TestDirectory& test_directory,
         chainman_opts.SetChainstateDbInMemory(chainstate_db_in_memory);
     }
 
-    auto chainman{std::make_unique<ChainMan>(context, chainman_opts)};
-    assert(chainman);
-    return chainman;
+    return std::make_unique<ChainstateManager>(context, chainman_opts);
 }
 
 void chainman_in_memory_test()
 {
     auto in_memory_test_directory{TestDirectory{"in-memory_test_bitcoin_kernel"}};
 
-    TestKernelNotifications notifications{};
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto context{create_context(notifications, ChainType::REGTEST)};
     auto chainman{create_chainman(in_memory_test_directory, false, false, true, true, context)};
 
     for (auto& raw_block : REGTEST_BLOCK_DATA) {
         Block block{raw_block};
         assert(block);
         bool new_block{false};
-        chainman->ProcessBlock(block, &new_block);
+        chainman->ProcessBlock(block, new_block);
         assert(new_block == true);
     }
 
@@ -454,12 +454,12 @@ void chainman_in_memory_test()
 
 void chainman_mainnet_validation_test(TestDirectory& test_directory)
 {
-    TestKernelNotifications notifications{};
-    TestValidationInterface validation_interface{};
-
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET, &validation_interface)};
-
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto validation_interface{std::make_shared<TestValidationInterface>()};
+    auto context{create_context(notifications, ChainType::MAIN, validation_interface)};
+    assert(context);
     auto chainman{create_chainman(test_directory, false, false, false, false, context)};
+    assert(chainman);
 
     {
         // Process an invalid block
@@ -479,15 +479,16 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     Block block{raw_block};
     assert(block);
 
-    validation_interface.m_expected_valid_block.emplace(raw_block);
-    assert(block.GetBlockData() == raw_block);
+    std::vector<std::byte> raw_block_bytes{char_vec_to_byte_vec(raw_block)};
+    validation_interface->m_expected_valid_block.emplace(raw_block_bytes);
+    assert(block.GetBlockData() == raw_block_bytes);
     bool new_block = false;
-    assert(chainman->ProcessBlock(block, &new_block));
+    assert(chainman->ProcessBlock(block, new_block));
     assert(new_block == true);
 
     auto tip{chainman->GetBlockIndexFromTip()};
     auto read_block{chainman->ReadBlock(tip)};
-    assert(read_block.value().GetBlockData() == raw_block);
+    assert(read_block.value().GetBlockData() == raw_block_bytes);
 
     // Check that we can read the previous block
     auto tip_2{tip.GetPreviousBlockIndex()};
@@ -497,7 +498,7 @@ void chainman_mainnet_validation_test(TestDirectory& test_directory)
     assert(!tip_2.value().GetPreviousBlockIndex().has_value());
 
     // If we try to validate it again, it should be a duplicate
-    assert(chainman->ProcessBlock(block, &new_block));
+    assert(chainman->ProcessBlock(block, new_block));
     assert(new_block == false);
 }
 
@@ -505,8 +506,9 @@ void chainman_regtest_validation_test()
 {
     auto test_directory{TestDirectory{"regtest_test_bitcoin_kernel"}};
 
-    TestKernelNotifications notifications{};
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_REGTEST)};
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto context{create_context(notifications, ChainType::REGTEST)};
+    assert(context);
 
     // Validate 206 regtest blocks in total.
     // Stop halfway to check that it is possible to continue validating starting
@@ -515,32 +517,32 @@ void chainman_regtest_validation_test()
 
     {
         auto chainman{create_chainman(test_directory, false, false, false, false, context)};
+        assert(chainman);
         for (size_t i{0}; i < mid; i++) {
             Block block{REGTEST_BLOCK_DATA[i]};
             assert(block);
             bool new_block{false};
-            assert(chainman->ProcessBlock(block, &new_block));
+            assert(chainman->ProcessBlock(block, new_block));
             assert(new_block == true);
         }
     }
 
     auto chainman{create_chainman(test_directory, false, false, false, false, context)};
+    assert(chainman);
 
     for (size_t i{mid}; i < REGTEST_BLOCK_DATA.size(); i++) {
         Block block{REGTEST_BLOCK_DATA[i]};
         assert(block);
         bool new_block{false};
-        assert(chainman->ProcessBlock(block, &new_block));
+        assert(chainman->ProcessBlock(block, new_block));
         assert(new_block == true);
     }
 
     auto tip = chainman->GetBlockIndexFromTip();
-    auto read_block = chainman->ReadBlock(tip).value();
-    assert(read_block.GetBlockData() == REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 1]);
+    assert(chainman->ReadBlock(tip).value().GetBlockData() == char_vec_to_byte_vec(REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 1]));
 
     auto tip_2 = tip.GetPreviousBlockIndex().value();
-    auto read_block_2 = chainman->ReadBlock(tip_2).value();
-    assert(read_block_2.GetBlockData() == REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]);
+    assert(chainman->ReadBlock(tip_2).value().GetBlockData() == char_vec_to_byte_vec(REGTEST_BLOCK_DATA[REGTEST_BLOCK_DATA.size() - 2]));
 
     auto block_undo{chainman->ReadBlockUndo(tip)};
     assert(block_undo);
@@ -555,8 +557,8 @@ void chainman_regtest_validation_test()
 
 void chainman_reindex_test(TestDirectory& test_directory)
 {
-    TestKernelNotifications notifications{};
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto context{create_context(notifications, ChainType::MAIN)};
     auto chainman{create_chainman(test_directory, true, false, false, false, context)};
 
     std::vector<std::string> import_files;
@@ -584,17 +586,17 @@ void chainman_reindex_test(TestDirectory& test_directory)
     assert(next_block_string == second_block_string);
 
     auto hash{second_index.GetHash()};
-    auto another_second_index{chainman->GetBlockIndexByHash(hash.get())};
-    auto another_second_height{another_second_index.GetHeight()};
+    auto another_second_index{chainman->GetBlockIndexByHash(hash)};
+    auto another_second_height{another_second_index->GetHeight()};
     auto block_hash{second_block.GetHash()};
-    assert(std::equal(std::begin(block_hash->hash), std::end(block_hash->hash), std::begin(hash->hash)));
+    assert(std::equal(std::begin(block_hash.hash), std::end(block_hash.hash), std::begin(hash.hash)));
     assert(second_height == another_second_height);
 }
 
 void chainman_reindex_chainstate_test(TestDirectory& test_directory)
 {
-    TestKernelNotifications notifications{};
-    auto context{create_context(notifications, kernel_ChainType::kernel_CHAIN_TYPE_MAINNET)};
+    auto notifications{std::make_shared<TestKernelNotifications>()};
+    auto context{create_context(notifications, ChainType::MAIN)};
     auto chainman{create_chainman(test_directory, false, true, false, false, context)};
 
     std::vector<std::string> import_files;
@@ -608,14 +610,7 @@ int main()
     script_verify_test();
     logging_test();
 
-    kernel_LoggingOptions logging_options = {
-        .log_timestamps = true,
-        .log_time_micros = true,
-        .log_threadnames = false,
-        .log_sourcelocations = false,
-        .always_print_category_levels = true,
-    };
-    Logger logger{std::make_unique<TestLog>(TestLog{}), logging_options};
+    Logger logger{[](std::string_view message) { std::cout << message; }};
 
     context_test();
 
@@ -624,7 +619,6 @@ int main()
     auto mainnet_test_directory{TestDirectory{"mainnet_test_bitcoin_kernel"}};
     chainman_mainnet_validation_test(mainnet_test_directory);
     chainman_in_memory_test();
-
     chainman_regtest_validation_test();
     chainman_reindex_test(mainnet_test_directory);
     chainman_reindex_chainstate_test(mainnet_test_directory);

@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -17,6 +17,7 @@
 #include <kernel/chainparams.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <kernel/cs_main.h> // IWYU pragma: export
+#include <kernel/types.h>
 #include <node/blockstorage.h>
 #include <policy/feerate.h>
 #include <policy/packages.h>
@@ -31,6 +32,7 @@
 #include <util/fs.h>
 #include <util/hasher.h>
 #include <util/result.h>
+#include <util/time.h>
 #include <util/translation.h>
 #include <versionbits.h>
 
@@ -80,13 +82,6 @@ static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 550 * 1024 * 1024;
 
 /** Maximum number of dedicated script-checking threads allowed */
 static constexpr int MAX_SCRIPTCHECK_THREADS{15};
-
-/** Current sync state passed to tip changed callbacks. */
-enum class SynchronizationState {
-    INIT_REINDEX,
-    INIT_DOWNLOAD,
-    POST_INIT
-};
 
 /** Documentation for argument 'checklevel'. */
 extern const std::vector<std::string> CHECKLEVEL_DOC;
@@ -802,8 +797,7 @@ private:
     void UpdateTip(const CBlockIndex* pindexNew)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    SteadyClock::time_point m_last_write{};
-    SteadyClock::time_point m_last_flush{};
+    NodeClock::time_point m_next_write{NodeClock::time_point::max()};
 
     /**
      * In case of an invalid snapshot, rename the coins leveldb directory so
@@ -933,9 +927,7 @@ private:
     friend Chainstate;
 
     /** Most recent headers presync progress update, for rate-limiting. */
-    std::chrono::time_point<std::chrono::steady_clock> m_last_presync_update GUARDED_BY(::cs_main) {};
-
-    std::array<ThresholdConditionCache, VERSIONBITS_NUM_BITS> m_warningcache GUARDED_BY(::cs_main);
+    MockableSteadyClock::time_point m_last_presync_update GUARDED_BY(GetMutex()){};
 
     //! Return true if a chainstate is considered usable.
     //!
@@ -1218,6 +1210,7 @@ public:
      * @param[in]  min_pow_checked  True if proof-of-work anti-DoS checks have been done by caller for headers chain
      * @param[out] state This may be set to an Error state if any error occurred processing them
      * @param[out] ppindex If set, the pointer will be set to point to the last new block index object for the given headers
+     * @returns false if AcceptBlockHeader fails on any of the headers, true otherwise (including if headers were already known)
      */
     bool ProcessNewBlockHeaders(std::span<const CBlockHeader> headers, bool min_pow_checked, BlockValidationState& state, const CBlockIndex** ppindex = nullptr) LOCKS_EXCLUDED(cs_main);
 
