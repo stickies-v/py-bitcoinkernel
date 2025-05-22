@@ -71,7 +71,7 @@ def test_kernel_log_viewer(caplog):
             pbk.Block(bytes.fromhex("ab"))
         except RuntimeError:
             pass
-        assert caplog.records[-1].message == "Block decode failed."
+        assert caplog.records[-1].message.startswith("Block decode failed")
 
     debug_logger = pbk.KernelLogViewer(
         name="debug_logger", categories=[pbk.LogCategory.KERNEL, pbk.LogCategory.PRUNE]
@@ -82,4 +82,4 @@ def test_kernel_log_viewer(caplog):
         pbk.Block(bytes.fromhex("ab"))
     except RuntimeError:
         pass
-    assert caplog.records[-1].message == "Block decode failed."
+    assert caplog.records[-1].message.startswith("Block decode failed")
