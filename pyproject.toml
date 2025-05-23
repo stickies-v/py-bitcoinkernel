@@ -1,6 +1,7 @@
 [build-system]
 requires = [
-    "scikit-build-core"
+    "scikit-build-core",
+    "nanobind",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -36,7 +37,6 @@ omit = [
 [tool.scikit-build]
 cmake.version = "CMakeLists.txt"
 wheel.packages = ["src/pbk"]
-wheel.install-dir = "pbk/_libs"
 sdist.include = [
     "depend/bitcoin/src/univalue/lib/**",  # Otherwise this doesn't get included in the sdist
 ]
