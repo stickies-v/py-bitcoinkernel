@@ -1,27 +1,21 @@
 import ctypes
-
-from pbk.capi import KernelPtr
-
-
-class ByteArray(KernelPtr):
-    @property
-    def data(self) -> bytes:
-        return ctypes.string_at(self.contents.data, self.contents.size)
+from typing import Any, Optional
 
 
 class UserData:
-    def __init__(self, data=None):
-        self.c_void_p = None
+    def __init__(self, data: Optional[Any] = None) -> None:
+        self._py_object: Optional[ctypes.py_object] = None
+        self._as_parameter_: Optional[ctypes.c_void_p] = None
         if data is not None:
             self._py_object = ctypes.py_object(data)
-            self.c_void_p = ctypes.cast(
+            self._as_parameter_ = ctypes.cast(
                 ctypes.pointer(self._py_object), ctypes.c_void_p
             )
 
     @staticmethod
-    def get(data_ptr):
-        if data_ptr:
+    def from_void_ptr(void_ptr: ctypes.c_void_p) -> Optional[Any]:
+        if void_ptr:
             return ctypes.cast(
-                data_ptr, ctypes.POINTER(ctypes.py_object)
+                void_ptr, ctypes.POINTER(ctypes.py_object)
             ).contents.value
         return None

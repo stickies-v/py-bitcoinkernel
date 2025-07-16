@@ -11,15 +11,15 @@ if typing.TYPE_CHECKING:
 
 class ContextOptions(KernelOpaquePtr):
     def set_chainparams(self, chain_parameters: "ChainParameters"):
-        k.kernel_context_options_set_chainparams(self, chain_parameters)
+        k.btck_context_options_set_chainparams(self, chain_parameters)
 
     def set_notifications(self, notifications: "NotificationInterfaceCallbacks"):
-        k.kernel_context_options_set_notifications(self, notifications)
+        k.btck_context_options_set_notifications(self, notifications)
 
     def set_validation_interface(
         self, interface_callbacks: "ValidationInterfaceCallbacks"
     ):
-        k.kernel_context_options_set_validation_interface(self, interface_callbacks)
+        k.btck_context_options_set_validation_interface(self, interface_callbacks)
 
 
 class Context(KernelOpaquePtr):
@@ -27,4 +27,4 @@ class Context(KernelOpaquePtr):
         super().__init__(options)
 
     def interrupt(self) -> bool:
-        return k.kernel_context_interrupt(self)
+        return k.btck_context_interrupt(self)

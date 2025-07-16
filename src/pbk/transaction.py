@@ -5,9 +5,6 @@ import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 from pbk.script import ScriptPubkey
 
-if typing.TYPE_CHECKING:
-    from pbk.block import BlockUndo
-
 
 class Transaction(KernelOpaquePtr):
     def __init__(self, data: bytes):
@@ -18,34 +15,48 @@ class TransactionOutput(KernelOpaquePtr):
     def __init__(self, script_pubkey: "ScriptPubkey", amount: int):
         super().__init__(script_pubkey, amount)
 
-    @classmethod
-    def from_undo(
-        cls, undo: "BlockUndo", transaction_index: int, output_index: int
-    ) -> "TransactionOutput":
-        return cls._from_ptr(
-            k.kernel_get_undo_output_by_index(undo, transaction_index, output_index)
-        )
-
     @property
     def amount(self) -> int:
-        return k.kernel_get_transaction_output_amount(self)
+        return k.btck_transaction_output_get_amount(self)
 
     @property
     def script_pubkey(self) -> "ScriptPubkey":
-        return ScriptPubkey._from_ptr(k.kernel_copy_script_pubkey_from_output(self))
+        ptr = k.btck_transaction_output_get_script_pubkey(self)
+        return ScriptPubkey._from_ptr(ptr, owns_ptr=False, parent=self)
 
 
-class TransactionUndo:
-    """Helper class, does not exist in libbitcoinkernel"""
+class Coin(KernelOpaquePtr):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
 
-    def __init__(self, undo: "BlockUndo", transaction_index: int):
-        self._undo = undo
-        self._transaction_index = transaction_index
+    @property
+    def confirmation_height(self) -> int:
+        return k.btck_coin_confirmation_height(self)
+
+    @property
+    def is_coinbase(self) -> bool:
+        res = k.btck_coin_is_coinbase()
+        assert res in [0, 1]
+        return bool(res)
+
+    @property
+    def output(self) -> TransactionOutput:
+        ptr = k.btck_coin_get_output(self)
+        return TransactionOutput._from_ptr(ptr, owns_ptr=False, parent=self)
+
+
+class TransactionSpentOutputs(KernelOpaquePtr):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
 
     @property
     def output_count(self) -> int:
-        return k.kernel_get_transaction_undo_size(self._undo, self._transaction_index)
+        return k.btck_transaction_spent_outputs_count(self)
+
+    def get_coin(self, index: int) -> Coin:
+        ptr = k.btck_transaction_spent_outputs_get_coin_at(self, index)
+        return Coin._from_ptr(ptr, owns_ptr=False, parent=self)
 
     def iter_outputs(self) -> typing.Generator["TransactionOutput", None, None]:
         for i in range(self.output_count):
-            yield TransactionOutput.from_undo(self._undo, self._transaction_index, i)
+            yield self.get_coin(i).output

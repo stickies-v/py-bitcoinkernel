@@ -4,7 +4,7 @@ import pbk.capi.bindings as k
 import pbk.util.callbacks
 
 
-class NotificationInterfaceCallbacks(k.kernel_NotificationInterfaceCallbacks):
+class NotificationInterfaceCallbacks(k.btck_NotificationInterfaceCallbacks):
     def __init__(self, user_data=None, **callbacks):
         super().__init__()
         pbk.util.callbacks._initialize_callbacks(self, user_data, **callbacks)
@@ -12,8 +12,8 @@ class NotificationInterfaceCallbacks(k.kernel_NotificationInterfaceCallbacks):
 
 default_notification_callbacks = NotificationInterfaceCallbacks(
     user_data=None,
-    block_tip=lambda user_data, state, index: print(
-        f"block_tip: state: {state}, index: {index}"
+    block_tip=lambda user_data, state, index, verification_progress: print(
+        f"block_tip: state: {state}, index: {index}, verification_progress: {verification_progress}"
     ),
     header_tip=lambda user_data, state, height, timestamp, presync: print(
         f"header_tip: state: {state}, height: {height}, timestamp: {timestamp}, presync: {presync}"

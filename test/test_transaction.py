@@ -3,7 +3,7 @@ import pbk
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
-    for idx in pbk.block_index_generator(chain_man, start=1):
+    for idx in pbk.block_index_generator(chain_man.get_active_chain(), start=1):
         undo = chain_man.read_block_undo_from_disk(idx)
         transactions = list(undo.iter_transactions())
         assert len(transactions) == undo.transaction_count

@@ -2,9 +2,9 @@ import ctypes
 import typing
 
 import pbk.capi.bindings as k
-import pbk.util.type
 from pbk.capi import KernelOpaquePtr, KernelPtr
-from pbk.transaction import TransactionUndo
+from pbk.transaction import TransactionSpentOutputs
+from pbk.writer import ByteWriter
 
 
 class BlockHash(KernelPtr):
@@ -30,11 +30,11 @@ class BlockIndex(KernelOpaquePtr):
 
     @property
     def block_hash(self) -> BlockHash:
-        return BlockHash._from_ptr(k.kernel_block_index_get_block_hash(self))
+        return BlockHash._from_ptr(k.btck_block_tree_entry_get_block_hash(self))
 
     @property
     def height(self) -> int:
-        return self._auto_kernel_fn("get_height", self)
+        return k.btck_block_tree_entry_get_height(self)
 
     def __eq__(self, other):
         if isinstance(other, BlockIndex):
@@ -51,31 +51,37 @@ class Block(KernelOpaquePtr):
 
     @property
     def hash(self) -> BlockHash:
-        return BlockHash._from_ptr(k.kernel_block_get_hash(self))
+        return BlockHash._from_ptr(k.btck_block_get_hash(self))
 
     @property
     def data(self) -> bytes:
-        bytearray = pbk.util.ByteArray._from_ptr(k.kernel_copy_block_data(self))
-        return bytearray.data
+        writer = ByteWriter()
+        return writer.write(k.btck_block_to_bytes, self)
 
 
-class BlockUndo(KernelOpaquePtr):
+class BlockSpentOutputs(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError(
-            "BlockUndo cannot be constructed directly"
+            "BlockSpentOutputs cannot be constructed directly"
         )  # pragma: no cover
 
     @property
     def transaction_count(self) -> int:
-        return k.kernel_block_undo_size(self)
+        return k.btck_block_spent_outputs_count(self)
 
-    def iter_transactions(self) -> typing.Generator[TransactionUndo, None, None]:
+    def get_transaction_spent_outputs(self, index: int) -> TransactionSpentOutputs:
+        ptr = k.btck_block_spent_outputs_get_transaction_spent_outputs_at(self, index)
+        return TransactionSpentOutputs._from_ptr(ptr, owns_ptr=False, parent=self)
+
+    def iter_transactions(
+        self,
+    ) -> typing.Generator[TransactionSpentOutputs, None, None]:
         """
         Generator that yields all the TransactionUndo objects in this
-        BlockUndo.
+        BlockSpentOutputs.
 
         Synchronization is required if this generator is shared across
         threads.
         """
         for i in range(self.transaction_count):
-            yield TransactionUndo(self, i)
+            yield self.get_transaction_spent_outputs(i)

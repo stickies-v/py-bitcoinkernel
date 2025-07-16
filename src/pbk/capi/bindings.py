@@ -6,7 +6,6 @@
 # LONGDOUBLE_SIZE is: 8
 #
 import ctypes
-import ctypes.util
 import site
 from importlib import resources
 from pathlib import Path
@@ -162,750 +161,706 @@ def char_pointer_cast(string, encoding='utf-8'):
     return ctypes.cast(string, ctypes.POINTER(ctypes.c_char))
 
 
-class struct_kernel_Transaction(Structure):
+
+class FunctionFactoryStub:
+    def __getattr__(self, _):
+      return ctypes.CFUNCTYPE(lambda y:y)
+
+class struct_btck_Transaction(Structure):
     pass
 
-kernel_Transaction = struct_kernel_Transaction
-class struct_kernel_ScriptPubkey(Structure):
+btck_Transaction = struct_btck_Transaction
+class struct_btck_ScriptPubkey(Structure):
     pass
 
-kernel_ScriptPubkey = struct_kernel_ScriptPubkey
-class struct_kernel_TransactionOutput(Structure):
+btck_ScriptPubkey = struct_btck_ScriptPubkey
+class struct_btck_TransactionOutput(Structure):
     pass
 
-kernel_TransactionOutput = struct_kernel_TransactionOutput
-class struct_kernel_LoggingConnection(Structure):
+btck_TransactionOutput = struct_btck_TransactionOutput
+class struct_btck_LoggingConnection(Structure):
     pass
 
-kernel_LoggingConnection = struct_kernel_LoggingConnection
-class struct_kernel_ChainParameters(Structure):
+btck_LoggingConnection = struct_btck_LoggingConnection
+class struct_btck_ChainParameters(Structure):
     pass
 
-kernel_ChainParameters = struct_kernel_ChainParameters
-class struct_kernel_ContextOptions(Structure):
+btck_ChainParameters = struct_btck_ChainParameters
+class struct_btck_ContextOptions(Structure):
     pass
 
-kernel_ContextOptions = struct_kernel_ContextOptions
-class struct_kernel_Context(Structure):
+btck_ContextOptions = struct_btck_ContextOptions
+class struct_btck_Context(Structure):
     pass
 
-kernel_Context = struct_kernel_Context
-class struct_kernel_BlockIndex(Structure):
+btck_Context = struct_btck_Context
+class struct_btck_BlockTreeEntry(Structure):
     pass
 
-kernel_BlockIndex = struct_kernel_BlockIndex
-class struct_kernel_ChainstateManagerOptions(Structure):
+btck_BlockTreeEntry = struct_btck_BlockTreeEntry
+class struct_btck_ChainstateManagerOptions(Structure):
     pass
 
-kernel_ChainstateManagerOptions = struct_kernel_ChainstateManagerOptions
-class struct_kernel_ChainstateManager(Structure):
+btck_ChainstateManagerOptions = struct_btck_ChainstateManagerOptions
+class struct_btck_ChainstateManager(Structure):
     pass
 
-kernel_ChainstateManager = struct_kernel_ChainstateManager
-class struct_kernel_Block(Structure):
+btck_ChainstateManager = struct_btck_ChainstateManager
+class struct_btck_Block(Structure):
     pass
 
-kernel_Block = struct_kernel_Block
-class struct_kernel_BlockPointer(Structure):
+btck_Block = struct_btck_Block
+class struct_btck_BlockValidationState(Structure):
     pass
 
-kernel_BlockPointer = struct_kernel_BlockPointer
-class struct_kernel_BlockValidationState(Structure):
+btck_BlockValidationState = struct_btck_BlockValidationState
+class struct_btck_Chain(Structure):
     pass
 
-kernel_BlockValidationState = struct_kernel_BlockValidationState
-class struct_kernel_BlockUndo(Structure):
+btck_Chain = struct_btck_Chain
+class struct_btck_BlockSpentOutputs(Structure):
     pass
 
-kernel_BlockUndo = struct_kernel_BlockUndo
-
-# values for enumeration 'kernel_SynchronizationState'
-kernel_SynchronizationState__enumvalues = {
-    0: 'kernel_INIT_REINDEX',
-    1: 'kernel_INIT_DOWNLOAD',
-    2: 'kernel_POST_INIT',
-}
-kernel_INIT_REINDEX = 0
-kernel_INIT_DOWNLOAD = 1
-kernel_POST_INIT = 2
-kernel_SynchronizationState = ctypes.c_uint32 # enum
-
-# values for enumeration 'kernel_Warning'
-kernel_Warning__enumvalues = {
-    0: 'kernel_UNKNOWN_NEW_RULES_ACTIVATED',
-    1: 'kernel_LARGE_WORK_INVALID_CHAIN',
-}
-kernel_UNKNOWN_NEW_RULES_ACTIVATED = 0
-kernel_LARGE_WORK_INVALID_CHAIN = 1
-kernel_Warning = ctypes.c_uint32 # enum
-kernel_LogCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
-kernel_NotifyBlockTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_SynchronizationState, ctypes.POINTER(struct_kernel_BlockIndex))
-kernel_NotifyHeaderTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_SynchronizationState, ctypes.c_int64, ctypes.c_int64, ctypes.c_bool)
-kernel_NotifyProgress = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64, ctypes.c_int32, ctypes.c_bool)
-kernel_NotifyWarningSet = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_Warning, ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
-kernel_NotifyWarningUnset = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_Warning)
-kernel_NotifyFlushError = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
-kernel_NotifyFatalError = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
-kernel_ValidationInterfaceBlockChecked = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(struct_kernel_BlockPointer), ctypes.POINTER(struct_kernel_BlockValidationState))
-
-# values for enumeration 'kernel_ValidationMode'
-kernel_ValidationMode__enumvalues = {
-    0: 'kernel_VALIDATION_STATE_VALID',
-    1: 'kernel_VALIDATION_STATE_INVALID',
-    2: 'kernel_VALIDATION_STATE_ERROR',
-}
-kernel_VALIDATION_STATE_VALID = 0
-kernel_VALIDATION_STATE_INVALID = 1
-kernel_VALIDATION_STATE_ERROR = 2
-kernel_ValidationMode = ctypes.c_uint32 # enum
-
-# values for enumeration 'kernel_BlockValidationResult'
-kernel_BlockValidationResult__enumvalues = {
-    0: 'kernel_BLOCK_RESULT_UNSET',
-    1: 'kernel_BLOCK_CONSENSUS',
-    2: 'kernel_BLOCK_CACHED_INVALID',
-    3: 'kernel_BLOCK_INVALID_HEADER',
-    4: 'kernel_BLOCK_MUTATED',
-    5: 'kernel_BLOCK_MISSING_PREV',
-    6: 'kernel_BLOCK_INVALID_PREV',
-    7: 'kernel_BLOCK_TIME_FUTURE',
-    8: 'kernel_BLOCK_HEADER_LOW_WORK',
-}
-kernel_BLOCK_RESULT_UNSET = 0
-kernel_BLOCK_CONSENSUS = 1
-kernel_BLOCK_CACHED_INVALID = 2
-kernel_BLOCK_INVALID_HEADER = 3
-kernel_BLOCK_MUTATED = 4
-kernel_BLOCK_MISSING_PREV = 5
-kernel_BLOCK_INVALID_PREV = 6
-kernel_BLOCK_TIME_FUTURE = 7
-kernel_BLOCK_HEADER_LOW_WORK = 8
-kernel_BlockValidationResult = ctypes.c_uint32 # enum
-class struct_kernel_ValidationInterfaceCallbacks(Structure):
+btck_BlockSpentOutputs = struct_btck_BlockSpentOutputs
+class struct_btck_TransactionSpentOutputs(Structure):
     pass
 
-struct_kernel_ValidationInterfaceCallbacks._pack_ = 1 # source:False
-struct_kernel_ValidationInterfaceCallbacks._fields_ = [
+btck_TransactionSpentOutputs = struct_btck_TransactionSpentOutputs
+class struct_btck_Coin(Structure):
+    pass
+
+btck_Coin = struct_btck_Coin
+btck_SynchronizationState = ctypes.c_ubyte
+btck_Warning = ctypes.c_ubyte
+btck_LogCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
+btck_DestroyCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None))
+btck_NotifyBlockTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.POINTER(struct_btck_BlockTreeEntry), ctypes.c_double)
+btck_NotifyHeaderTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.c_int64, ctypes.c_int64, ctypes.c_int32)
+btck_NotifyProgress = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64, ctypes.c_int32, ctypes.c_int32)
+btck_NotifyWarningSet = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
+btck_NotifyWarningUnset = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte)
+btck_NotifyFlushError = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
+btck_NotifyFatalError = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
+btck_ValidationInterfaceBlockChecked = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(struct_btck_Block), ctypes.POINTER(struct_btck_BlockValidationState))
+btck_WriteBytes = ctypes.CFUNCTYPE(ctypes.c_int32, ctypes.POINTER(None), ctypes.c_uint64, ctypes.POINTER(None))
+btck_ValidationMode = ctypes.c_ubyte
+btck_BlockValidationResult = ctypes.c_uint32
+class struct_btck_ValidationInterfaceCallbacks(Structure):
+    pass
+
+struct_btck_ValidationInterfaceCallbacks._pack_ = 1 # source:False
+struct_btck_ValidationInterfaceCallbacks._fields_ = [
     ('user_data', ctypes.POINTER(None)),
-    ('block_checked', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(struct_kernel_BlockPointer), ctypes.POINTER(struct_kernel_BlockValidationState))),
+    ('user_data_destroy', ctypes.CFUNCTYPE(None, ctypes.POINTER(None))),
+    ('block_checked', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(struct_btck_Block), ctypes.POINTER(struct_btck_BlockValidationState))),
 ]
 
-kernel_ValidationInterfaceCallbacks = struct_kernel_ValidationInterfaceCallbacks
-class struct_kernel_NotificationInterfaceCallbacks(Structure):
+btck_ValidationInterfaceCallbacks = struct_btck_ValidationInterfaceCallbacks
+class struct_btck_NotificationInterfaceCallbacks(Structure):
     pass
 
-struct_kernel_NotificationInterfaceCallbacks._pack_ = 1 # source:False
-struct_kernel_NotificationInterfaceCallbacks._fields_ = [
+struct_btck_NotificationInterfaceCallbacks._pack_ = 1 # source:False
+struct_btck_NotificationInterfaceCallbacks._fields_ = [
     ('user_data', ctypes.POINTER(None)),
-    ('block_tip', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_SynchronizationState, ctypes.POINTER(struct_kernel_BlockIndex))),
-    ('header_tip', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_SynchronizationState, ctypes.c_int64, ctypes.c_int64, ctypes.c_bool)),
-    ('progress', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64, ctypes.c_int32, ctypes.c_bool)),
-    ('warning_set', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_Warning, ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)),
-    ('warning_unset', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), kernel_Warning)),
+    ('user_data_destroy', ctypes.CFUNCTYPE(None, ctypes.POINTER(None))),
+    ('block_tip', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.POINTER(struct_btck_BlockTreeEntry), ctypes.c_double)),
+    ('header_tip', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.c_int64, ctypes.c_int64, ctypes.c_int32)),
+    ('progress', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64, ctypes.c_int32, ctypes.c_int32)),
+    ('warning_set', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)),
+    ('warning_unset', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte)),
     ('flush_error', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)),
     ('fatal_error', ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)),
 ]
 
-kernel_NotificationInterfaceCallbacks = struct_kernel_NotificationInterfaceCallbacks
-
-# values for enumeration 'kernel_LogCategory'
-kernel_LogCategory__enumvalues = {
-    0: 'kernel_LOG_ALL',
-    1: 'kernel_LOG_BENCH',
-    2: 'kernel_LOG_BLOCKSTORAGE',
-    3: 'kernel_LOG_COINDB',
-    4: 'kernel_LOG_LEVELDB',
-    5: 'kernel_LOG_MEMPOOL',
-    6: 'kernel_LOG_PRUNE',
-    7: 'kernel_LOG_RAND',
-    8: 'kernel_LOG_REINDEX',
-    9: 'kernel_LOG_VALIDATION',
-    10: 'kernel_LOG_KERNEL',
-}
-kernel_LOG_ALL = 0
-kernel_LOG_BENCH = 1
-kernel_LOG_BLOCKSTORAGE = 2
-kernel_LOG_COINDB = 3
-kernel_LOG_LEVELDB = 4
-kernel_LOG_MEMPOOL = 5
-kernel_LOG_PRUNE = 6
-kernel_LOG_RAND = 7
-kernel_LOG_REINDEX = 8
-kernel_LOG_VALIDATION = 9
-kernel_LOG_KERNEL = 10
-kernel_LogCategory = ctypes.c_uint32 # enum
-
-# values for enumeration 'kernel_LogLevel'
-kernel_LogLevel__enumvalues = {
-    0: 'kernel_LOG_TRACE',
-    1: 'kernel_LOG_DEBUG',
-    2: 'kernel_LOG_INFO',
-}
-kernel_LOG_TRACE = 0
-kernel_LOG_DEBUG = 1
-kernel_LOG_INFO = 2
-kernel_LogLevel = ctypes.c_uint32 # enum
-class struct_kernel_LoggingOptions(Structure):
+btck_NotificationInterfaceCallbacks = struct_btck_NotificationInterfaceCallbacks
+btck_LogCategory = ctypes.c_ubyte
+btck_LogLevel = ctypes.c_ubyte
+class struct_btck_LoggingOptions(Structure):
     pass
 
-struct_kernel_LoggingOptions._pack_ = 1 # source:False
-struct_kernel_LoggingOptions._fields_ = [
-    ('log_timestamps', ctypes.c_bool),
-    ('log_time_micros', ctypes.c_bool),
-    ('log_threadnames', ctypes.c_bool),
-    ('log_sourcelocations', ctypes.c_bool),
-    ('always_print_category_levels', ctypes.c_bool),
+struct_btck_LoggingOptions._pack_ = 1 # source:False
+struct_btck_LoggingOptions._fields_ = [
+    ('log_timestamps', ctypes.c_int32),
+    ('log_time_micros', ctypes.c_int32),
+    ('log_threadnames', ctypes.c_int32),
+    ('log_sourcelocations', ctypes.c_int32),
+    ('always_print_category_levels', ctypes.c_int32),
 ]
 
-kernel_LoggingOptions = struct_kernel_LoggingOptions
-
-# values for enumeration 'kernel_ScriptVerifyStatus'
-kernel_ScriptVerifyStatus__enumvalues = {
-    0: 'kernel_SCRIPT_VERIFY_OK',
-    1: 'kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX',
-    2: 'kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS',
-    3: 'kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION',
-    4: 'kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED',
-    5: 'kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH',
-}
-kernel_SCRIPT_VERIFY_OK = 0
-kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX = 1
-kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS = 2
-kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION = 3
-kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED = 4
-kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH = 5
-kernel_ScriptVerifyStatus = ctypes.c_uint32 # enum
-
-# values for enumeration 'kernel_ScriptFlags'
-kernel_ScriptFlags__enumvalues = {
-    0: 'kernel_SCRIPT_FLAGS_VERIFY_NONE',
-    1: 'kernel_SCRIPT_FLAGS_VERIFY_P2SH',
-    4: 'kernel_SCRIPT_FLAGS_VERIFY_DERSIG',
-    16: 'kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY',
-    512: 'kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY',
-    1024: 'kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY',
-    2048: 'kernel_SCRIPT_FLAGS_VERIFY_WITNESS',
-    131072: 'kernel_SCRIPT_FLAGS_VERIFY_TAPROOT',
-    134677: 'kernel_SCRIPT_FLAGS_VERIFY_ALL',
-}
-kernel_SCRIPT_FLAGS_VERIFY_NONE = 0
-kernel_SCRIPT_FLAGS_VERIFY_P2SH = 1
-kernel_SCRIPT_FLAGS_VERIFY_DERSIG = 4
-kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY = 16
-kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY = 512
-kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY = 1024
-kernel_SCRIPT_FLAGS_VERIFY_WITNESS = 2048
-kernel_SCRIPT_FLAGS_VERIFY_TAPROOT = 131072
-kernel_SCRIPT_FLAGS_VERIFY_ALL = 134677
-kernel_ScriptFlags = ctypes.c_uint32 # enum
-
-# values for enumeration 'kernel_ChainType'
-kernel_ChainType__enumvalues = {
-    0: 'kernel_CHAIN_TYPE_MAINNET',
-    1: 'kernel_CHAIN_TYPE_TESTNET',
-    2: 'kernel_CHAIN_TYPE_TESTNET_4',
-    3: 'kernel_CHAIN_TYPE_SIGNET',
-    4: 'kernel_CHAIN_TYPE_REGTEST',
-}
-kernel_CHAIN_TYPE_MAINNET = 0
-kernel_CHAIN_TYPE_TESTNET = 1
-kernel_CHAIN_TYPE_TESTNET_4 = 2
-kernel_CHAIN_TYPE_SIGNET = 3
-kernel_CHAIN_TYPE_REGTEST = 4
-kernel_ChainType = ctypes.c_uint32 # enum
-class struct_kernel_BlockHash(Structure):
+btck_LoggingOptions = struct_btck_LoggingOptions
+btck_ScriptVerifyStatus = ctypes.c_ubyte
+btck_ScriptVerificationFlags = ctypes.c_uint32
+btck_ChainType = ctypes.c_ubyte
+class struct_btck_BlockHash(Structure):
     pass
 
-struct_kernel_BlockHash._pack_ = 1 # source:False
-struct_kernel_BlockHash._fields_ = [
+struct_btck_BlockHash._pack_ = 1 # source:False
+struct_btck_BlockHash._fields_ = [
     ('hash', ctypes.c_ubyte * 32),
 ]
 
-kernel_BlockHash = struct_kernel_BlockHash
-class struct_kernel_ByteArray(Structure):
-    pass
-
-struct_kernel_ByteArray._pack_ = 1 # source:False
-struct_kernel_ByteArray._fields_ = [
-    ('data', ctypes.POINTER(ctypes.c_ubyte)),
-    ('size', ctypes.c_uint64),
-]
-
-kernel_ByteArray = struct_kernel_ByteArray
+btck_BlockHash = struct_btck_BlockHash
 size_t = ctypes.c_uint64
 try:
-    kernel_transaction_create = BITCOINKERNEL_LIB.kernel_transaction_create
-    kernel_transaction_create.restype = ctypes.POINTER(struct_kernel_Transaction)
-    kernel_transaction_create.argtypes = [ctypes.POINTER(ctypes.c_ubyte), size_t]
+    btck_transaction_create = BITCOINKERNEL_LIB.btck_transaction_create
+    btck_transaction_create.restype = ctypes.POINTER(struct_btck_Transaction)
+    btck_transaction_create.argtypes = [ctypes.POINTER(None), size_t]
 except AttributeError:
     pass
 try:
-    kernel_transaction_destroy = BITCOINKERNEL_LIB.kernel_transaction_destroy
-    kernel_transaction_destroy.restype = None
-    kernel_transaction_destroy.argtypes = [ctypes.POINTER(struct_kernel_Transaction)]
+    btck_transaction_copy = BITCOINKERNEL_LIB.btck_transaction_copy
+    btck_transaction_copy.restype = ctypes.POINTER(struct_btck_Transaction)
+    btck_transaction_copy.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
 except AttributeError:
     pass
 try:
-    kernel_script_pubkey_create = BITCOINKERNEL_LIB.kernel_script_pubkey_create
-    kernel_script_pubkey_create.restype = ctypes.POINTER(struct_kernel_ScriptPubkey)
-    kernel_script_pubkey_create.argtypes = [ctypes.POINTER(ctypes.c_ubyte), size_t]
+    btck_transaction_to_bytes = BITCOINKERNEL_LIB.btck_transaction_to_bytes
+    btck_transaction_to_bytes.restype = ctypes.c_int32
+    btck_transaction_to_bytes.argtypes = [ctypes.POINTER(struct_btck_Transaction), btck_WriteBytes, ctypes.POINTER(None)]
 except AttributeError:
     pass
 try:
-    kernel_copy_script_pubkey_data = BITCOINKERNEL_LIB.kernel_copy_script_pubkey_data
-    kernel_copy_script_pubkey_data.restype = ctypes.POINTER(struct_kernel_ByteArray)
-    kernel_copy_script_pubkey_data.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey)]
+    btck_transaction_count_outputs = BITCOINKERNEL_LIB.btck_transaction_count_outputs
+    btck_transaction_count_outputs.restype = size_t
+    btck_transaction_count_outputs.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
 except AttributeError:
     pass
 try:
-    kernel_script_pubkey_destroy = BITCOINKERNEL_LIB.kernel_script_pubkey_destroy
-    kernel_script_pubkey_destroy.restype = None
-    kernel_script_pubkey_destroy.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey)]
+    btck_transaction_get_output_at = BITCOINKERNEL_LIB.btck_transaction_get_output_at
+    btck_transaction_get_output_at.restype = ctypes.POINTER(struct_btck_TransactionOutput)
+    btck_transaction_get_output_at.argtypes = [ctypes.POINTER(struct_btck_Transaction), size_t]
+except AttributeError:
+    pass
+try:
+    btck_transaction_count_inputs = BITCOINKERNEL_LIB.btck_transaction_count_inputs
+    btck_transaction_count_inputs.restype = size_t
+    btck_transaction_count_inputs.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
+except AttributeError:
+    pass
+try:
+    btck_transaction_destroy = BITCOINKERNEL_LIB.btck_transaction_destroy
+    btck_transaction_destroy.restype = None
+    btck_transaction_destroy.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
+except AttributeError:
+    pass
+try:
+    btck_script_pubkey_create = BITCOINKERNEL_LIB.btck_script_pubkey_create
+    btck_script_pubkey_create.restype = ctypes.POINTER(struct_btck_ScriptPubkey)
+    btck_script_pubkey_create.argtypes = [ctypes.POINTER(None), size_t]
+except AttributeError:
+    pass
+try:
+    btck_script_pubkey_copy = BITCOINKERNEL_LIB.btck_script_pubkey_copy
+    btck_script_pubkey_copy.restype = ctypes.POINTER(struct_btck_ScriptPubkey)
+    btck_script_pubkey_copy.argtypes = [ctypes.POINTER(struct_btck_ScriptPubkey)]
 except AttributeError:
     pass
 int64_t = ctypes.c_int64
 try:
-    kernel_transaction_output_create = BITCOINKERNEL_LIB.kernel_transaction_output_create
-    kernel_transaction_output_create.restype = ctypes.POINTER(struct_kernel_TransactionOutput)
-    kernel_transaction_output_create.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey), int64_t]
+    btck_script_pubkey_verify = BITCOINKERNEL_LIB.btck_script_pubkey_verify
+    btck_script_pubkey_verify.restype = ctypes.c_int32
+    btck_script_pubkey_verify.argtypes = [ctypes.POINTER(struct_btck_ScriptPubkey), int64_t, ctypes.POINTER(struct_btck_Transaction), ctypes.POINTER(ctypes.POINTER(struct_btck_TransactionOutput)), size_t, ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(ctypes.c_ubyte)]
 except AttributeError:
     pass
 try:
-    kernel_copy_script_pubkey_from_output = BITCOINKERNEL_LIB.kernel_copy_script_pubkey_from_output
-    kernel_copy_script_pubkey_from_output.restype = ctypes.POINTER(struct_kernel_ScriptPubkey)
-    kernel_copy_script_pubkey_from_output.argtypes = [ctypes.POINTER(struct_kernel_TransactionOutput)]
+    btck_script_pubkey_to_bytes = BITCOINKERNEL_LIB.btck_script_pubkey_to_bytes
+    btck_script_pubkey_to_bytes.restype = ctypes.c_int32
+    btck_script_pubkey_to_bytes.argtypes = [ctypes.POINTER(struct_btck_ScriptPubkey), btck_WriteBytes, ctypes.POINTER(None)]
 except AttributeError:
     pass
 try:
-    kernel_get_transaction_output_amount = BITCOINKERNEL_LIB.kernel_get_transaction_output_amount
-    kernel_get_transaction_output_amount.restype = int64_t
-    kernel_get_transaction_output_amount.argtypes = [ctypes.POINTER(struct_kernel_TransactionOutput)]
+    btck_script_pubkey_destroy = BITCOINKERNEL_LIB.btck_script_pubkey_destroy
+    btck_script_pubkey_destroy.restype = None
+    btck_script_pubkey_destroy.argtypes = [ctypes.POINTER(struct_btck_ScriptPubkey)]
 except AttributeError:
     pass
 try:
-    kernel_transaction_output_destroy = BITCOINKERNEL_LIB.kernel_transaction_output_destroy
-    kernel_transaction_output_destroy.restype = None
-    kernel_transaction_output_destroy.argtypes = [ctypes.POINTER(struct_kernel_TransactionOutput)]
+    btck_transaction_output_create = BITCOINKERNEL_LIB.btck_transaction_output_create
+    btck_transaction_output_create.restype = ctypes.POINTER(struct_btck_TransactionOutput)
+    btck_transaction_output_create.argtypes = [ctypes.POINTER(struct_btck_ScriptPubkey), int64_t]
 except AttributeError:
     pass
 try:
-    kernel_verify_script = BITCOINKERNEL_LIB.kernel_verify_script
-    kernel_verify_script.restype = ctypes.c_bool
-    kernel_verify_script.argtypes = [ctypes.POINTER(struct_kernel_ScriptPubkey), int64_t, ctypes.POINTER(struct_kernel_Transaction), ctypes.POINTER(ctypes.POINTER(struct_kernel_TransactionOutput)), size_t, ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(kernel_ScriptVerifyStatus)]
+    btck_transaction_output_get_script_pubkey = BITCOINKERNEL_LIB.btck_transaction_output_get_script_pubkey
+    btck_transaction_output_get_script_pubkey.restype = ctypes.POINTER(struct_btck_ScriptPubkey)
+    btck_transaction_output_get_script_pubkey.argtypes = [ctypes.POINTER(struct_btck_TransactionOutput)]
 except AttributeError:
     pass
 try:
-    kernel_disable_logging = BITCOINKERNEL_LIB.kernel_disable_logging
-    kernel_disable_logging.restype = None
-    kernel_disable_logging.argtypes = []
+    btck_transaction_output_get_amount = BITCOINKERNEL_LIB.btck_transaction_output_get_amount
+    btck_transaction_output_get_amount.restype = int64_t
+    btck_transaction_output_get_amount.argtypes = [ctypes.POINTER(struct_btck_TransactionOutput)]
 except AttributeError:
     pass
 try:
-    kernel_add_log_level_category = BITCOINKERNEL_LIB.kernel_add_log_level_category
-    kernel_add_log_level_category.restype = None
-    kernel_add_log_level_category.argtypes = [kernel_LogCategory, kernel_LogLevel]
+    btck_transaction_output_copy = BITCOINKERNEL_LIB.btck_transaction_output_copy
+    btck_transaction_output_copy.restype = ctypes.POINTER(struct_btck_TransactionOutput)
+    btck_transaction_output_copy.argtypes = [ctypes.POINTER(struct_btck_TransactionOutput)]
 except AttributeError:
     pass
 try:
-    kernel_enable_log_category = BITCOINKERNEL_LIB.kernel_enable_log_category
-    kernel_enable_log_category.restype = None
-    kernel_enable_log_category.argtypes = [kernel_LogCategory]
+    btck_transaction_output_destroy = BITCOINKERNEL_LIB.btck_transaction_output_destroy
+    btck_transaction_output_destroy.restype = None
+    btck_transaction_output_destroy.argtypes = [ctypes.POINTER(struct_btck_TransactionOutput)]
 except AttributeError:
     pass
 try:
-    kernel_disable_log_category = BITCOINKERNEL_LIB.kernel_disable_log_category
-    kernel_disable_log_category.restype = None
-    kernel_disable_log_category.argtypes = [kernel_LogCategory]
+    btck_logging_disable = BITCOINKERNEL_LIB.btck_logging_disable
+    btck_logging_disable.restype = None
+    btck_logging_disable.argtypes = []
 except AttributeError:
     pass
 try:
-    kernel_logging_connection_create = BITCOINKERNEL_LIB.kernel_logging_connection_create
-    kernel_logging_connection_create.restype = ctypes.POINTER(struct_kernel_LoggingConnection)
-    kernel_logging_connection_create.argtypes = [kernel_LogCallback, ctypes.POINTER(None), kernel_LoggingOptions]
+    btck_logging_set_level_category = BITCOINKERNEL_LIB.btck_logging_set_level_category
+    btck_logging_set_level_category.restype = None
+    btck_logging_set_level_category.argtypes = [btck_LogCategory, btck_LogLevel]
 except AttributeError:
     pass
 try:
-    kernel_logging_connection_destroy = BITCOINKERNEL_LIB.kernel_logging_connection_destroy
-    kernel_logging_connection_destroy.restype = None
-    kernel_logging_connection_destroy.argtypes = [ctypes.POINTER(struct_kernel_LoggingConnection)]
+    btck_logging_enable_category = BITCOINKERNEL_LIB.btck_logging_enable_category
+    btck_logging_enable_category.restype = None
+    btck_logging_enable_category.argtypes = [btck_LogCategory]
 except AttributeError:
     pass
 try:
-    kernel_chain_parameters_create = BITCOINKERNEL_LIB.kernel_chain_parameters_create
-    kernel_chain_parameters_create.restype = ctypes.POINTER(struct_kernel_ChainParameters)
-    kernel_chain_parameters_create.argtypes = [kernel_ChainType]
+    btck_logging_disable_category = BITCOINKERNEL_LIB.btck_logging_disable_category
+    btck_logging_disable_category.restype = None
+    btck_logging_disable_category.argtypes = [btck_LogCategory]
 except AttributeError:
     pass
 try:
-    kernel_chain_parameters_destroy = BITCOINKERNEL_LIB.kernel_chain_parameters_destroy
-    kernel_chain_parameters_destroy.restype = None
-    kernel_chain_parameters_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainParameters)]
+    btck_logging_connection_create = BITCOINKERNEL_LIB.btck_logging_connection_create
+    btck_logging_connection_create.restype = ctypes.POINTER(struct_btck_LoggingConnection)
+    btck_logging_connection_create.argtypes = [btck_LogCallback, ctypes.POINTER(None), btck_DestroyCallback, btck_LoggingOptions]
 except AttributeError:
     pass
 try:
-    kernel_context_options_create = BITCOINKERNEL_LIB.kernel_context_options_create
-    kernel_context_options_create.restype = ctypes.POINTER(struct_kernel_ContextOptions)
-    kernel_context_options_create.argtypes = []
+    btck_logging_connection_destroy = BITCOINKERNEL_LIB.btck_logging_connection_destroy
+    btck_logging_connection_destroy.restype = None
+    btck_logging_connection_destroy.argtypes = [ctypes.POINTER(struct_btck_LoggingConnection)]
 except AttributeError:
     pass
 try:
-    kernel_context_options_set_chainparams = BITCOINKERNEL_LIB.kernel_context_options_set_chainparams
-    kernel_context_options_set_chainparams.restype = None
-    kernel_context_options_set_chainparams.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions), ctypes.POINTER(struct_kernel_ChainParameters)]
+    btck_chain_parameters_create = BITCOINKERNEL_LIB.btck_chain_parameters_create
+    btck_chain_parameters_create.restype = ctypes.POINTER(struct_btck_ChainParameters)
+    btck_chain_parameters_create.argtypes = [btck_ChainType]
 except AttributeError:
     pass
 try:
-    kernel_context_options_set_notifications = BITCOINKERNEL_LIB.kernel_context_options_set_notifications
-    kernel_context_options_set_notifications.restype = None
-    kernel_context_options_set_notifications.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions), kernel_NotificationInterfaceCallbacks]
+    btck_chain_parameters_copy = BITCOINKERNEL_LIB.btck_chain_parameters_copy
+    btck_chain_parameters_copy.restype = ctypes.POINTER(struct_btck_ChainParameters)
+    btck_chain_parameters_copy.argtypes = [ctypes.POINTER(struct_btck_ChainParameters)]
 except AttributeError:
     pass
 try:
-    kernel_context_options_set_validation_interface = BITCOINKERNEL_LIB.kernel_context_options_set_validation_interface
-    kernel_context_options_set_validation_interface.restype = None
-    kernel_context_options_set_validation_interface.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions), kernel_ValidationInterfaceCallbacks]
+    btck_chain_parameters_destroy = BITCOINKERNEL_LIB.btck_chain_parameters_destroy
+    btck_chain_parameters_destroy.restype = None
+    btck_chain_parameters_destroy.argtypes = [ctypes.POINTER(struct_btck_ChainParameters)]
 except AttributeError:
     pass
 try:
-    kernel_context_options_destroy = BITCOINKERNEL_LIB.kernel_context_options_destroy
-    kernel_context_options_destroy.restype = None
-    kernel_context_options_destroy.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions)]
+    btck_context_options_create = BITCOINKERNEL_LIB.btck_context_options_create
+    btck_context_options_create.restype = ctypes.POINTER(struct_btck_ContextOptions)
+    btck_context_options_create.argtypes = []
 except AttributeError:
     pass
 try:
-    kernel_context_create = BITCOINKERNEL_LIB.kernel_context_create
-    kernel_context_create.restype = ctypes.POINTER(struct_kernel_Context)
-    kernel_context_create.argtypes = [ctypes.POINTER(struct_kernel_ContextOptions)]
+    btck_context_options_set_chainparams = BITCOINKERNEL_LIB.btck_context_options_set_chainparams
+    btck_context_options_set_chainparams.restype = None
+    btck_context_options_set_chainparams.argtypes = [ctypes.POINTER(struct_btck_ContextOptions), ctypes.POINTER(struct_btck_ChainParameters)]
 except AttributeError:
     pass
 try:
-    kernel_context_interrupt = BITCOINKERNEL_LIB.kernel_context_interrupt
-    kernel_context_interrupt.restype = ctypes.c_bool
-    kernel_context_interrupt.argtypes = [ctypes.POINTER(struct_kernel_Context)]
+    btck_context_options_set_notifications = BITCOINKERNEL_LIB.btck_context_options_set_notifications
+    btck_context_options_set_notifications.restype = None
+    btck_context_options_set_notifications.argtypes = [ctypes.POINTER(struct_btck_ContextOptions), btck_NotificationInterfaceCallbacks]
 except AttributeError:
     pass
 try:
-    kernel_context_destroy = BITCOINKERNEL_LIB.kernel_context_destroy
-    kernel_context_destroy.restype = None
-    kernel_context_destroy.argtypes = [ctypes.POINTER(struct_kernel_Context)]
+    btck_context_options_set_validation_interface = BITCOINKERNEL_LIB.btck_context_options_set_validation_interface
+    btck_context_options_set_validation_interface.restype = None
+    btck_context_options_set_validation_interface.argtypes = [ctypes.POINTER(struct_btck_ContextOptions), btck_ValidationInterfaceCallbacks]
 except AttributeError:
     pass
 try:
-    kernel_chainstate_manager_options_create = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_create
-    kernel_chainstate_manager_options_create.restype = ctypes.POINTER(struct_kernel_ChainstateManagerOptions)
-    kernel_chainstate_manager_options_create.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(ctypes.c_char), size_t, ctypes.POINTER(ctypes.c_char), size_t]
+    btck_context_options_destroy = BITCOINKERNEL_LIB.btck_context_options_destroy
+    btck_context_options_destroy.restype = None
+    btck_context_options_destroy.argtypes = [ctypes.POINTER(struct_btck_ContextOptions)]
 except AttributeError:
     pass
 try:
-    kernel_chainstate_manager_options_set_worker_threads_num = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_set_worker_threads_num
-    kernel_chainstate_manager_options_set_worker_threads_num.restype = None
-    kernel_chainstate_manager_options_set_worker_threads_num.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.c_int32]
+    btck_context_create = BITCOINKERNEL_LIB.btck_context_create
+    btck_context_create.restype = ctypes.POINTER(struct_btck_Context)
+    btck_context_create.argtypes = [ctypes.POINTER(struct_btck_ContextOptions)]
 except AttributeError:
     pass
 try:
-    kernel_chainstate_manager_options_set_wipe_dbs = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_set_wipe_dbs
-    kernel_chainstate_manager_options_set_wipe_dbs.restype = ctypes.c_bool
-    kernel_chainstate_manager_options_set_wipe_dbs.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.c_bool, ctypes.c_bool]
+    btck_context_copy = BITCOINKERNEL_LIB.btck_context_copy
+    btck_context_copy.restype = ctypes.POINTER(struct_btck_Context)
+    btck_context_copy.argtypes = [ctypes.POINTER(struct_btck_Context)]
 except AttributeError:
     pass
 try:
-    kernel_chainstate_manager_options_set_block_tree_db_in_memory = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_set_block_tree_db_in_memory
-    kernel_chainstate_manager_options_set_block_tree_db_in_memory.restype = None
-    kernel_chainstate_manager_options_set_block_tree_db_in_memory.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.c_bool]
+    btck_context_interrupt = BITCOINKERNEL_LIB.btck_context_interrupt
+    btck_context_interrupt.restype = ctypes.c_int32
+    btck_context_interrupt.argtypes = [ctypes.POINTER(struct_btck_Context)]
 except AttributeError:
     pass
 try:
-    kernel_chainstate_manager_options_set_chainstate_db_in_memory = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_set_chainstate_db_in_memory
-    kernel_chainstate_manager_options_set_chainstate_db_in_memory.restype = None
-    kernel_chainstate_manager_options_set_chainstate_db_in_memory.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManagerOptions), ctypes.c_bool]
+    btck_context_destroy = BITCOINKERNEL_LIB.btck_context_destroy
+    btck_context_destroy.restype = None
+    btck_context_destroy.argtypes = [ctypes.POINTER(struct_btck_Context)]
 except AttributeError:
     pass
 try:
-    kernel_chainstate_manager_options_destroy = BITCOINKERNEL_LIB.kernel_chainstate_manager_options_destroy
-    kernel_chainstate_manager_options_destroy.restype = None
-    kernel_chainstate_manager_options_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManagerOptions)]
-except AttributeError:
-    pass
-try:
-    kernel_chainstate_manager_create = BITCOINKERNEL_LIB.kernel_chainstate_manager_create
-    kernel_chainstate_manager_create.restype = ctypes.POINTER(struct_kernel_ChainstateManager)
-    kernel_chainstate_manager_create.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManagerOptions)]
-except AttributeError:
-    pass
-try:
-    kernel_import_blocks = BITCOINKERNEL_LIB.kernel_import_blocks
-    kernel_import_blocks.restype = ctypes.c_bool
-    kernel_import_blocks.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), ctypes.POINTER(ctypes.c_uint64), size_t]
-except AttributeError:
-    pass
-try:
-    kernel_chainstate_manager_process_block = BITCOINKERNEL_LIB.kernel_chainstate_manager_process_block
-    kernel_chainstate_manager_process_block.restype = ctypes.c_bool
-    kernel_chainstate_manager_process_block.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_Block), ctypes.POINTER(ctypes.c_bool)]
-except AttributeError:
-    pass
-try:
-    kernel_chainstate_manager_destroy = BITCOINKERNEL_LIB.kernel_chainstate_manager_destroy
-    kernel_chainstate_manager_destroy.restype = None
-    kernel_chainstate_manager_destroy.argtypes = [ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_Context)]
-except AttributeError:
-    pass
-try:
-    kernel_read_block_from_disk = BITCOINKERNEL_LIB.kernel_read_block_from_disk
-    kernel_read_block_from_disk.restype = ctypes.POINTER(struct_kernel_Block)
-    kernel_read_block_from_disk.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockIndex)]
-except AttributeError:
-    pass
-try:
-    kernel_block_create = BITCOINKERNEL_LIB.kernel_block_create
-    kernel_block_create.restype = ctypes.POINTER(struct_kernel_Block)
-    kernel_block_create.argtypes = [ctypes.POINTER(ctypes.c_ubyte), size_t]
-except AttributeError:
-    pass
-try:
-    kernel_block_get_hash = BITCOINKERNEL_LIB.kernel_block_get_hash
-    kernel_block_get_hash.restype = ctypes.POINTER(struct_kernel_BlockHash)
-    kernel_block_get_hash.argtypes = [ctypes.POINTER(struct_kernel_Block)]
-except AttributeError:
-    pass
-try:
-    kernel_block_pointer_get_hash = BITCOINKERNEL_LIB.kernel_block_pointer_get_hash
-    kernel_block_pointer_get_hash.restype = ctypes.POINTER(struct_kernel_BlockHash)
-    kernel_block_pointer_get_hash.argtypes = [ctypes.POINTER(struct_kernel_BlockPointer)]
-except AttributeError:
-    pass
-try:
-    kernel_copy_block_data = BITCOINKERNEL_LIB.kernel_copy_block_data
-    kernel_copy_block_data.restype = ctypes.POINTER(struct_kernel_ByteArray)
-    kernel_copy_block_data.argtypes = [ctypes.POINTER(struct_kernel_Block)]
-except AttributeError:
-    pass
-try:
-    kernel_copy_block_pointer_data = BITCOINKERNEL_LIB.kernel_copy_block_pointer_data
-    kernel_copy_block_pointer_data.restype = ctypes.POINTER(struct_kernel_ByteArray)
-    kernel_copy_block_pointer_data.argtypes = [ctypes.POINTER(struct_kernel_BlockPointer)]
-except AttributeError:
-    pass
-try:
-    kernel_block_destroy = BITCOINKERNEL_LIB.kernel_block_destroy
-    kernel_block_destroy.restype = None
-    kernel_block_destroy.argtypes = [ctypes.POINTER(struct_kernel_Block)]
-except AttributeError:
-    pass
-try:
-    kernel_byte_array_destroy = BITCOINKERNEL_LIB.kernel_byte_array_destroy
-    kernel_byte_array_destroy.restype = None
-    kernel_byte_array_destroy.argtypes = [ctypes.POINTER(struct_kernel_ByteArray)]
-except AttributeError:
-    pass
-try:
-    kernel_get_validation_mode_from_block_validation_state = BITCOINKERNEL_LIB.kernel_get_validation_mode_from_block_validation_state
-    kernel_get_validation_mode_from_block_validation_state.restype = kernel_ValidationMode
-    kernel_get_validation_mode_from_block_validation_state.argtypes = [ctypes.POINTER(struct_kernel_BlockValidationState)]
-except AttributeError:
-    pass
-try:
-    kernel_get_block_validation_result_from_block_validation_state = BITCOINKERNEL_LIB.kernel_get_block_validation_result_from_block_validation_state
-    kernel_get_block_validation_result_from_block_validation_state.restype = kernel_BlockValidationResult
-    kernel_get_block_validation_result_from_block_validation_state.argtypes = [ctypes.POINTER(struct_kernel_BlockValidationState)]
-except AttributeError:
-    pass
-try:
-    kernel_get_block_index_from_tip = BITCOINKERNEL_LIB.kernel_get_block_index_from_tip
-    kernel_get_block_index_from_tip.restype = ctypes.POINTER(struct_kernel_BlockIndex)
-    kernel_get_block_index_from_tip.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager)]
-except AttributeError:
-    pass
-try:
-    kernel_get_block_index_from_genesis = BITCOINKERNEL_LIB.kernel_get_block_index_from_genesis
-    kernel_get_block_index_from_genesis.restype = ctypes.POINTER(struct_kernel_BlockIndex)
-    kernel_get_block_index_from_genesis.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager)]
-except AttributeError:
-    pass
-try:
-    kernel_get_block_index_from_hash = BITCOINKERNEL_LIB.kernel_get_block_index_from_hash
-    kernel_get_block_index_from_hash.restype = ctypes.POINTER(struct_kernel_BlockIndex)
-    kernel_get_block_index_from_hash.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockHash)]
-except AttributeError:
-    pass
-try:
-    kernel_get_block_index_from_height = BITCOINKERNEL_LIB.kernel_get_block_index_from_height
-    kernel_get_block_index_from_height.restype = ctypes.POINTER(struct_kernel_BlockIndex)
-    kernel_get_block_index_from_height.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.c_int32]
-except AttributeError:
-    pass
-try:
-    kernel_get_next_block_index = BITCOINKERNEL_LIB.kernel_get_next_block_index
-    kernel_get_next_block_index.restype = ctypes.POINTER(struct_kernel_BlockIndex)
-    kernel_get_next_block_index.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockIndex)]
-except AttributeError:
-    pass
-try:
-    kernel_get_previous_block_index = BITCOINKERNEL_LIB.kernel_get_previous_block_index
-    kernel_get_previous_block_index.restype = ctypes.POINTER(struct_kernel_BlockIndex)
-    kernel_get_previous_block_index.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
+    btck_block_tree_entry_get_previous = BITCOINKERNEL_LIB.btck_block_tree_entry_get_previous
+    btck_block_tree_entry_get_previous.restype = ctypes.POINTER(struct_btck_BlockTreeEntry)
+    btck_block_tree_entry_get_previous.argtypes = [ctypes.POINTER(struct_btck_BlockTreeEntry)]
 except AttributeError:
     pass
 int32_t = ctypes.c_int32
 try:
-    kernel_block_index_get_height = BITCOINKERNEL_LIB.kernel_block_index_get_height
-    kernel_block_index_get_height.restype = int32_t
-    kernel_block_index_get_height.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
+    btck_block_tree_entry_get_height = BITCOINKERNEL_LIB.btck_block_tree_entry_get_height
+    btck_block_tree_entry_get_height.restype = int32_t
+    btck_block_tree_entry_get_height.argtypes = [ctypes.POINTER(struct_btck_BlockTreeEntry)]
 except AttributeError:
     pass
 try:
-    kernel_block_index_destroy = BITCOINKERNEL_LIB.kernel_block_index_destroy
-    kernel_block_index_destroy.restype = None
-    kernel_block_index_destroy.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
+    btck_chainstate_manager_options_create = BITCOINKERNEL_LIB.btck_chainstate_manager_options_create
+    btck_chainstate_manager_options_create.restype = ctypes.POINTER(struct_btck_ChainstateManagerOptions)
+    btck_chainstate_manager_options_create.argtypes = [ctypes.POINTER(struct_btck_Context), ctypes.POINTER(ctypes.c_char), size_t, ctypes.POINTER(ctypes.c_char), size_t]
 except AttributeError:
     pass
 try:
-    kernel_read_block_undo_from_disk = BITCOINKERNEL_LIB.kernel_read_block_undo_from_disk
-    kernel_read_block_undo_from_disk.restype = ctypes.POINTER(struct_kernel_BlockUndo)
-    kernel_read_block_undo_from_disk.argtypes = [ctypes.POINTER(struct_kernel_Context), ctypes.POINTER(struct_kernel_ChainstateManager), ctypes.POINTER(struct_kernel_BlockIndex)]
-except AttributeError:
-    pass
-uint64_t = ctypes.c_uint64
-try:
-    kernel_block_undo_size = BITCOINKERNEL_LIB.kernel_block_undo_size
-    kernel_block_undo_size.restype = uint64_t
-    kernel_block_undo_size.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo)]
+    btck_chainstate_manager_options_set_worker_threads_num = BITCOINKERNEL_LIB.btck_chainstate_manager_options_set_worker_threads_num
+    btck_chainstate_manager_options_set_worker_threads_num.restype = None
+    btck_chainstate_manager_options_set_worker_threads_num.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions), ctypes.c_int32]
 except AttributeError:
     pass
 try:
-    kernel_get_transaction_undo_size = BITCOINKERNEL_LIB.kernel_get_transaction_undo_size
-    kernel_get_transaction_undo_size.restype = uint64_t
-    kernel_get_transaction_undo_size.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo), uint64_t]
+    btck_chainstate_manager_options_set_wipe_dbs = BITCOINKERNEL_LIB.btck_chainstate_manager_options_set_wipe_dbs
+    btck_chainstate_manager_options_set_wipe_dbs.restype = ctypes.c_int32
+    btck_chainstate_manager_options_set_wipe_dbs.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions), ctypes.c_int32, ctypes.c_int32]
 except AttributeError:
     pass
 try:
-    kernel_get_undo_output_by_index = BITCOINKERNEL_LIB.kernel_get_undo_output_by_index
-    kernel_get_undo_output_by_index.restype = ctypes.POINTER(struct_kernel_TransactionOutput)
-    kernel_get_undo_output_by_index.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo), uint64_t, uint64_t]
+    btck_chainstate_manager_options_set_block_tree_db_in_memory = BITCOINKERNEL_LIB.btck_chainstate_manager_options_set_block_tree_db_in_memory
+    btck_chainstate_manager_options_set_block_tree_db_in_memory.restype = None
+    btck_chainstate_manager_options_set_block_tree_db_in_memory.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions), ctypes.c_int32]
 except AttributeError:
     pass
 try:
-    kernel_block_undo_destroy = BITCOINKERNEL_LIB.kernel_block_undo_destroy
-    kernel_block_undo_destroy.restype = None
-    kernel_block_undo_destroy.argtypes = [ctypes.POINTER(struct_kernel_BlockUndo)]
+    btck_chainstate_manager_options_set_chainstate_db_in_memory = BITCOINKERNEL_LIB.btck_chainstate_manager_options_set_chainstate_db_in_memory
+    btck_chainstate_manager_options_set_chainstate_db_in_memory.restype = None
+    btck_chainstate_manager_options_set_chainstate_db_in_memory.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions), ctypes.c_int32]
 except AttributeError:
     pass
 try:
-    kernel_block_index_get_block_hash = BITCOINKERNEL_LIB.kernel_block_index_get_block_hash
-    kernel_block_index_get_block_hash.restype = ctypes.POINTER(struct_kernel_BlockHash)
-    kernel_block_index_get_block_hash.argtypes = [ctypes.POINTER(struct_kernel_BlockIndex)]
+    btck_chainstate_manager_options_destroy = BITCOINKERNEL_LIB.btck_chainstate_manager_options_destroy
+    btck_chainstate_manager_options_destroy.restype = None
+    btck_chainstate_manager_options_destroy.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions)]
 except AttributeError:
     pass
 try:
-    kernel_block_hash_destroy = BITCOINKERNEL_LIB.kernel_block_hash_destroy
-    kernel_block_hash_destroy.restype = None
-    kernel_block_hash_destroy.argtypes = [ctypes.POINTER(struct_kernel_BlockHash)]
+    btck_chainstate_manager_create = BITCOINKERNEL_LIB.btck_chainstate_manager_create
+    btck_chainstate_manager_create.restype = ctypes.POINTER(struct_btck_ChainstateManager)
+    btck_chainstate_manager_create.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions)]
+except AttributeError:
+    pass
+try:
+    btck_chainstate_manager_import_blocks = BITCOINKERNEL_LIB.btck_chainstate_manager_import_blocks
+    btck_chainstate_manager_import_blocks.restype = ctypes.c_int32
+    btck_chainstate_manager_import_blocks.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), ctypes.POINTER(ctypes.c_uint64), size_t]
+except AttributeError:
+    pass
+try:
+    btck_chainstate_manager_process_block = BITCOINKERNEL_LIB.btck_chainstate_manager_process_block
+    btck_chainstate_manager_process_block.restype = ctypes.c_int32
+    btck_chainstate_manager_process_block.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(struct_btck_Block), ctypes.POINTER(ctypes.c_int32)]
+except AttributeError:
+    pass
+try:
+    btck_chainstate_manager_get_active_chain = BITCOINKERNEL_LIB.btck_chainstate_manager_get_active_chain
+    btck_chainstate_manager_get_active_chain.restype = ctypes.POINTER(struct_btck_Chain)
+    btck_chainstate_manager_get_active_chain.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager)]
+except AttributeError:
+    pass
+try:
+    btck_chainstate_manager_get_block_tree_entry_by_hash = BITCOINKERNEL_LIB.btck_chainstate_manager_get_block_tree_entry_by_hash
+    btck_chainstate_manager_get_block_tree_entry_by_hash.restype = ctypes.POINTER(struct_btck_BlockTreeEntry)
+    btck_chainstate_manager_get_block_tree_entry_by_hash.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(struct_btck_BlockHash)]
+except AttributeError:
+    pass
+try:
+    btck_chainstate_manager_destroy = BITCOINKERNEL_LIB.btck_chainstate_manager_destroy
+    btck_chainstate_manager_destroy.restype = None
+    btck_chainstate_manager_destroy.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager)]
+except AttributeError:
+    pass
+try:
+    btck_block_read = BITCOINKERNEL_LIB.btck_block_read
+    btck_block_read.restype = ctypes.POINTER(struct_btck_Block)
+    btck_block_read.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(struct_btck_BlockTreeEntry)]
+except AttributeError:
+    pass
+try:
+    btck_block_create = BITCOINKERNEL_LIB.btck_block_create
+    btck_block_create.restype = ctypes.POINTER(struct_btck_Block)
+    btck_block_create.argtypes = [ctypes.POINTER(None), size_t]
+except AttributeError:
+    pass
+try:
+    btck_block_copy = BITCOINKERNEL_LIB.btck_block_copy
+    btck_block_copy.restype = ctypes.POINTER(struct_btck_Block)
+    btck_block_copy.argtypes = [ctypes.POINTER(struct_btck_Block)]
+except AttributeError:
+    pass
+try:
+    btck_block_count_transactions = BITCOINKERNEL_LIB.btck_block_count_transactions
+    btck_block_count_transactions.restype = size_t
+    btck_block_count_transactions.argtypes = [ctypes.POINTER(struct_btck_Block)]
+except AttributeError:
+    pass
+try:
+    btck_block_get_transaction_at = BITCOINKERNEL_LIB.btck_block_get_transaction_at
+    btck_block_get_transaction_at.restype = ctypes.POINTER(struct_btck_Transaction)
+    btck_block_get_transaction_at.argtypes = [ctypes.POINTER(struct_btck_Block), size_t]
+except AttributeError:
+    pass
+try:
+    btck_block_get_hash = BITCOINKERNEL_LIB.btck_block_get_hash
+    btck_block_get_hash.restype = ctypes.POINTER(struct_btck_BlockHash)
+    btck_block_get_hash.argtypes = [ctypes.POINTER(struct_btck_Block)]
+except AttributeError:
+    pass
+try:
+    btck_block_to_bytes = BITCOINKERNEL_LIB.btck_block_to_bytes
+    btck_block_to_bytes.restype = ctypes.c_int32
+    btck_block_to_bytes.argtypes = [ctypes.POINTER(struct_btck_Block), btck_WriteBytes, ctypes.POINTER(None)]
+except AttributeError:
+    pass
+try:
+    btck_block_destroy = BITCOINKERNEL_LIB.btck_block_destroy
+    btck_block_destroy.restype = None
+    btck_block_destroy.argtypes = [ctypes.POINTER(struct_btck_Block)]
+except AttributeError:
+    pass
+try:
+    btck_block_validation_state_get_validation_mode = BITCOINKERNEL_LIB.btck_block_validation_state_get_validation_mode
+    btck_block_validation_state_get_validation_mode.restype = btck_ValidationMode
+    btck_block_validation_state_get_validation_mode.argtypes = [ctypes.POINTER(struct_btck_BlockValidationState)]
+except AttributeError:
+    pass
+try:
+    btck_block_validation_state_get_block_validation_result = BITCOINKERNEL_LIB.btck_block_validation_state_get_block_validation_result
+    btck_block_validation_state_get_block_validation_result.restype = btck_BlockValidationResult
+    btck_block_validation_state_get_block_validation_result.argtypes = [ctypes.POINTER(struct_btck_BlockValidationState)]
+except AttributeError:
+    pass
+try:
+    btck_chain_get_tip = BITCOINKERNEL_LIB.btck_chain_get_tip
+    btck_chain_get_tip.restype = ctypes.POINTER(struct_btck_BlockTreeEntry)
+    btck_chain_get_tip.argtypes = [ctypes.POINTER(struct_btck_Chain)]
+except AttributeError:
+    pass
+try:
+    btck_chain_get_genesis = BITCOINKERNEL_LIB.btck_chain_get_genesis
+    btck_chain_get_genesis.restype = ctypes.POINTER(struct_btck_BlockTreeEntry)
+    btck_chain_get_genesis.argtypes = [ctypes.POINTER(struct_btck_Chain)]
+except AttributeError:
+    pass
+try:
+    btck_chain_get_by_height = BITCOINKERNEL_LIB.btck_chain_get_by_height
+    btck_chain_get_by_height.restype = ctypes.POINTER(struct_btck_BlockTreeEntry)
+    btck_chain_get_by_height.argtypes = [ctypes.POINTER(struct_btck_Chain), ctypes.c_int32]
+except AttributeError:
+    pass
+try:
+    btck_chain_contains = BITCOINKERNEL_LIB.btck_chain_contains
+    btck_chain_contains.restype = ctypes.c_int32
+    btck_chain_contains.argtypes = [ctypes.POINTER(struct_btck_Chain), ctypes.POINTER(struct_btck_BlockTreeEntry)]
+except AttributeError:
+    pass
+try:
+    btck_block_spent_outputs_read = BITCOINKERNEL_LIB.btck_block_spent_outputs_read
+    btck_block_spent_outputs_read.restype = ctypes.POINTER(struct_btck_BlockSpentOutputs)
+    btck_block_spent_outputs_read.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(struct_btck_BlockTreeEntry)]
+except AttributeError:
+    pass
+try:
+    btck_block_spent_outputs_copy = BITCOINKERNEL_LIB.btck_block_spent_outputs_copy
+    btck_block_spent_outputs_copy.restype = ctypes.POINTER(struct_btck_BlockSpentOutputs)
+    btck_block_spent_outputs_copy.argtypes = [ctypes.POINTER(struct_btck_BlockSpentOutputs)]
+except AttributeError:
+    pass
+try:
+    btck_block_spent_outputs_count = BITCOINKERNEL_LIB.btck_block_spent_outputs_count
+    btck_block_spent_outputs_count.restype = size_t
+    btck_block_spent_outputs_count.argtypes = [ctypes.POINTER(struct_btck_BlockSpentOutputs)]
+except AttributeError:
+    pass
+try:
+    btck_block_spent_outputs_get_transaction_spent_outputs_at = BITCOINKERNEL_LIB.btck_block_spent_outputs_get_transaction_spent_outputs_at
+    btck_block_spent_outputs_get_transaction_spent_outputs_at.restype = ctypes.POINTER(struct_btck_TransactionSpentOutputs)
+    btck_block_spent_outputs_get_transaction_spent_outputs_at.argtypes = [ctypes.POINTER(struct_btck_BlockSpentOutputs), size_t]
+except AttributeError:
+    pass
+try:
+    btck_block_spent_outputs_destroy = BITCOINKERNEL_LIB.btck_block_spent_outputs_destroy
+    btck_block_spent_outputs_destroy.restype = None
+    btck_block_spent_outputs_destroy.argtypes = [ctypes.POINTER(struct_btck_BlockSpentOutputs)]
+except AttributeError:
+    pass
+try:
+    btck_transaction_spent_outputs_copy = BITCOINKERNEL_LIB.btck_transaction_spent_outputs_copy
+    btck_transaction_spent_outputs_copy.restype = ctypes.POINTER(struct_btck_TransactionSpentOutputs)
+    btck_transaction_spent_outputs_copy.argtypes = [ctypes.POINTER(struct_btck_TransactionSpentOutputs)]
+except AttributeError:
+    pass
+try:
+    btck_transaction_spent_outputs_count = BITCOINKERNEL_LIB.btck_transaction_spent_outputs_count
+    btck_transaction_spent_outputs_count.restype = size_t
+    btck_transaction_spent_outputs_count.argtypes = [ctypes.POINTER(struct_btck_TransactionSpentOutputs)]
+except AttributeError:
+    pass
+try:
+    btck_transaction_spent_outputs_get_coin_at = BITCOINKERNEL_LIB.btck_transaction_spent_outputs_get_coin_at
+    btck_transaction_spent_outputs_get_coin_at.restype = ctypes.POINTER(struct_btck_Coin)
+    btck_transaction_spent_outputs_get_coin_at.argtypes = [ctypes.POINTER(struct_btck_TransactionSpentOutputs), size_t]
+except AttributeError:
+    pass
+try:
+    btck_transaction_spent_outputs_destroy = BITCOINKERNEL_LIB.btck_transaction_spent_outputs_destroy
+    btck_transaction_spent_outputs_destroy.restype = None
+    btck_transaction_spent_outputs_destroy.argtypes = [ctypes.POINTER(struct_btck_TransactionSpentOutputs)]
+except AttributeError:
+    pass
+try:
+    btck_coin_copy = BITCOINKERNEL_LIB.btck_coin_copy
+    btck_coin_copy.restype = ctypes.POINTER(struct_btck_Coin)
+    btck_coin_copy.argtypes = [ctypes.POINTER(struct_btck_Coin)]
+except AttributeError:
+    pass
+uint32_t = ctypes.c_uint32
+try:
+    btck_coin_confirmation_height = BITCOINKERNEL_LIB.btck_coin_confirmation_height
+    btck_coin_confirmation_height.restype = uint32_t
+    btck_coin_confirmation_height.argtypes = [ctypes.POINTER(struct_btck_Coin)]
+except AttributeError:
+    pass
+try:
+    btck_coin_is_coinbase = BITCOINKERNEL_LIB.btck_coin_is_coinbase
+    btck_coin_is_coinbase.restype = ctypes.c_int32
+    btck_coin_is_coinbase.argtypes = [ctypes.POINTER(struct_btck_Coin)]
+except AttributeError:
+    pass
+try:
+    btck_coin_get_output = BITCOINKERNEL_LIB.btck_coin_get_output
+    btck_coin_get_output.restype = ctypes.POINTER(struct_btck_TransactionOutput)
+    btck_coin_get_output.argtypes = [ctypes.POINTER(struct_btck_Coin)]
+except AttributeError:
+    pass
+try:
+    btck_coin_destroy = BITCOINKERNEL_LIB.btck_coin_destroy
+    btck_coin_destroy.restype = None
+    btck_coin_destroy.argtypes = [ctypes.POINTER(struct_btck_Coin)]
+except AttributeError:
+    pass
+try:
+    btck_block_tree_entry_get_block_hash = BITCOINKERNEL_LIB.btck_block_tree_entry_get_block_hash
+    btck_block_tree_entry_get_block_hash.restype = ctypes.POINTER(struct_btck_BlockHash)
+    btck_block_tree_entry_get_block_hash.argtypes = [ctypes.POINTER(struct_btck_BlockTreeEntry)]
+except AttributeError:
+    pass
+try:
+    btck_block_hash_destroy = BITCOINKERNEL_LIB.btck_block_hash_destroy
+    btck_block_hash_destroy.restype = None
+    btck_block_hash_destroy.argtypes = [ctypes.POINTER(struct_btck_BlockHash)]
 except AttributeError:
     pass
 __all__ = \
-    ['int32_t', 'int64_t', 'kernel_BLOCK_CACHED_INVALID',
-    'kernel_BLOCK_CONSENSUS', 'kernel_BLOCK_HEADER_LOW_WORK',
-    'kernel_BLOCK_INVALID_HEADER', 'kernel_BLOCK_INVALID_PREV',
-    'kernel_BLOCK_MISSING_PREV', 'kernel_BLOCK_MUTATED',
-    'kernel_BLOCK_RESULT_UNSET', 'kernel_BLOCK_TIME_FUTURE',
-    'kernel_Block', 'kernel_BlockHash', 'kernel_BlockIndex',
-    'kernel_BlockPointer', 'kernel_BlockUndo',
-    'kernel_BlockValidationResult', 'kernel_BlockValidationState',
-    'kernel_ByteArray', 'kernel_CHAIN_TYPE_MAINNET',
-    'kernel_CHAIN_TYPE_REGTEST', 'kernel_CHAIN_TYPE_SIGNET',
-    'kernel_CHAIN_TYPE_TESTNET', 'kernel_CHAIN_TYPE_TESTNET_4',
-    'kernel_ChainParameters', 'kernel_ChainType',
-    'kernel_ChainstateManager', 'kernel_ChainstateManagerOptions',
-    'kernel_Context', 'kernel_ContextOptions', 'kernel_INIT_DOWNLOAD',
-    'kernel_INIT_REINDEX', 'kernel_LARGE_WORK_INVALID_CHAIN',
-    'kernel_LOG_ALL', 'kernel_LOG_BENCH', 'kernel_LOG_BLOCKSTORAGE',
-    'kernel_LOG_COINDB', 'kernel_LOG_DEBUG', 'kernel_LOG_INFO',
-    'kernel_LOG_KERNEL', 'kernel_LOG_LEVELDB', 'kernel_LOG_MEMPOOL',
-    'kernel_LOG_PRUNE', 'kernel_LOG_RAND', 'kernel_LOG_REINDEX',
-    'kernel_LOG_TRACE', 'kernel_LOG_VALIDATION', 'kernel_LogCallback',
-    'kernel_LogCategory', 'kernel_LogLevel',
-    'kernel_LoggingConnection', 'kernel_LoggingOptions',
-    'kernel_NotificationInterfaceCallbacks', 'kernel_NotifyBlockTip',
-    'kernel_NotifyFatalError', 'kernel_NotifyFlushError',
-    'kernel_NotifyHeaderTip', 'kernel_NotifyProgress',
-    'kernel_NotifyWarningSet', 'kernel_NotifyWarningUnset',
-    'kernel_POST_INIT', 'kernel_SCRIPT_FLAGS_VERIFY_ALL',
-    'kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY',
-    'kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY',
-    'kernel_SCRIPT_FLAGS_VERIFY_DERSIG',
-    'kernel_SCRIPT_FLAGS_VERIFY_NONE',
-    'kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY',
-    'kernel_SCRIPT_FLAGS_VERIFY_P2SH',
-    'kernel_SCRIPT_FLAGS_VERIFY_TAPROOT',
-    'kernel_SCRIPT_FLAGS_VERIFY_WITNESS',
-    'kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS',
-    'kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION',
-    'kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH',
-    'kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED',
-    'kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX',
-    'kernel_SCRIPT_VERIFY_OK', 'kernel_ScriptFlags',
-    'kernel_ScriptPubkey', 'kernel_ScriptVerifyStatus',
-    'kernel_SynchronizationState', 'kernel_Transaction',
-    'kernel_TransactionOutput', 'kernel_UNKNOWN_NEW_RULES_ACTIVATED',
-    'kernel_VALIDATION_STATE_ERROR',
-    'kernel_VALIDATION_STATE_INVALID',
-    'kernel_VALIDATION_STATE_VALID',
-    'kernel_ValidationInterfaceBlockChecked',
-    'kernel_ValidationInterfaceCallbacks', 'kernel_ValidationMode',
-    'kernel_Warning', 'kernel_add_log_level_category',
-    'kernel_block_create', 'kernel_block_destroy',
-    'kernel_block_get_hash', 'kernel_block_hash_destroy',
-    'kernel_block_index_destroy', 'kernel_block_index_get_block_hash',
-    'kernel_block_index_get_height', 'kernel_block_pointer_get_hash',
-    'kernel_block_undo_destroy', 'kernel_block_undo_size',
-    'kernel_byte_array_destroy', 'kernel_chain_parameters_create',
-    'kernel_chain_parameters_destroy',
-    'kernel_chainstate_manager_create',
-    'kernel_chainstate_manager_destroy',
-    'kernel_chainstate_manager_options_create',
-    'kernel_chainstate_manager_options_destroy',
-    'kernel_chainstate_manager_options_set_block_tree_db_in_memory',
-    'kernel_chainstate_manager_options_set_chainstate_db_in_memory',
-    'kernel_chainstate_manager_options_set_wipe_dbs',
-    'kernel_chainstate_manager_options_set_worker_threads_num',
-    'kernel_chainstate_manager_process_block',
-    'kernel_context_create', 'kernel_context_destroy',
-    'kernel_context_interrupt', 'kernel_context_options_create',
-    'kernel_context_options_destroy',
-    'kernel_context_options_set_chainparams',
-    'kernel_context_options_set_notifications',
-    'kernel_context_options_set_validation_interface',
-    'kernel_copy_block_data', 'kernel_copy_block_pointer_data',
-    'kernel_copy_script_pubkey_data',
-    'kernel_copy_script_pubkey_from_output',
-    'kernel_disable_log_category', 'kernel_disable_logging',
-    'kernel_enable_log_category',
-    'kernel_get_block_index_from_genesis',
-    'kernel_get_block_index_from_hash',
-    'kernel_get_block_index_from_height',
-    'kernel_get_block_index_from_tip',
-    'kernel_get_block_validation_result_from_block_validation_state',
-    'kernel_get_next_block_index', 'kernel_get_previous_block_index',
-    'kernel_get_transaction_output_amount',
-    'kernel_get_transaction_undo_size',
-    'kernel_get_undo_output_by_index',
-    'kernel_get_validation_mode_from_block_validation_state',
-    'kernel_import_blocks', 'kernel_logging_connection_create',
-    'kernel_logging_connection_destroy',
-    'kernel_read_block_from_disk', 'kernel_read_block_undo_from_disk',
-    'kernel_script_pubkey_create', 'kernel_script_pubkey_destroy',
-    'kernel_transaction_create', 'kernel_transaction_destroy',
-    'kernel_transaction_output_create',
-    'kernel_transaction_output_destroy', 'kernel_verify_script',
-    'size_t', 'struct_kernel_Block', 'struct_kernel_BlockHash',
-    'struct_kernel_BlockIndex', 'struct_kernel_BlockPointer',
-    'struct_kernel_BlockUndo', 'struct_kernel_BlockValidationState',
-    'struct_kernel_ByteArray', 'struct_kernel_ChainParameters',
-    'struct_kernel_ChainstateManager',
-    'struct_kernel_ChainstateManagerOptions', 'struct_kernel_Context',
-    'struct_kernel_ContextOptions', 'struct_kernel_LoggingConnection',
-    'struct_kernel_LoggingOptions',
-    'struct_kernel_NotificationInterfaceCallbacks',
-    'struct_kernel_ScriptPubkey', 'struct_kernel_Transaction',
-    'struct_kernel_TransactionOutput',
-    'struct_kernel_ValidationInterfaceCallbacks', 'uint64_t']
+    ['btck_Block', 'btck_BlockHash', 'btck_BlockSpentOutputs',
+    'btck_BlockTreeEntry', 'btck_BlockValidationResult',
+    'btck_BlockValidationState', 'btck_Chain', 'btck_ChainParameters',
+    'btck_ChainType', 'btck_ChainstateManager',
+    'btck_ChainstateManagerOptions', 'btck_Coin', 'btck_Context',
+    'btck_ContextOptions', 'btck_DestroyCallback', 'btck_LogCallback',
+    'btck_LogCategory', 'btck_LogLevel', 'btck_LoggingConnection',
+    'btck_LoggingOptions', 'btck_NotificationInterfaceCallbacks',
+    'btck_NotifyBlockTip', 'btck_NotifyFatalError',
+    'btck_NotifyFlushError', 'btck_NotifyHeaderTip',
+    'btck_NotifyProgress', 'btck_NotifyWarningSet',
+    'btck_NotifyWarningUnset', 'btck_ScriptPubkey',
+    'btck_ScriptVerificationFlags', 'btck_ScriptVerifyStatus',
+    'btck_SynchronizationState', 'btck_Transaction',
+    'btck_TransactionOutput', 'btck_TransactionSpentOutputs',
+    'btck_ValidationInterfaceBlockChecked',
+    'btck_ValidationInterfaceCallbacks', 'btck_ValidationMode',
+    'btck_Warning', 'btck_WriteBytes', 'btck_block_copy',
+    'btck_block_count_transactions', 'btck_block_create',
+    'btck_block_destroy', 'btck_block_get_hash',
+    'btck_block_get_transaction_at', 'btck_block_hash_destroy',
+    'btck_block_read', 'btck_block_spent_outputs_copy',
+    'btck_block_spent_outputs_count',
+    'btck_block_spent_outputs_destroy',
+    'btck_block_spent_outputs_get_transaction_spent_outputs_at',
+    'btck_block_spent_outputs_read', 'btck_block_to_bytes',
+    'btck_block_tree_entry_get_block_hash',
+    'btck_block_tree_entry_get_height',
+    'btck_block_tree_entry_get_previous',
+    'btck_block_validation_state_get_block_validation_result',
+    'btck_block_validation_state_get_validation_mode',
+    'btck_chain_contains', 'btck_chain_get_by_height',
+    'btck_chain_get_genesis', 'btck_chain_get_tip',
+    'btck_chain_parameters_copy', 'btck_chain_parameters_create',
+    'btck_chain_parameters_destroy', 'btck_chainstate_manager_create',
+    'btck_chainstate_manager_destroy',
+    'btck_chainstate_manager_get_active_chain',
+    'btck_chainstate_manager_get_block_tree_entry_by_hash',
+    'btck_chainstate_manager_import_blocks',
+    'btck_chainstate_manager_options_create',
+    'btck_chainstate_manager_options_destroy',
+    'btck_chainstate_manager_options_set_block_tree_db_in_memory',
+    'btck_chainstate_manager_options_set_chainstate_db_in_memory',
+    'btck_chainstate_manager_options_set_wipe_dbs',
+    'btck_chainstate_manager_options_set_worker_threads_num',
+    'btck_chainstate_manager_process_block',
+    'btck_coin_confirmation_height', 'btck_coin_copy',
+    'btck_coin_destroy', 'btck_coin_get_output',
+    'btck_coin_is_coinbase', 'btck_context_copy',
+    'btck_context_create', 'btck_context_destroy',
+    'btck_context_interrupt', 'btck_context_options_create',
+    'btck_context_options_destroy',
+    'btck_context_options_set_chainparams',
+    'btck_context_options_set_notifications',
+    'btck_context_options_set_validation_interface',
+    'btck_logging_connection_create',
+    'btck_logging_connection_destroy', 'btck_logging_disable',
+    'btck_logging_disable_category', 'btck_logging_enable_category',
+    'btck_logging_set_level_category', 'btck_script_pubkey_copy',
+    'btck_script_pubkey_create', 'btck_script_pubkey_destroy',
+    'btck_script_pubkey_to_bytes', 'btck_script_pubkey_verify',
+    'btck_transaction_copy', 'btck_transaction_count_inputs',
+    'btck_transaction_count_outputs', 'btck_transaction_create',
+    'btck_transaction_destroy', 'btck_transaction_get_output_at',
+    'btck_transaction_output_copy', 'btck_transaction_output_create',
+    'btck_transaction_output_destroy',
+    'btck_transaction_output_get_amount',
+    'btck_transaction_output_get_script_pubkey',
+    'btck_transaction_spent_outputs_copy',
+    'btck_transaction_spent_outputs_count',
+    'btck_transaction_spent_outputs_destroy',
+    'btck_transaction_spent_outputs_get_coin_at',
+    'btck_transaction_to_bytes', 'int32_t', 'int64_t', 'size_t',
+    'struct_btck_Block', 'struct_btck_BlockHash',
+    'struct_btck_BlockSpentOutputs', 'struct_btck_BlockTreeEntry',
+    'struct_btck_BlockValidationState', 'struct_btck_Chain',
+    'struct_btck_ChainParameters', 'struct_btck_ChainstateManager',
+    'struct_btck_ChainstateManagerOptions', 'struct_btck_Coin',
+    'struct_btck_Context', 'struct_btck_ContextOptions',
+    'struct_btck_LoggingConnection', 'struct_btck_LoggingOptions',
+    'struct_btck_NotificationInterfaceCallbacks',
+    'struct_btck_ScriptPubkey', 'struct_btck_Transaction',
+    'struct_btck_TransactionOutput',
+    'struct_btck_TransactionSpentOutputs',
+    'struct_btck_ValidationInterfaceCallbacks', 'uint32_t']

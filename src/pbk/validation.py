@@ -2,7 +2,7 @@ import pbk.capi.bindings as k
 import pbk.util.callbacks
 
 
-class ValidationInterfaceCallbacks(k.kernel_ValidationInterfaceCallbacks):
+class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
     def __init__(self, user_data=None, **callbacks):
         super().__init__()
         pbk.util.callbacks._initialize_callbacks(self, user_data, **callbacks)

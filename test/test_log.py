@@ -18,13 +18,13 @@ def test_is_valid_log_callback():
 
 
 def test_level_category():
-    pbk.add_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.DEBUG)
-    pbk.add_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.INFO)
-    pbk.add_log_level_category(
+    pbk.set_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.DEBUG)
+    pbk.set_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.INFO)
+    pbk.set_log_level_category(
         pbk.LogCategory.ALL, pbk.LogLevel.INFO
     )  # Same operation twice should succeed
 
-    pbk.add_log_level_category(pbk.LogCategory.BLOCKSTORAGE, pbk.LogLevel.DEBUG)
+    pbk.set_log_level_category(pbk.LogCategory.BLOCKSTORAGE, pbk.LogLevel.DEBUG)
 
     pbk.enable_log_category(pbk.LogCategory.BLOCKSTORAGE)
     pbk.enable_log_category(
@@ -53,7 +53,7 @@ def test_kernel_log_viewer(caplog):
     log_string = (
         f"{time} [{thread}] [{path}:{lineno}] [{func}] [{category}:{level}] {msg}"
     )
-    record = pbk.log.parse_kernel_log_string(logger.name, log_string)
+    record = pbk.log.parse_btck_log_string(logger.name, log_string)
     assert record.name == logger.name
     assert record.levelno == logging.INFO
     assert record.levelname == level.upper()
