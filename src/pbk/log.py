@@ -240,7 +240,7 @@ def parse_btck_log_string(logger_name: str, log_string: str) -> logging.LogRecor
         ^([\d-]+T[\d:]+Z)              # timestamp
         \s+\[([^\]]+)\]                # threadname
         \s+\[([^\]]+)\]                # filepath:lineno
-        \s+\[([^\]]+)\]                # filename/function
+        \s+\[(.+)\]                    # filename/function
         \s+\[([^:]+):([^\]]+)\]        # category:level
         \s+(.+)$                       # message
     """
