@@ -30,7 +30,7 @@ class BlockIndex(KernelOpaquePtr):
 
     @property
     def block_hash(self) -> BlockHash:
-        return BlockHash._from_ptr(k.btck_block_tree_entry_get_block_hash(self))
+        return BlockHash._from_handle(k.btck_block_tree_entry_get_block_hash(self))
 
     @property
     def height(self) -> int:
@@ -51,7 +51,7 @@ class Block(KernelOpaquePtr):
 
     @property
     def hash(self) -> BlockHash:
-        return BlockHash._from_ptr(k.btck_block_get_hash(self))
+        return BlockHash._from_handle(k.btck_block_get_hash(self))
 
     @property
     def data(self) -> bytes:
@@ -71,7 +71,7 @@ class BlockSpentOutputs(KernelOpaquePtr):
 
     def get_transaction_spent_outputs(self, index: int) -> TransactionSpentOutputs:
         ptr = k.btck_block_spent_outputs_get_transaction_spent_outputs_at(self, index)
-        return TransactionSpentOutputs._from_ptr(ptr, owns_ptr=False, parent=self)
+        return TransactionSpentOutputs._from_view(ptr, self)
 
     def iter_transactions(
         self,

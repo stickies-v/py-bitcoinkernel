@@ -23,6 +23,20 @@ class KernelPtr:
         return self._as_parameter_.contents  # type: ignore
 
     @classmethod
+    def _from_handle(cls, ptr):
+        """
+        Construct from an owned handle. Will be destroyed at the end of its lifetime.
+        """
+        return cls._from_ptr(ptr, owns_ptr=True)
+
+    @classmethod
+    def _from_view(cls, ptr, parent=None):
+        """
+        Construct from an unowned view. Parent, if set, will be kept alive for lifetime of child.
+        """
+        return cls._from_ptr(ptr, owns_ptr=False, parent=parent)
+
+    @classmethod
     def _from_ptr(cls, ptr: ctypes.c_void_p, owns_ptr: bool = True, parent=None):
         """Wrap a C pointer owned by the kernel."""
         if not ptr:

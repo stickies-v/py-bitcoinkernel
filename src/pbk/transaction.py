@@ -22,7 +22,7 @@ class TransactionOutput(KernelOpaquePtr):
     @property
     def script_pubkey(self) -> "ScriptPubkey":
         ptr = k.btck_transaction_output_get_script_pubkey(self)
-        return ScriptPubkey._from_ptr(ptr, owns_ptr=False, parent=self)
+        return ScriptPubkey._from_view(ptr, self)
 
 
 class Coin(KernelOpaquePtr):
@@ -42,7 +42,7 @@ class Coin(KernelOpaquePtr):
     @property
     def output(self) -> TransactionOutput:
         ptr = k.btck_coin_get_output(self)
-        return TransactionOutput._from_ptr(ptr, owns_ptr=False, parent=self)
+        return TransactionOutput._from_view(ptr, self)
 
 
 class TransactionSpentOutputs(KernelOpaquePtr):
@@ -55,7 +55,7 @@ class TransactionSpentOutputs(KernelOpaquePtr):
 
     def get_coin(self, index: int) -> Coin:
         ptr = k.btck_transaction_spent_outputs_get_coin_at(self, index)
-        return Coin._from_ptr(ptr, owns_ptr=False, parent=self)
+        return Coin._from_view(ptr, self)
 
     def iter_outputs(self) -> typing.Generator["TransactionOutput", None, None]:
         for i in range(self.output_count):

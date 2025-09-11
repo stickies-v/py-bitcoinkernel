@@ -49,18 +49,16 @@ class ChainstateManagerOptions(KernelOpaquePtr):
 
 class Chain(KernelOpaquePtr):
     def get_tip(self) -> BlockIndex:
-        return BlockIndex._from_ptr(k.btck_chain_get_tip(self), owns_ptr=False)
+        return BlockIndex._from_view(k.btck_chain_get_tip(self))
 
     def current_height(self) -> int:
         return self.get_tip().height
 
     def get_genesis(self) -> BlockIndex:
-        return BlockIndex._from_ptr(k.btck_chain_get_genesis(self), owns_ptr=False)
+        return BlockIndex._from_view(k.btck_chain_get_genesis(self))
 
     def get_by_height(self, height: int) -> BlockIndex:
-        return BlockIndex._from_ptr(
-            k.btck_chain_get_by_height(self, height), owns_ptr=False
-        )
+        return BlockIndex._from_view(k.btck_chain_get_by_height(self, height))
 
     def contains(self, entry: BlockIndex) -> bool:
         result: int = k.btck_chain_contains(self, entry)
@@ -76,15 +74,12 @@ class ChainstateManager(KernelOpaquePtr):
         super().__init__(chain_man_opts)
 
     def get_block_index_from_hash(self, hash: "BlockHash"):
-        return BlockIndex._from_ptr(
-            k.btck_chainstate_manager_get_block_tree_entry_by_hash(self, hash),
-            owns_ptr=False,
+        return BlockIndex._from_view(
+            k.btck_chainstate_manager_get_block_tree_entry_by_hash(self, hash)
         )
 
     def get_active_chain(self) -> Chain:
-        return Chain._from_ptr(
-            k.btck_chainstate_manager_get_active_chain(self), owns_ptr=False
-        )
+        return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self))
 
     def import_blocks(self, paths: typing.List[Path]) -> bool:
         encoded_paths = [str(path).encode("utf-8") for path in paths]
@@ -113,7 +108,7 @@ class ChainstateManager(KernelOpaquePtr):
         block = k.btck_block_read(self, block_index)
         if not block:
             raise RuntimeError(f"Error reading block for {block_index} from disk")
-        return Block._from_ptr(block)
+        return Block._from_handle(block)
 
     def read_block_undo_from_disk(self, block_index: "BlockIndex") -> BlockSpentOutputs:
         if block_index.height == 0:
@@ -122,7 +117,7 @@ class ChainstateManager(KernelOpaquePtr):
         undo = k.btck_block_spent_outputs_read(self, block_index)
         if not undo:
             raise RuntimeError(f"Error reading block undo for {block_index} from disk")
-        return BlockSpentOutputs._from_ptr(undo)
+        return BlockSpentOutputs._from_handle(undo)
 
 
 def block_index_generator(
