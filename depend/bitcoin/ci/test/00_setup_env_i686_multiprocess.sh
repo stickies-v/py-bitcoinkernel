@@ -13,11 +13,11 @@ export CI_IMAGE_PLATFORM="linux/amd64"
 export PACKAGES="llvm clang g++-multilib"
 export DEP_OPTS="DEBUG=1 MULTIPROCESS=1"
 export GOAL="install"
-export TEST_RUNNER_EXTRA="--v2transport"
+export TEST_RUNNER_EXTRA="--v2transport --usecli"
 export BITCOIN_CONFIG="\
  -DCMAKE_BUILD_TYPE=Debug \
  -DCMAKE_C_COMPILER='clang;-m32' \
  -DCMAKE_CXX_COMPILER='clang++;-m32' \
  -DAPPEND_CPPFLAGS='-DBOOST_MULTI_INDEX_ENABLE_SAFE_MODE' \
 "
-export BITCOIND=bitcoin-node  # Used in functional tests
+export BITCOIN_CMD="bitcoin -m" # Used in functional tests

@@ -2,11 +2,11 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <primitives/transaction_identifier.h>
 #include <streams.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <util/strencodings.h>
-#include <util/transaction_identifier.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE( comparison ) // <= >= < >
                    uint256{"0000000000000000000000000000000000000000000000000000000000000001"});
 }
 
-BOOST_AUTO_TEST_CASE(methods) // GetHex SetHexDeprecated FromHex begin() end() size() GetLow64 GetSerializeSize, Serialize, Unserialize
+BOOST_AUTO_TEST_CASE(methods) // GetHex FromHex begin() end() size() GetLow64 GetSerializeSize, Serialize, Unserialize
 {
     BOOST_CHECK_EQUAL(R1L.GetHex(), R1L.ToString());
     BOOST_CHECK_EQUAL(R2L.GetHex(), R2L.ToString());
@@ -155,9 +155,6 @@ BOOST_AUTO_TEST_CASE(methods) // GetHex SetHexDeprecated FromHex begin() end() s
     BOOST_CHECK_EQUAL(MaxL.GetHex(), MaxL.ToString());
     uint256 TmpL(R1L);
     BOOST_CHECK_EQUAL(TmpL, R1L);
-    // Verify previous values don't persist when setting to truncated string.
-    TmpL.SetHexDeprecated("21");
-    BOOST_CHECK_EQUAL(TmpL.ToString(), "0000000000000000000000000000000000000000000000000000000000000021");
     BOOST_CHECK_EQUAL(uint256::FromHex(R2L.ToString()).value(), R2L);
     BOOST_CHECK_EQUAL(uint256::FromHex(ZeroL.ToString()).value(), uint256());
 

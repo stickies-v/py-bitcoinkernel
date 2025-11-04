@@ -30,6 +30,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <secp256k1.h>
 #include <univalue.h>
 
 // Uncomment if you want to output updated JSON tests.
@@ -144,25 +145,17 @@ void static NegateSignatureS(std::vector<unsigned char>& vchSig) {
     r = std::vector<unsigned char>(vchSig.begin() + 4, vchSig.begin() + 4 + vchSig[3]);
     s = std::vector<unsigned char>(vchSig.begin() + 6 + vchSig[3], vchSig.begin() + 6 + vchSig[3] + vchSig[5 + vchSig[3]]);
 
-    // Really ugly to implement mod-n negation here, but it would be feature creep to expose such functionality from libsecp256k1.
-    static const unsigned char order[33] = {
-        0x00,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
-        0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
-        0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x41
-    };
     while (s.size() < 33) {
         s.insert(s.begin(), 0x00);
     }
-    int carry = 0;
-    for (int p = 32; p >= 1; p--) {
-        int n = (int)order[p] - s[p] - carry;
-        s[p] = (n + 256) & 0xFF;
-        carry = (n < 0);
-    }
-    assert(carry == 0);
-    if (s.size() > 1 && s[0] == 0 && s[1] < 0x80) {
+    assert(s[0] == 0);
+    // Perform mod-n negation of s by (ab)using libsecp256k1
+    // (note that this function is meant to be used for negating secret keys,
+    //  but it works for any non-zero scalar modulo the group order, i.e. also for s)
+    int ret = secp256k1_ec_seckey_negate(secp256k1_context_static, s.data() + 1);
+    assert(ret);
+
+    if (s[1] < 0x80) {
         s.erase(s.begin());
     }
 
@@ -916,16 +909,38 @@ BOOST_AUTO_TEST_CASE(script_json_test)
     // amount (nValue) to use in the crediting tx
     UniValue tests = read_json(json_tests::script_tests);
 
+    const KeyData keys;
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         const UniValue& test = tests[idx];
         std::string strTest = test.write();
         CScriptWitness witness;
+        TaprootBuilder taprootBuilder;
         CAmount nValue = 0;
         unsigned int pos = 0;
         if (test.size() > 0 && test[pos].isArray()) {
             unsigned int i=0;
             for (i = 0; i < test[pos].size()-1; i++) {
-                witness.stack.push_back(ParseHex(test[pos][i].get_str()));
+                auto element = test[pos][i].get_str();
+                // We use #SCRIPT# to flag a non-hex script that we can read using ParseScript
+                // Taproot script must be third from the last element in witness stack
+                static const std::string SCRIPT_FLAG{"#SCRIPT#"};
+                if (element.starts_with(SCRIPT_FLAG)) {
+                    CScript script = ParseScript(element.substr(SCRIPT_FLAG.size()));
+                    witness.stack.push_back(ToByteVector(script));
+                } else if (element == "#CONTROLBLOCK#") {
+                    // Taproot script control block - second from the last element in witness stack
+                    // If #CONTROLBLOCK# we auto-generate the control block
+                    taprootBuilder.Add(/*depth=*/0, witness.stack.back(), TAPROOT_LEAF_TAPSCRIPT, /*track=*/true);
+                    taprootBuilder.Finalize(XOnlyPubKey(keys.key0.GetPubKey()));
+                    auto controlblocks = taprootBuilder.GetSpendData().scripts[{witness.stack.back(), TAPROOT_LEAF_TAPSCRIPT}];
+                    witness.stack.push_back(*(controlblocks.begin()));
+                } else {
+                    const auto witness_value{TryParseHex<unsigned char>(element)};
+                    if (!witness_value.has_value()) {
+                        BOOST_ERROR("Bad witness in test: " << strTest << " witness is not hex: " << element);
+                    }
+                    witness.stack.push_back(witness_value.value());
+                }
             }
             nValue = AmountFromValue(test[pos][i]);
             pos++;
@@ -940,7 +955,14 @@ BOOST_AUTO_TEST_CASE(script_json_test)
         std::string scriptSigString = test[pos++].get_str();
         CScript scriptSig = ParseScript(scriptSigString);
         std::string scriptPubKeyString = test[pos++].get_str();
-        CScript scriptPubKey = ParseScript(scriptPubKeyString);
+        CScript scriptPubKey;
+        // If requested, auto-generate the taproot output
+        if (scriptPubKeyString == "0x51 0x20 #TAPROOTOUTPUT#") {
+            BOOST_CHECK_MESSAGE(taprootBuilder.IsComplete(), "Failed to autogenerate Tapscript output key");
+            scriptPubKey = CScript() << OP_1 << ToByteVector(taprootBuilder.GetOutput());
+        } else {
+            scriptPubKey = ParseScript(scriptPubKeyString);
+        }
         unsigned int scriptflags = ParseScriptFlags(test[pos++].get_str());
         int scriptError = ParseScriptError(test[pos++].get_str());
 
@@ -1127,6 +1149,107 @@ BOOST_AUTO_TEST_CASE(script_CHECKMULTISIG23)
     CScript badsig6 = sign_multisig(scriptPubKey23, keys, CTransaction(txTo23));
     BOOST_CHECK(!VerifyScript(badsig6, scriptPubKey23, nullptr, gFlags, MutableTransactionSignatureChecker(&txTo23, 0, txFrom23.vout[0].nValue, MissingDataBehavior::ASSERT_FAIL), &err));
     BOOST_CHECK_MESSAGE(err == SCRIPT_ERR_INVALID_STACK_OPERATION, ScriptErrorString(err));
+}
+
+/** Return the TxoutType of a script without exposing Solver details. */
+static TxoutType GetTxoutType(const CScript& output_script)
+{
+    std::vector<std::vector<uint8_t>> unused;
+    return Solver(output_script, unused);
+}
+
+#define CHECK_SCRIPT_STATIC_SIZE(script, expected_size)                   \
+    do {                                                                  \
+        BOOST_CHECK_EQUAL((script).size(), (expected_size));              \
+        BOOST_CHECK_EQUAL((script).capacity(), CScriptBase::STATIC_SIZE); \
+        BOOST_CHECK_EQUAL((script).allocated_memory(), 0);                \
+    } while (0)
+
+#define CHECK_SCRIPT_DYNAMIC_SIZE(script, expected_size, expected_extra)                 \
+    do {                                                                 \
+        BOOST_CHECK_EQUAL((script).size(), (expected_size));             \
+        BOOST_CHECK_EQUAL((script).capacity(), (expected_extra));         \
+        BOOST_CHECK_EQUAL((script).allocated_memory(), (expected_extra)); \
+    } while (0)
+
+BOOST_AUTO_TEST_CASE(script_size_and_capacity_test)
+{
+    BOOST_CHECK_EQUAL(sizeof(CompressedScript), 40);
+    BOOST_CHECK_EQUAL(sizeof(CScriptBase), 40);
+    BOOST_CHECK_NE(sizeof(CScriptBase), sizeof(prevector<CScriptBase::STATIC_SIZE + 1, uint8_t>)); // CScriptBase size should be set to avoid wasting space in padding
+    BOOST_CHECK_EQUAL(sizeof(CScript), 40);
+    BOOST_CHECK_EQUAL(sizeof(CTxOut), 48);
+
+    CKey dummy_key;
+    dummy_key.MakeNewKey(/*fCompressed=*/true);
+    const CPubKey dummy_pubkey{dummy_key.GetPubKey()};
+
+    // Small OP_RETURN has direct allocation
+    {
+        const auto script{CScript() << OP_RETURN << std::vector<uint8_t>(10, 0xaa)};
+        BOOST_CHECK_EQUAL(GetTxoutType(script), TxoutType::NULL_DATA);
+        CHECK_SCRIPT_STATIC_SIZE(script, 12);
+    }
+
+    // P2WPKH has direct allocation
+    {
+        const auto script{GetScriptForDestination(WitnessV0KeyHash{PKHash{dummy_pubkey}})};
+        BOOST_CHECK_EQUAL(GetTxoutType(script), TxoutType::WITNESS_V0_KEYHASH);
+        CHECK_SCRIPT_STATIC_SIZE(script, 22);
+    }
+
+    // P2SH has direct allocation
+    {
+        const auto script{GetScriptForDestination(ScriptHash{CScript{} << OP_TRUE})};
+        BOOST_CHECK(script.IsPayToScriptHash());
+        CHECK_SCRIPT_STATIC_SIZE(script, 23);
+    }
+
+    // P2PKH has direct allocation
+    {
+        const auto script{GetScriptForDestination(PKHash{dummy_pubkey})};
+        BOOST_CHECK_EQUAL(GetTxoutType(script), TxoutType::PUBKEYHASH);
+        CHECK_SCRIPT_STATIC_SIZE(script, 25);
+    }
+
+    // P2WSH has direct allocation
+    {
+        const auto script{GetScriptForDestination(WitnessV0ScriptHash{CScript{} << OP_TRUE})};
+        BOOST_CHECK(script.IsPayToWitnessScriptHash());
+        CHECK_SCRIPT_STATIC_SIZE(script, 34);
+    }
+
+    // P2TR has direct allocation
+    {
+        const auto script{GetScriptForDestination(WitnessV1Taproot{XOnlyPubKey{dummy_pubkey}})};
+        BOOST_CHECK_EQUAL(GetTxoutType(script), TxoutType::WITNESS_V1_TAPROOT);
+        CHECK_SCRIPT_STATIC_SIZE(script, 34);
+    }
+
+    // Compressed P2PK has direct allocation
+    {
+        const auto script{GetScriptForRawPubKey(dummy_pubkey)};
+        BOOST_CHECK_EQUAL(GetTxoutType(script), TxoutType::PUBKEY);
+        CHECK_SCRIPT_STATIC_SIZE(script, 35);
+    }
+
+    // Uncompressed P2PK needs extra allocation
+    {
+        CKey uncompressed_key;
+        uncompressed_key.MakeNewKey(/*fCompressed=*/false);
+        const CPubKey uncompressed_pubkey{uncompressed_key.GetPubKey()};
+
+        const auto script{GetScriptForRawPubKey(uncompressed_pubkey)};
+        BOOST_CHECK_EQUAL(GetTxoutType(script), TxoutType::PUBKEY);
+        CHECK_SCRIPT_DYNAMIC_SIZE(script, 67, 67);
+    }
+
+    // Bare multisig needs extra allocation
+    {
+        const auto script{GetScriptForMultisig(1, std::vector{2, dummy_pubkey})};
+        BOOST_CHECK_EQUAL(GetTxoutType(script), TxoutType::MULTISIG);
+        CHECK_SCRIPT_DYNAMIC_SIZE(script, 71, 103);
+    }
 }
 
 /* Wrapper around ProduceSignature to combine two scriptsigs */
@@ -1362,11 +1485,6 @@ CScript ToScript(const T& byte_container)
     return {span.begin(), span.end()};
 }
 
-static CScript ScriptFromHex(const std::string& str)
-{
-    return ToScript(*Assert(TryParseHex(str)));
-}
-
 BOOST_AUTO_TEST_CASE(script_byte_array_u8_vector_equivalence)
 {
     const CScript scriptPubKey1 = CScript() << "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"_hex_v_u8 << OP_CHECKSIG;
@@ -1495,141 +1613,6 @@ BOOST_AUTO_TEST_CASE(script_HasValidOps)
     BOOST_CHECK(!script.HasValidOps());
     script = ToScript("88acc0"_hex); // Script with undefined opcode
     BOOST_CHECK(!script.HasValidOps());
-}
-
-static CMutableTransaction TxFromHex(const std::string& str)
-{
-    CMutableTransaction tx;
-    SpanReader{ParseHex(str)} >> TX_NO_WITNESS(tx);
-    return tx;
-}
-
-static std::vector<CTxOut> TxOutsFromJSON(const UniValue& univalue)
-{
-    assert(univalue.isArray());
-    std::vector<CTxOut> prevouts;
-    for (size_t i = 0; i < univalue.size(); ++i) {
-        CTxOut txout;
-        SpanReader{ParseHex(univalue[i].get_str())} >> txout;
-        prevouts.push_back(std::move(txout));
-    }
-    return prevouts;
-}
-
-static CScriptWitness ScriptWitnessFromJSON(const UniValue& univalue)
-{
-    assert(univalue.isArray());
-    CScriptWitness scriptwitness;
-    for (size_t i = 0; i < univalue.size(); ++i) {
-        auto bytes = ParseHex(univalue[i].get_str());
-        scriptwitness.stack.push_back(std::move(bytes));
-    }
-    return scriptwitness;
-}
-
-static std::vector<unsigned int> AllConsensusFlags()
-{
-    std::vector<unsigned int> ret;
-
-    for (unsigned int i = 0; i < 128; ++i) {
-        unsigned int flag = 0;
-        if (i & 1) flag |= SCRIPT_VERIFY_P2SH;
-        if (i & 2) flag |= SCRIPT_VERIFY_DERSIG;
-        if (i & 4) flag |= SCRIPT_VERIFY_NULLDUMMY;
-        if (i & 8) flag |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
-        if (i & 16) flag |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
-        if (i & 32) flag |= SCRIPT_VERIFY_WITNESS;
-        if (i & 64) flag |= SCRIPT_VERIFY_TAPROOT;
-
-        // SCRIPT_VERIFY_WITNESS requires SCRIPT_VERIFY_P2SH
-        if (flag & SCRIPT_VERIFY_WITNESS && !(flag & SCRIPT_VERIFY_P2SH)) continue;
-        // SCRIPT_VERIFY_TAPROOT requires SCRIPT_VERIFY_WITNESS
-        if (flag & SCRIPT_VERIFY_TAPROOT && !(flag & SCRIPT_VERIFY_WITNESS)) continue;
-
-        ret.push_back(flag);
-    }
-
-    return ret;
-}
-
-/** Precomputed list of all valid combinations of consensus-relevant script validation flags. */
-static const std::vector<unsigned int> ALL_CONSENSUS_FLAGS = AllConsensusFlags();
-
-static void AssetTest(const UniValue& test, SignatureCache& signature_cache)
-{
-    BOOST_CHECK(test.isObject());
-
-    CMutableTransaction mtx = TxFromHex(test["tx"].get_str());
-    const std::vector<CTxOut> prevouts = TxOutsFromJSON(test["prevouts"]);
-    BOOST_CHECK(prevouts.size() == mtx.vin.size());
-    size_t idx = test["index"].getInt<int64_t>();
-    uint32_t test_flags{ParseScriptFlags(test["flags"].get_str())};
-    bool fin = test.exists("final") && test["final"].get_bool();
-
-    if (test.exists("success")) {
-        mtx.vin[idx].scriptSig = ScriptFromHex(test["success"]["scriptSig"].get_str());
-        mtx.vin[idx].scriptWitness = ScriptWitnessFromJSON(test["success"]["witness"]);
-        CTransaction tx(mtx);
-        PrecomputedTransactionData txdata;
-        txdata.Init(tx, std::vector<CTxOut>(prevouts));
-        CachingTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, true, signature_cache, txdata);
-
-        for (const auto flags : ALL_CONSENSUS_FLAGS) {
-            // "final": true tests are valid for all flags. Others are only valid with flags that are
-            // a subset of test_flags.
-            if (fin || ((flags & test_flags) == flags)) {
-                bool ret = VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, &tx.vin[idx].scriptWitness, flags, txcheck, nullptr);
-                BOOST_CHECK(ret);
-            }
-        }
-    }
-
-    if (test.exists("failure")) {
-        mtx.vin[idx].scriptSig = ScriptFromHex(test["failure"]["scriptSig"].get_str());
-        mtx.vin[idx].scriptWitness = ScriptWitnessFromJSON(test["failure"]["witness"]);
-        CTransaction tx(mtx);
-        PrecomputedTransactionData txdata;
-        txdata.Init(tx, std::vector<CTxOut>(prevouts));
-        CachingTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, true, signature_cache, txdata);
-
-        for (const auto flags : ALL_CONSENSUS_FLAGS) {
-            // If a test is supposed to fail with test_flags, it should also fail with any superset thereof.
-            if ((flags & test_flags) == test_flags) {
-                bool ret = VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, &tx.vin[idx].scriptWitness, flags, txcheck, nullptr);
-                BOOST_CHECK(!ret);
-            }
-        }
-    }
-}
-
-BOOST_AUTO_TEST_CASE(script_assets_test)
-{
-    // See src/test/fuzz/script_assets_test_minimizer.cpp for information on how to generate
-    // the script_assets_test.json file used by this test.
-    SignatureCache signature_cache{DEFAULT_SIGNATURE_CACHE_BYTES};
-
-    const char* dir = std::getenv("DIR_UNIT_TEST_DATA");
-    BOOST_WARN_MESSAGE(dir != nullptr, "Variable DIR_UNIT_TEST_DATA unset, skipping script_assets_test");
-    if (dir == nullptr) return;
-    auto path = fs::path(dir) / "script_assets_test.json";
-    bool exists = fs::exists(path);
-    BOOST_WARN_MESSAGE(exists, "File $DIR_UNIT_TEST_DATA/script_assets_test.json not found, skipping script_assets_test");
-    if (!exists) return;
-    std::ifstream file{path};
-    BOOST_CHECK(file.is_open());
-    file.seekg(0, std::ios::end);
-    size_t length = file.tellg();
-    file.seekg(0, std::ios::beg);
-    std::string data(length, '\0');
-    file.read(data.data(), data.size());
-    UniValue tests = read_json(data);
-    BOOST_CHECK(tests.isArray());
-    BOOST_CHECK(tests.size() > 0);
-
-    for (size_t i = 0; i < tests.size(); i++) {
-        AssetTest(tests[i], signature_cache);
-    }
-    file.close();
 }
 
 BOOST_AUTO_TEST_CASE(bip341_keypath_test_vectors)

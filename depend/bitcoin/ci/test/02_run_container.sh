@@ -10,10 +10,6 @@ export CI_IMAGE_LABEL="bitcoin-ci-test"
 set -o errexit -o pipefail -o xtrace
 
 if [ -z "$DANGER_RUN_CI_ON_HOST" ]; then
-  # Export all env vars to avoid missing some.
-  # Though, exclude those with newlines to avoid parsing problems.
-  python3 -c 'import os; [print(f"{key}={value}") for key, value in os.environ.items() if "\n" not in value and "HOME" != key and "PATH" != key and "USER" != key]' | tee "/tmp/env-$USER-$CONTAINER_NAME"
-
   # Env vars during the build can not be changed. For example, a modified
   # $MAKEJOBS is ignored in the build process. Use --cpuset-cpus as an
   # approximation to respect $MAKEJOBS somewhat, if cpuset is available.
@@ -118,8 +114,6 @@ if [ -z "$DANGER_RUN_CI_ON_HOST" ]; then
   # When detecting podman-docker, `--external` should be added.
   docker image prune --force --filter "label=$CI_IMAGE_LABEL"
 
-  # Append $USER to /tmp/env to support multi-user systems and $CONTAINER_NAME
-  # to allow support starting multiple runs simultaneously by the same user.
   # shellcheck disable=SC2086
   CI_CONTAINER_ID=$(docker run --cap-add LINUX_IMMUTABLE $CI_CONTAINER_CAP --rm --interactive --detach --tty \
                   --mount "type=bind,src=$BASE_READ_ONLY_DIR,dst=$BASE_READ_ONLY_DIR,readonly" \
@@ -153,12 +147,8 @@ CI_EXEC () {
 export -f CI_EXEC
 
 # Normalize all folders to BASE_ROOT_DIR
-CI_EXEC rsync --archive --stats --human-readable "${BASE_READ_ONLY_DIR}/" "${BASE_ROOT_DIR}" || echo "Nothing to copy from ${BASE_READ_ONLY_DIR}/"
+CI_EXEC rsync --recursive --perms --stats --human-readable "${BASE_READ_ONLY_DIR}/" "${BASE_ROOT_DIR}" || echo "Nothing to copy from ${BASE_READ_ONLY_DIR}/"
 CI_EXEC "${BASE_ROOT_DIR}/ci/test/01_base_install.sh"
-
-# Fixes permission issues when there is a container UID/GID mismatch with the owner
-# of the git source code directory.
-CI_EXEC git config --global --add safe.directory \"*\"
 
 CI_EXEC mkdir -p "${BINS_SCRATCH_DIR}"
 

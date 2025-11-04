@@ -127,12 +127,12 @@ class Type {
     //! Internal bitmap of properties (see ""_mst operator for details).
     uint32_t m_flags;
 
-    //! Internal constructor.
-    explicit constexpr Type(uint32_t flags) noexcept : m_flags(flags) {}
+    //! Internal constructor used by the ""_mst operator.
+    explicit constexpr Type(uint32_t flags) : m_flags(flags) {}
 
 public:
-    //! Construction function used by the ""_mst operator.
-    static consteval Type Make(uint32_t flags) noexcept { return Type(flags); }
+    //! The only way to publicly construct a Type is using this literal operator.
+    friend consteval Type operator""_mst(const char* c, size_t l);
 
     //! Compute the type with the union of properties.
     constexpr Type operator|(Type x) const { return Type(m_flags | x.m_flags); }
@@ -156,10 +156,10 @@ public:
 //! Literal operator to construct Type objects.
 inline consteval Type operator""_mst(const char* c, size_t l)
 {
-    Type typ{Type::Make(0)};
+    Type typ{0};
 
     for (const char *p = c; p < c + l; p++) {
-        typ = typ | Type::Make(
+        typ = typ | Type(
             *p == 'B' ? 1 << 0 : // Base type
             *p == 'V' ? 1 << 1 : // Verify type
             *p == 'K' ? 1 << 2 : // Key type
@@ -572,8 +572,7 @@ private:
         for (const auto& sub : subs) {
             subsize += sub->ScriptSize();
         }
-        static constexpr auto NONE_MST{""_mst};
-        Type sub0type = subs.size() > 0 ? subs[0]->GetType() : NONE_MST;
+        Type sub0type = subs.size() > 0 ? subs[0]->GetType() : ""_mst;
         return internal::ComputeScriptLen(fragment, sub0type, subsize, k, subs.size(), keys.size(), m_script_ctx);
     }
 
@@ -659,7 +658,8 @@ private:
             stack.pop_back();
         }
         // The final remaining results element is the root result, return it.
-        assert(results.size() == 1);
+        assert(results.size() >= 1);
+        CHECK_NONFATAL(results.size() == 1);
         return std::move(results[0]);
     }
 
@@ -737,10 +737,9 @@ private:
             for (const auto& sub : subs) sub_types.push_back(sub->GetType());
         }
         // All other nodes than THRESH can be computed just from the types of the 0-3 subexpressions.
-        static constexpr auto NONE_MST{""_mst};
-        Type x = subs.size() > 0 ? subs[0]->GetType() : NONE_MST;
-        Type y = subs.size() > 1 ? subs[1]->GetType() : NONE_MST;
-        Type z = subs.size() > 2 ? subs[2]->GetType() : NONE_MST;
+        Type x = subs.size() > 0 ? subs[0]->GetType() : ""_mst;
+        Type y = subs.size() > 1 ? subs[1]->GetType() : ""_mst;
+        Type z = subs.size() > 2 ? subs[2]->GetType() : ""_mst;
 
         return SanitizeType(ComputeType(fragment, x, y, z, sub_types, k, data.size(), subs.size(), keys.size(), m_script_ctx));
     }
@@ -1008,7 +1007,7 @@ private:
                     next_sats.push_back(sats[sats.size() - 1] + sub->ops.sat);
                     sats = std::move(next_sats);
                 }
-                assert(k <= sats.size());
+                assert(k < sats.size());
                 return {count, sats[k], sats[0]};
             }
         }
@@ -1176,7 +1175,7 @@ private:
                     next_sats.push_back(sats[sats.size() - 1] + sub->ws.sat);
                     sats = std::move(next_sats);
                 }
-                assert(k <= sats.size());
+                assert(k < sats.size());
                 return {sats[k], sats[0]};
             }
         }
@@ -1225,8 +1224,8 @@ private:
                     // The dissatisfaction consists of as many empty vectors as there are keys, which is the same as
                     // satisfying 0 keys.
                     auto& nsat{sats[0]};
-                    assert(node.k != 0);
-                    assert(node.k <= sats.size());
+                    CHECK_NONFATAL(node.k != 0);
+                    assert(node.k < sats.size());
                     return {std::move(nsat), std::move(sats[node.k])};
                 }
                 case Fragment::MULTI: {
@@ -1252,7 +1251,7 @@ private:
                     // The dissatisfaction consists of k+1 stack elements all equal to 0.
                     InputStack nsat = ZERO;
                     for (size_t i = 0; i < node.k; ++i) nsat = std::move(nsat) + ZERO;
-                    assert(node.k <= sats.size());
+                    assert(node.k < sats.size());
                     return {std::move(nsat), std::move(sats[node.k])};
                 }
                 case Fragment::THRESH: {
@@ -1287,7 +1286,7 @@ private:
                         // Include all dissatisfactions (even these non-canonical ones) in nsat.
                         if (i != node.k) nsat = std::move(nsat) | std::move(sats[i]);
                     }
-                    assert(node.k <= sats.size());
+                    assert(node.k < sats.size());
                     return {std::move(nsat), std::move(sats[node.k])};
                 }
                 case Fragment::OLDER: {
@@ -1392,38 +1391,38 @@ private:
             // (the actual satisfaction code in ProduceInputHelper does not use GetType)
 
             // For 'z' nodes, available satisfactions/dissatisfactions must have stack size 0.
-            if (node.GetType() << "z"_mst && ret.nsat.available != Availability::NO) assert(ret.nsat.stack.size() == 0);
-            if (node.GetType() << "z"_mst && ret.sat.available != Availability::NO) assert(ret.sat.stack.size() == 0);
+            if (node.GetType() << "z"_mst && ret.nsat.available != Availability::NO) CHECK_NONFATAL(ret.nsat.stack.size() == 0);
+            if (node.GetType() << "z"_mst && ret.sat.available != Availability::NO) CHECK_NONFATAL(ret.sat.stack.size() == 0);
 
             // For 'o' nodes, available satisfactions/dissatisfactions must have stack size 1.
-            if (node.GetType() << "o"_mst && ret.nsat.available != Availability::NO) assert(ret.nsat.stack.size() == 1);
-            if (node.GetType() << "o"_mst && ret.sat.available != Availability::NO) assert(ret.sat.stack.size() == 1);
+            if (node.GetType() << "o"_mst && ret.nsat.available != Availability::NO) CHECK_NONFATAL(ret.nsat.stack.size() == 1);
+            if (node.GetType() << "o"_mst && ret.sat.available != Availability::NO) CHECK_NONFATAL(ret.sat.stack.size() == 1);
 
             // For 'n' nodes, available satisfactions/dissatisfactions must have stack size 1 or larger. For satisfactions,
             // the top element cannot be 0.
-            if (node.GetType() << "n"_mst && ret.sat.available != Availability::NO) assert(ret.sat.stack.size() >= 1);
-            if (node.GetType() << "n"_mst && ret.nsat.available != Availability::NO) assert(ret.nsat.stack.size() >= 1);
-            if (node.GetType() << "n"_mst && ret.sat.available != Availability::NO) assert(!ret.sat.stack.back().empty());
+            if (node.GetType() << "n"_mst && ret.sat.available != Availability::NO) CHECK_NONFATAL(ret.sat.stack.size() >= 1);
+            if (node.GetType() << "n"_mst && ret.nsat.available != Availability::NO) CHECK_NONFATAL(ret.nsat.stack.size() >= 1);
+            if (node.GetType() << "n"_mst && ret.sat.available != Availability::NO) CHECK_NONFATAL(!ret.sat.stack.back().empty());
 
             // For 'd' nodes, a dissatisfaction must exist, and they must not need a signature. If it is non-malleable,
             // it must be canonical.
-            if (node.GetType() << "d"_mst) assert(ret.nsat.available != Availability::NO);
-            if (node.GetType() << "d"_mst) assert(!ret.nsat.has_sig);
-            if (node.GetType() << "d"_mst && !ret.nsat.malleable) assert(!ret.nsat.non_canon);
+            if (node.GetType() << "d"_mst) CHECK_NONFATAL(ret.nsat.available != Availability::NO);
+            if (node.GetType() << "d"_mst) CHECK_NONFATAL(!ret.nsat.has_sig);
+            if (node.GetType() << "d"_mst && !ret.nsat.malleable) CHECK_NONFATAL(!ret.nsat.non_canon);
 
             // For 'f'/'s' nodes, dissatisfactions/satisfactions must have a signature.
-            if (node.GetType() << "f"_mst && ret.nsat.available != Availability::NO) assert(ret.nsat.has_sig);
-            if (node.GetType() << "s"_mst && ret.sat.available != Availability::NO) assert(ret.sat.has_sig);
+            if (node.GetType() << "f"_mst && ret.nsat.available != Availability::NO) CHECK_NONFATAL(ret.nsat.has_sig);
+            if (node.GetType() << "s"_mst && ret.sat.available != Availability::NO) CHECK_NONFATAL(ret.sat.has_sig);
 
             // For non-malleable 'e' nodes, a non-malleable dissatisfaction must exist.
-            if (node.GetType() << "me"_mst) assert(ret.nsat.available != Availability::NO);
-            if (node.GetType() << "me"_mst) assert(!ret.nsat.malleable);
+            if (node.GetType() << "me"_mst) CHECK_NONFATAL(ret.nsat.available != Availability::NO);
+            if (node.GetType() << "me"_mst) CHECK_NONFATAL(!ret.nsat.malleable);
 
             // For 'm' nodes, if a satisfaction exists, it must be non-malleable.
-            if (node.GetType() << "m"_mst && ret.sat.available != Availability::NO) assert(!ret.sat.malleable);
+            if (node.GetType() << "m"_mst && ret.sat.available != Availability::NO) CHECK_NONFATAL(!ret.sat.malleable);
 
             // If a non-malleable satisfaction exists, it must be canonical.
-            if (ret.sat.available != Availability::NO && !ret.sat.malleable) assert(!ret.sat.non_canon);
+            if (ret.sat.available != Availability::NO && !ret.sat.malleable) CHECK_NONFATAL(!ret.sat.non_canon);
 
             return ret;
         };
@@ -1604,7 +1603,8 @@ public:
                 case Fragment::THRESH:
                     return static_cast<uint32_t>(std::count(subs.begin(), subs.end(), true)) >= node.k;
                 default: // wrappers
-                    assert(subs.size() == 1);
+                    assert(subs.size() >= 1);
+                    CHECK_NONFATAL(subs.size() == 1);
                     return subs[0];
             }
         });
@@ -2157,7 +2157,8 @@ inline NodeRef<Key> Parse(std::span<const char> in, const Ctx& ctx)
     }
 
     // Sanity checks on the produced miniscript
-    assert(constructed.size() == 1);
+    assert(constructed.size() >= 1);
+    CHECK_NONFATAL(constructed.size() == 1);
     assert(constructed[0]->ScriptSize() == script_size);
     if (in.size() > 0) return {};
     NodeRef<Key> tl_node = std::move(constructed.front());

@@ -24,14 +24,13 @@ FUZZ_TARGET(utxo_total_supply)
 {
     SeedRandomStateForTest(SeedRand::ZEROS);
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
-    const auto mock_time{ConsumeTime(fuzzed_data_provider, /*min=*/1296688602)}; // regtest genesis block timestamp
+    SetMockTime(ConsumeTime(fuzzed_data_provider, /*min=*/1296688602)); // regtest genesis block timestamp
     /** The testing setup that creates a chainman only (no chainstate) */
     ChainTestingSetup test_setup{
         ChainType::REGTEST,
         {
             .extra_args = {
                 "-testactivationheight=bip34@2",
-                strprintf("-mocktime=%d", mock_time).c_str()
             },
         },
     };
@@ -52,6 +51,7 @@ FUZZ_TARGET(utxo_total_supply)
         // Replace OP_FALSE with OP_TRUE
         {
             CMutableTransaction tx{*block->vtx.back()};
+            tx.nLockTime = 0; // Use the same nLockTime for all as we want to duplicate one of them.
             tx.vout.at(0).scriptPubKey = CScript{} << OP_TRUE;
             block->vtx.back() = MakeTransactionRef(tx);
         }
