@@ -182,6 +182,17 @@ public:
     std::unique_lock<std::mutex> m_lock;
 };
 
+template<typename T>
+struct GuardedRef
+{
+    Mutex& mutex;
+    T& ref MP_GUARDED_BY(mutex);
+};
+
+// CTAD for Clang 16: GuardedRef{mutex, x} -> GuardedRef<decltype(x)>
+template <class U>
+GuardedRef(Mutex&, U&) -> GuardedRef<U>;
+
 //! Analog to std::lock_guard that unlocks instead of locks.
 template <typename Lock>
 struct UnlockGuard
@@ -203,7 +214,7 @@ std::string ThreadName(const char* exe_name);
 
 //! Escape binary string for use in log so it doesn't trigger unicode decode
 //! errors in python unit tests.
-std::string LogEscape(const kj::StringTree& string);
+std::string LogEscape(const kj::StringTree& string, size_t max_size);
 
 //! Callback type used by SpawnProcess below.
 using FdToArgsFn = std::function<std::vector<std::string>(int fd)>;

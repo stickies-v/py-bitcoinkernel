@@ -10,6 +10,7 @@
 #include <common/signmessage.h>
 #include <common/types.h>
 #include <logging.h>
+#include <musig.h>
 #include <node/types.h>
 #include <psbt.h>
 #include <script/descriptor.h>
@@ -85,7 +86,7 @@ public:
     explicit ScriptPubKeyMan(WalletStorage& storage) : m_storage(storage) {}
     virtual ~ScriptPubKeyMan() = default;
     virtual util::Result<CTxDestination> GetNewDestination(const OutputType type) { return util::Error{Untranslated("Not supported")}; }
-    virtual isminetype IsMine(const CScript& script) const { return ISMINE_NO; }
+    virtual bool IsMine(const CScript& script) const { return false; }
 
     //! Check that the given decryption key is valid for this ScriptPubKeyMan, i.e. it decrypts all of the keys handled by it.
     virtual bool CheckDecryptionKey(const CKeyingMaterial& master_key) { return false; }
@@ -197,7 +198,7 @@ private:
     // Used only in migration.
     std::unordered_set<CScript, SaltedSipHasher> GetCandidateScriptPubKeys() const;
 
-    isminetype IsMine(const CScript& script) const override;
+    bool IsMine(const CScript& script) const override;
     bool CanProvide(const CScript& script, SignatureData& sigdata) override;
 public:
     using ScriptPubKeyMan::ScriptPubKeyMan;
@@ -293,6 +294,19 @@ private:
     //! Number of pre-generated keys/scripts (part of the look-ahead process, used to detect payments)
     int64_t m_keypool_size GUARDED_BY(cs_desc_man){DEFAULT_KEYPOOL_SIZE};
 
+    /** Map of a session id to MuSig2 secnonce
+     *
+     * Stores MuSig2 secnonces while the MuSig2 signing session is still ongoing.
+     * Note that these secnonces must not be reused. In order to avoid being tricked into
+     * reusing a nonce, this map is held only in memory and must not be written to disk.
+     * The side effect is that signing sessions cannot persist across restarts, but this
+     * must be done in order to prevent nonce reuse.
+     *
+     * The session id is an arbitrary value set by the signer in order for the signing logic
+     * to find ongoing signing sessions. It is the SHA256 of aggregate xonly key, + participant pubkey + sighash.
+     */
+    mutable std::map<uint256, MuSig2SecNonce> m_musig2_secnonces;
+
     bool AddDescriptorKeyWithDB(WalletBatch& batch, const CKey& key, const CPubKey &pubkey) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
     KeyMap GetKeys() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
@@ -324,7 +338,7 @@ public:
     mutable RecursiveMutex cs_desc_man;
 
     util::Result<CTxDestination> GetNewDestination(const OutputType type) override;
-    isminetype IsMine(const CScript& script) const override;
+    bool IsMine(const CScript& script) const override;
 
     bool CheckDecryptionKey(const CKeyingMaterial& master_key) override;
     bool Encrypt(const CKeyingMaterial& master_key, WalletBatch* batch) override;

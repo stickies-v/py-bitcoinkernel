@@ -2,10 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <chainparams.h>
-#include <common/args.h>
 #include <index/base.h>
+
+#include <chain.h>
+#include <common/args.h>
+#include <dbwrapper.h>
 #include <interfaces/chain.h>
+#include <interfaces/types.h>
 #include <kernel/chain.h>
 #include <logging.h>
 #include <node/abort.h>
@@ -13,20 +16,31 @@
 #include <node/context.h>
 #include <node/database_args.h>
 #include <node/interface_ui.h>
+#include <primitives/block.h>
+#include <sync.h>
 #include <tinyformat.h>
+#include <uint256.h>
 #include <undo.h>
+#include <util/fs.h>
 #include <util/string.h>
 #include <util/thread.h>
+#include <util/threadinterrupt.h>
+#include <util/time.h>
 #include <util/translation.h>
 #include <validation.h>
+#include <validationinterface.h>
 
-#include <chrono>
+#include <cassert>
+#include <compare>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 constexpr uint8_t DB_BEST_BLOCK{'B'};
 
@@ -299,18 +313,13 @@ bool BaseIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new_ti
         }
     }
 
-    // In the case of a reorg, ensure persisted block locator is not stale.
+    // Don't commit here - the committed index state must never be ahead of the
+    // flushed chainstate, otherwise unclean restarts would lead to index corruption.
     // Pruning has a minimum of 288 blocks-to-keep and getting the index
     // out of sync may be possible but a users fault.
     // In case we reorg beyond the pruned depth, ReadBlock would
     // throw and lead to a graceful shutdown
     SetBestBlockIndex(new_tip);
-    if (!Commit()) {
-        // If commit fails, revert the best block index to avoid corruption.
-        SetBestBlockIndex(current_tip);
-        return false;
-    }
-
     return true;
 }
 

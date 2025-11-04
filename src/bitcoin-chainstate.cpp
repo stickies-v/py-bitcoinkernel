@@ -9,15 +9,6 @@
 #include <string_view>
 #include <vector>
 
-#ifdef WIN32
-// clang-format off
-#include <windows.h>
-// clang-format on
-#include <codecvt>
-#include <locale>
-#include <shellapi.h>
-#endif
-
 using namespace btck;
 
 std::vector<std::byte> hex_string_to_byte_vec(std::string_view hex)
@@ -46,7 +37,7 @@ public:
     }
 };
 
-class TestValidationInterface : public ValidationInterface<TestValidationInterface>
+class TestValidationInterface : public ValidationInterface
 {
 public:
     TestValidationInterface() = default;
@@ -72,7 +63,7 @@ public:
                 std::cout << "the block header may be on a too-little-work chain" << std::endl;
                 break;
             case BlockValidationResult::CONSENSUS:
-                std::cout << "invalid by consensus rules (excluding any below reasons)" << std::endl;
+                std::cout << "invalid by consensus rules" << std::endl;
                 break;
             case BlockValidationResult::CACHED_INVALID:
                 std::cout << "this block was cached as being invalid and we didn't store the reason why" << std::endl;
@@ -103,7 +94,7 @@ public:
     }
 };
 
-class TestKernelNotifications : public KernelNotifications<TestKernelNotifications>
+class TestKernelNotifications : public KernelNotifications
 {
 public:
     void BlockTipHandler(SynchronizationState, const BlockTreeEntry, double) override
@@ -149,22 +140,6 @@ int main(int argc, char* argv[])
             << "           BREAK IN FUTURE VERSIONS. DO NOT USE ON YOUR ACTUAL DATADIR." << std::endl;
         return 1;
     }
-
-#ifdef WIN32
-    int win_argc;
-    wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &win_argc);
-    std::vector<std::string> utf8_args(win_argc);
-    std::vector<char*> win_argv(win_argc);
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf8_cvt;
-    for (int i = 0; i < win_argc; i++) {
-        utf8_args[i] = utf8_cvt.to_bytes(wargv[i]);
-        win_argv[i] = &utf8_args[i][0];
-    }
-    LocalFree(wargv);
-    argc = win_argc;
-    argv = win_argv.data();
-#endif
-
     std::filesystem::path abs_datadir{std::filesystem::absolute(argv[1])};
     std::filesystem::create_directories(abs_datadir);
 
@@ -176,7 +151,9 @@ int main(int argc, char* argv[])
         .always_print_category_levels = true,
     };
 
-    Logger logger{std::make_unique<KernelLog>(KernelLog{}), logging_options};
+    logging_set_options(logging_options);
+
+    Logger logger{std::make_unique<KernelLog>()};
 
     ContextOptions options{};
     ChainParams params{ChainType::MAINNET};
