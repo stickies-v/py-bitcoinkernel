@@ -18,24 +18,28 @@ from pbk.capi import KernelOpaquePtr
 LOGGING_LOCK = threading.RLock()
 
 
+# TODO: add enum auto-generation or testing to ensure it remains in
+# sync with bitcoinkernel.h
 class LogCategory(IntEnum):
-    ALL = k.kernel_LOG_ALL
-    BENCH = k.kernel_LOG_BENCH
-    BLOCKSTORAGE = k.kernel_LOG_BLOCKSTORAGE
-    COINDB = k.kernel_LOG_COINDB
-    LEVELDB = k.kernel_LOG_LEVELDB
-    MEMPOOL = k.kernel_LOG_MEMPOOL
-    PRUNE = k.kernel_LOG_PRUNE
-    RAND = k.kernel_LOG_RAND
-    REINDEX = k.kernel_LOG_REINDEX
-    VALIDATION = k.kernel_LOG_VALIDATION
-    KERNEL = k.kernel_LOG_KERNEL
+    ALL = 0  # btck_LogCategory_ALL
+    BENCH = 1  # btck_LogCategory_BENCH
+    BLOCKSTORAGE = 2  # btck_LogCategory_BLOCKSTORAGE
+    COINDB = 3  # btck_LogCategory_COINDB
+    LEVELDB = 4  # btck_LogCategory_LEVELDB
+    MEMPOOL = 5  # btck_LogCategory_MEMPOOL
+    PRUNE = 6  # btck_LogCategory_PRUNE
+    RAND = 7  # btck_LogCategory_RAND
+    REINDEX = 8  # btck_LogCategory_REINDEX
+    VALIDATION = 9  # btck_LogCategory_VALIDATION
+    KERNEL = 10  # btck_LogCategory_KERNEL
 
 
+# TODO: add enum auto-generation or testing to ensure it remains in
+# sync with bitcoinkernel.h
 class LogLevel(IntEnum):
-    INFO = k.kernel_LOG_INFO
-    DEBUG = k.kernel_LOG_DEBUG
-    #  TRACE = k.kernel_LOG_TRACE  # TRACE is not a python-native logging level, disable it for now
+    # TRACE = 0   # btck_LogLevel_TRACE  # TRACE is not a python-native logging level, disable it for now
+    DEBUG = 1  # btck_LogLevel_DEBUG
+    INFO = 2  # btck_LogLevel_INFO
 
 
 KERNEL_LEVEL_TO_PYTHON = {  # numeric value
@@ -44,13 +48,13 @@ KERNEL_LEVEL_TO_PYTHON = {  # numeric value
 }
 
 
-def kernel_level_from_python(python_level: int) -> LogLevel:
+def btck_level_from_python(python_level: int) -> LogLevel:
     if python_level > KERNEL_LEVEL_TO_PYTHON[LogLevel.DEBUG]:
         return LogLevel.INFO
     return LogLevel.DEBUG
 
 
-class LoggingOptions(k.kernel_LoggingOptions):
+class LoggingOptions(k.btck_LoggingOptions):
     def __init__(
         self,
         log_timestamps=True,
@@ -74,7 +78,7 @@ class LoggingOptions(k.kernel_LoggingOptions):
 def is_valid_log_callback(fn: typing.Any) -> bool:
     """
     Best-effort attempt to check that `fn` adheres to the
-    kernel_LogCallback signature.
+    btck_LogCallback signature.
 
     It does not inspect the type of the parameter and return value.
     """
@@ -88,14 +92,14 @@ def is_valid_log_callback(fn: typing.Any) -> bool:
     return True
 
 
-def add_log_level_category(category: LogCategory, level: LogLevel) -> None:
+def set_log_level_category(category: LogCategory, level: LogLevel) -> None:
     """
     Set the log level of the global internal logger. This does not
     enable the selected categories. Use `enable_log_category` to start
     logging from a specific, or all categories.
     """
     with LOGGING_LOCK:
-        k.kernel_add_log_level_category(category, level)
+        k.btck_logging_set_level_category(category, level)
 
 
 def enable_log_category(category: LogCategory) -> None:
@@ -103,7 +107,7 @@ def enable_log_category(category: LogCategory) -> None:
     Enable a specific log category for the global internal logger.
     """
     with LOGGING_LOCK:
-        k.kernel_enable_log_category(category)
+        k.btck_logging_enable_category(category)
 
 
 def disable_log_category(category: LogCategory) -> None:
@@ -111,7 +115,7 @@ def disable_log_category(category: LogCategory) -> None:
     Disable a specific log category for the global internal logger.
     """
     with LOGGING_LOCK:
-        k.kernel_disable_log_category(category)
+        k.btck_logging_disable_category(category)
 
 
 class LoggingConnection(KernelOpaquePtr):
@@ -134,14 +138,14 @@ class LoggingConnection(KernelOpaquePtr):
             )
         self._cb = self._wrap_log_fn(cb)  # ensure lifetime
         self._user_data = user_data
-        super().__init__(self._cb, user_data, opts)
+        super().__init__(self._cb, user_data, k.btck_DestroyCallback(), opts)
 
     @staticmethod
     def _wrap_log_fn(fn: Callable[[str], None]):
         def wrapped(user_data: None, message: bytes, message_len: int):
             return fn(ctypes.string_at(message, message_len).decode("utf-8"))
 
-        return k.kernel_LogCallback(wrapped)
+        return k.btck_LogCallback(wrapped)
 
 
 class KernelLogViewer:
@@ -175,7 +179,7 @@ class KernelLogViewer:
         # To simplify things, just set the level for to DEBUG for all
         # log categories. This shouldn't have any effect until categories
         # are actually enabled with enable_log_category.
-        add_log_level_category(LogCategory.ALL, LogLevel.DEBUG)
+        set_log_level_category(LogCategory.ALL, LogLevel.DEBUG)
         if categories is None:
             categories = []
         for category in categories:
@@ -223,7 +227,7 @@ class KernelLogViewer:
     def _create_log_callback(logger: logging.Logger) -> typing.Callable[[str], None]:
         def callback(msg: str) -> None:
             try:
-                record = parse_kernel_log_string(logger.name, msg)
+                record = parse_btck_log_string(logger.name, msg)
                 logger.handle(record)
             except ValueError:
                 logging.getLogger().error(f"Failed to parse log message: {msg}")
@@ -231,12 +235,12 @@ class KernelLogViewer:
         return callback
 
 
-def parse_kernel_log_string(logger_name: str, log_string: str) -> logging.LogRecord:
+def parse_btck_log_string(logger_name: str, log_string: str) -> logging.LogRecord:
     pattern = r"""
         ^([\d-]+T[\d:]+Z)              # timestamp
         \s+\[([^\]]+)\]                # threadname
         \s+\[([^\]]+)\]                # filepath:lineno
-        \s+\[([^\]]+)\]                # filename/function
+        \s+\[(.+)\]                    # filename/function
         \s+\[([^:]+):([^\]]+)\]        # category:level
         \s+(.+)$                       # message
     """

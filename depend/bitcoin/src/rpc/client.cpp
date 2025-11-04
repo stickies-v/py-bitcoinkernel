@@ -1,5 +1,5 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,8 +7,8 @@
 #include <rpc/client.h>
 #include <tinyformat.h>
 
+#include <cstdint>
 #include <set>
-#include <stdint.h>
 #include <string>
 #include <string_view>
 
@@ -48,7 +48,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "sendtoaddress", 9, "fee_rate"},
     { "sendtoaddress", 10, "verbose"},
     { "settxfee", 0, "amount" },
-    { "sethdseed", 0, "newkeypool" },
     { "getreceivedbyaddress", 1, "minconf" },
     { "getreceivedbyaddress", 2, "include_immature_coinbase" },
     { "getreceivedbylabel", 1, "minconf" },
@@ -96,8 +95,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getdescriptoractivity", 1, "scanobjects" },
     { "getdescriptoractivity", 2, "include_mempool" },
     { "scantxoutset", 1, "scanobjects" },
-    { "addmultisigaddress", 0, "nrequired" },
-    { "addmultisigaddress", 1, "keys" },
     { "createmultisig", 0, "nrequired" },
     { "createmultisig", 1, "keys" },
     { "listunspent", 0, "minconf" },
@@ -122,6 +119,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "createrawtransaction", 1, "outputs" },
     { "createrawtransaction", 2, "locktime" },
     { "createrawtransaction", 3, "replaceable" },
+    { "createrawtransaction", 4, "version" },
     { "decoderawtransaction", 1, "iswitness" },
     { "signrawtransactionwithkey", 1, "privkeys" },
     { "signrawtransactionwithkey", 2, "prevtxs" },
@@ -170,6 +168,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "walletcreatefundedpsbt", 3, "solving_data"},
     { "walletcreatefundedpsbt", 3, "max_tx_weight"},
     { "walletcreatefundedpsbt", 4, "bip32derivs" },
+    { "walletcreatefundedpsbt", 5, "version" },
     { "walletprocesspsbt", 1, "sign" },
     { "walletprocesspsbt", 3, "bip32derivs" },
     { "walletprocesspsbt", 4, "finalize" },
@@ -180,6 +179,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "createpsbt", 1, "outputs" },
     { "createpsbt", 2, "locktime" },
     { "createpsbt", 3, "replaceable" },
+    { "createpsbt", 4, "version" },
     { "combinepsbt", 0, "txs"},
     { "joinpsbts", 0, "txs"},
     { "finalizepsbt", 1, "extract"},
@@ -216,6 +216,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "send", 4, "replaceable"},
     { "send", 4, "solving_data"},
     { "send", 4, "max_tx_weight"},
+    { "send", 5, "version"},
     { "sendall", 0, "recipients" },
     { "sendall", 1, "conf_target" },
     { "sendall", 3, "fee_rate"},
@@ -233,20 +234,14 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "sendall", 4, "conf_target"},
     { "sendall", 4, "replaceable"},
     { "sendall", 4, "solving_data"},
+    { "sendall", 4, "version"},
     { "simulaterawtransaction", 0, "rawtxs" },
     { "simulaterawtransaction", 1, "options" },
     { "simulaterawtransaction", 1, "include_watchonly"},
-    { "importprivkey", 2, "rescan" },
-    { "importaddress", 2, "rescan" },
-    { "importaddress", 3, "p2sh" },
-    { "importpubkey", 2, "rescan" },
     { "importmempool", 1, "options" },
     { "importmempool", 1, "apply_fee_delta_priority" },
     { "importmempool", 1, "use_current_time" },
     { "importmempool", 1, "apply_unbroadcast_set" },
-    { "importmulti", 0, "requests" },
-    { "importmulti", 1, "options" },
-    { "importmulti", 1, "rescan" },
     { "importdescriptors", 0, "requests" },
     { "listdescriptors", 0, "private" },
     { "verifychain", 0, "checklevel" },
@@ -285,7 +280,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "logging", 0, "include" },
     { "logging", 1, "exclude" },
     { "disconnectnode", 1, "nodeid" },
-    { "upgradewallet", 0, "version" },
     { "gethdkeys", 0, "active_only" },
     { "gethdkeys", 0, "options" },
     { "gethdkeys", 0, "private" },

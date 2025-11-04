@@ -10,6 +10,9 @@ def camel_to_snake(s):
 class KernelPtr:
     _as_parameter_: ctypes.c_void_p | None = None  # Underlying ctypes object
     _owns_ptr: bool = True  # If True, user is responsible for freeing the pointer
+    _parent = (
+        None  # Parent object that must be kept alive for the lifetime of this object
+    )
 
     def __init__(self, *args, **kwargs):
         raise NotImplementedError("KernelPtr cannot be instantiated directly")
@@ -20,13 +23,28 @@ class KernelPtr:
         return self._as_parameter_.contents  # type: ignore
 
     @classmethod
-    def _from_ptr(cls, ptr: ctypes.c_void_p, owns_ptr: bool = True):
+    def _from_handle(cls, ptr):
+        """
+        Construct from an owned handle. Will be destroyed at the end of its lifetime.
+        """
+        return cls._from_ptr(ptr, owns_ptr=True)
+
+    @classmethod
+    def _from_view(cls, ptr, parent=None):
+        """
+        Construct from an unowned view. Parent, if set, will be kept alive for lifetime of child.
+        """
+        return cls._from_ptr(ptr, owns_ptr=False, parent=parent)
+
+    @classmethod
+    def _from_ptr(cls, ptr: ctypes.c_void_p, owns_ptr: bool = True, parent=None):
         """Wrap a C pointer owned by the kernel."""
         if not ptr:
             raise ValueError(f"Failed to create {cls.__name__}: pointer cannot be NULL")
         instance = cls.__new__(cls)
         instance._as_parameter_ = ptr
         instance._owns_ptr = owns_ptr
+        instance._parent = parent
         return instance
 
     def __del__(self):
@@ -43,22 +61,22 @@ class KernelPtr:
         self.__del__()
 
     @property
-    def kernel_name(self):
+    def btck_name(self):
         snake_name = camel_to_snake(type(self).__name__)
-        return f"kernel_{snake_name}"
+        return f"btck_{snake_name}"
 
-    def _auto_kernel_fn(self, suffix: str, *args, **kwargs):
-        fn_name = f"{self.kernel_name}_{suffix}"
+    def _auto_btck_fn(self, suffix: str, *args, **kwargs):
+        fn_name = f"{self.btck_name}_{suffix}"
         if hasattr(pbk.capi.bindings, fn_name):
             return getattr(pbk.capi.bindings, fn_name)(*args, **kwargs)
 
         raise NotImplementedError(f"'{fn_name}' does not exists")
 
     def _create(self, *args, **kwargs):
-        return self._auto_kernel_fn("create", *args, **kwargs)
+        return self._auto_btck_fn("create", *args, **kwargs)
 
     def _destroy(self):
-        self._auto_kernel_fn("destroy", self)
+        self._auto_btck_fn("destroy", self)
 
 
 class KernelOpaquePtr(KernelPtr):

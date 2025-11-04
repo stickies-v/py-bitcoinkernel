@@ -3,35 +3,50 @@ import typing
 from enum import IntEnum
 
 import pbk.capi.bindings as k
-import pbk.util
 from pbk.capi import KernelOpaquePtr
 from pbk.util.exc import KernelException
+from pbk.writer import ByteWriter
 
 if typing.TYPE_CHECKING:
     from pbk.transaction import Transaction, TransactionOutput
 
 
+# TODO: add enum auto-generation or testing to ensure it remains in
+# sync with bitcoinkernel.h
 class ScriptFlags(IntEnum):
-    VERIFY_NONE = k.kernel_SCRIPT_FLAGS_VERIFY_NONE
-    VERIFY_P2SH = k.kernel_SCRIPT_FLAGS_VERIFY_P2SH
-    VERIFY_DERSIG = k.kernel_SCRIPT_FLAGS_VERIFY_DERSIG
-    VERIFY_NULLDUMMY = k.kernel_SCRIPT_FLAGS_VERIFY_NULLDUMMY
-    VERIFY_CHECKLOCKTIMEVERIFY = k.kernel_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY
-    VERIFY_CHECKSEQUENCEVERIFY = k.kernel_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY
-    VERIFY_WITNESS = k.kernel_SCRIPT_FLAGS_VERIFY_WITNESS
-    VERIFY_TAPROOT = k.kernel_SCRIPT_FLAGS_VERIFY_TAPROOT
-    VERIFY_ALL = k.kernel_SCRIPT_FLAGS_VERIFY_ALL
+    VERIFY_NONE = 0  # btck_ScriptVerificationFlags_NONE
+    VERIFY_P2SH = 1 << 0  # btck_ScriptVerificationFlags_P2SH
+    VERIFY_DERSIG = 1 << 2  # btck_ScriptVerificationFlags_DERSIG
+    VERIFY_NULLDUMMY = 1 << 4  # btck_ScriptVerificationFlags_NULLDUMMY
+    VERIFY_CHECKLOCKTIMEVERIFY = (
+        1 << 9
+    )  # btck_ScriptVerificationFlags_CHECKLOCKTIMEVERIFY
+    VERIFY_CHECKSEQUENCEVERIFY = (
+        1 << 10
+    )  # btck_ScriptVerificationFlags_CHECKSEQUENCEVERIFY
+    VERIFY_WITNESS = 1 << 11  # btck_ScriptVerificationFlags_WITNESS
+    VERIFY_TAPROOT = 1 << 17  # btck_ScriptVerificationFlags_TAPROOT
+    VERIFY_ALL = (
+        VERIFY_P2SH
+        | VERIFY_DERSIG
+        | VERIFY_NULLDUMMY
+        | VERIFY_CHECKLOCKTIMEVERIFY
+        | VERIFY_CHECKSEQUENCEVERIFY
+        | VERIFY_WITNESS
+        | VERIFY_TAPROOT
+    )  # btck_ScriptVerificationFlags_ALL
 
 
+# TODO: add enum auto-generation or testing to ensure it remains in
+# sync with bitcoinkernel.h
 class ScriptVerifyStatus(IntEnum):
-    OK = k.kernel_SCRIPT_VERIFY_OK
-    ERROR_TX_INPUT_INDEX = k.kernel_SCRIPT_VERIFY_ERROR_TX_INPUT_INDEX
-    ERROR_INVALID_FLAGS = k.kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS
+    OK = 0  # btck_ScriptVerifyStatus_SCRIPT_VERIFY_OK
     ERROR_INVALID_FLAGS_COMBINATION = (
-        k.kernel_SCRIPT_VERIFY_ERROR_INVALID_FLAGS_COMBINATION
+        2  # btck_ScriptVerifyStatus_ERROR_INVALID_FLAGS_COMBINATION
     )
-    ERROR_SPENT_OUTPUTS_REQUIRED = k.kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_REQUIRED
-    ERROR_SPENT_OUTPUTS_MISMATCH = k.kernel_SCRIPT_VERIFY_ERROR_SPENT_OUTPUTS_MISMATCH
+    ERROR_SPENT_OUTPUTS_REQUIRED = (
+        3  # btck_ScriptVerifyStatus_ERROR_SPENT_OUTPUTS_REQUIRED
+    )
     INVALID = -1
 
 
@@ -49,8 +64,8 @@ class ScriptPubkey(KernelOpaquePtr):
 
     @property
     def data(self) -> bytes:
-        bytearray = pbk.util.ByteArray._from_ptr(k.kernel_copy_script_pubkey_data(self))
-        return bytearray.data
+        writer = ByteWriter()
+        return writer.write(k.btck_script_pubkey_to_bytes, self)
 
 
 def verify_script(
@@ -62,15 +77,15 @@ def verify_script(
     flags: int,
 ) -> bool:
     spent_outputs_array = (
-        (ctypes.POINTER(k.kernel_TransactionOutput) * len(spent_outputs))(
+        (ctypes.POINTER(k.btck_TransactionOutput) * len(spent_outputs))(
             *[output._as_parameter_ for output in spent_outputs]
         )
         if spent_outputs
         else None
     )
     spent_outputs_len = len(spent_outputs) if spent_outputs else 0
-    k_status = k.kernel_ScriptVerifyStatus(k.kernel_SCRIPT_VERIFY_OK)
-    success = k.kernel_verify_script(
+    k_status = k.btck_ScriptVerifyStatus(ScriptVerifyStatus.OK)
+    success = k.btck_script_pubkey_verify(
         script_pubkey,
         amount,
         tx_to,

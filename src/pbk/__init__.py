@@ -1,4 +1,4 @@
-from pbk.block import Block, BlockHash, BlockIndex, BlockUndo
+from pbk.block import Block, BlockHash, BlockIndex, BlockSpentOutputs
 from pbk.chain import (
     ChainParameters,
     ChainstateManager,
@@ -13,9 +13,9 @@ from pbk.log import (
     LogLevel,
     LoggingConnection,
     LoggingOptions,
-    add_log_level_category,
     enable_log_category,
     disable_log_category,
+    set_log_level_category,
 )
 from pbk.script import (
     ScriptPubkey,
@@ -24,13 +24,13 @@ from pbk.script import (
     ScriptVerifyStatus,
     verify_script,
 )
-from pbk.transaction import Transaction, TransactionOutput, TransactionUndo
+from pbk.transaction import Transaction, TransactionOutput, TransactionSpentOutputs
 
 __all__ = [
     "BlockHash",
     "BlockIndex",
     "Block",
-    "BlockUndo",
+    "BlockSpentOutputs",
     "ChainParameters",
     "ChainstateManager",
     "ChainstateManagerOptions",
@@ -48,11 +48,11 @@ __all__ = [
     "ScriptVerifyStatus",
     "Transaction",
     "TransactionOutput",
-    "TransactionUndo",
-    "add_log_level_category",
+    "TransactionSpentOutputs",
     "block_index_generator",
     "disable_log_category",
     "enable_log_category",
+    "set_log_level_category",
     "verify_script",
 ]
 
@@ -91,6 +91,6 @@ def load_chainman(
     chain_man_opts = ChainstateManagerOptions(
         context, str(datadir.absolute()), str(blocksdir.absolute())
     )
-    chain_man = ChainstateManager(context, chain_man_opts)
+    chain_man = ChainstateManager(chain_man_opts)
 
     return chain_man

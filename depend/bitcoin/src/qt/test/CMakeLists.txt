@@ -20,7 +20,7 @@ target_link_libraries(test_bitcoin-qt
   test_util
   bitcoin_node
   Boost::headers
-  Qt5::Test
+  Qt6::Test
 )
 
 import_plugins(test_bitcoin-qt)
@@ -45,4 +45,4 @@ if(WIN32 AND VCPKG_TARGET_TRIPLET)
   )
 endif()
 
-install_binary_component(test_bitcoin-qt)
+install_binary_component(test_bitcoin-qt INTERNAL)

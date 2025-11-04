@@ -38,7 +38,8 @@ using SystemClock = std::chrono::system_clock;
 struct MockableSteadyClock : public std::chrono::steady_clock {
     using time_point = std::chrono::time_point<MockableSteadyClock>;
 
-    static constexpr std::chrono::milliseconds INITIAL_MOCK_TIME{1};
+    using mock_time_point = std::chrono::time_point<MockableSteadyClock, std::chrono::milliseconds>;
+    static constexpr mock_time_point::duration INITIAL_MOCK_TIME{1};
 
     /** Return current system time or mocked time, if set */
     static time_point now() noexcept;
@@ -50,7 +51,7 @@ struct MockableSteadyClock : public std::chrono::steady_clock {
      * for testing.
      * To stop mocking, call ClearMockTime().
      */
-    static void SetMockTime(std::chrono::milliseconds mock_time_in);
+    static void SetMockTime(mock_time_point::duration mock_time_in);
 
     /** Clear mock time, go back to system steady clock. */
     static void ClearMockTime();
@@ -106,6 +107,7 @@ void SetMockTime(int64_t nMockTimeIn);
 
 /** For testing. Set e.g. with the setmocktime rpc, or -mocktime argument */
 void SetMockTime(std::chrono::seconds mock_time_in);
+void SetMockTime(std::chrono::time_point<NodeClock, std::chrono::seconds> mock);
 
 /** For testing */
 std::chrono::seconds GetMockTime();
