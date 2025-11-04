@@ -62,11 +62,11 @@ class P2PIBDStallingTest(BitcoinTestFramework):
         for _ in range(NUM_BLOCKS):
             blocks.append(create_block(tip, create_coinbase(height), block_time))
             blocks[-1].solve()
-            tip = blocks[-1].sha256
+            tip = blocks[-1].hash_int
             block_time += 1
             height += 1
-            block_dict[blocks[-1].sha256] = blocks[-1]
-        stall_block = blocks[0].sha256
+            block_dict[blocks[-1].hash_int] = blocks[-1]
+        stall_block = blocks[0].hash_int
 
         headers_message = msg_headers()
         headers_message.headers = [CBlockHeader(b) for b in blocks[:NUM_BLOCKS-1]]
@@ -78,7 +78,7 @@ class P2PIBDStallingTest(BitcoinTestFramework):
         for id in range(NUM_PEERS):
             peers.append(node.add_outbound_p2p_connection(P2PStaller(stall_block), p2p_idx=id, connection_type="outbound-full-relay"))
             peers[-1].block_store = block_dict
-            peers[-1].send_without_ping(headers_message)
+            peers[-1].send_and_ping(headers_message)
 
         # Need to wait until 1023 blocks are received - the magic total bytes number is a workaround in lack of an rpc
         # returning the number of downloaded (but not connected) blocks.
