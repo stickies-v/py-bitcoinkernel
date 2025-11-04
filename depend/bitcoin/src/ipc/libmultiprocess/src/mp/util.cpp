@@ -7,6 +7,8 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <filesystem>
+#include <iostream>
 #include <kj/common.h>
 #include <kj/string-tree.h>
 #include <pthread.h>
@@ -16,6 +18,7 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <system_error>
+#include <thread> // NOLINT(misc-include-cleaner) // IWYU pragma: keep
 #include <unistd.h>
 #include <utility>
 #include <vector>
@@ -27,6 +30,8 @@
 #ifdef HAVE_PTHREAD_GETTHREADID_NP
 #include <pthread_np.h>
 #endif // HAVE_PTHREAD_GETTHREADID_NP
+
+namespace fs = std::filesystem;
 
 namespace mp {
 namespace {
@@ -75,12 +80,11 @@ std::string ThreadName(const char* exe_name)
     return std::move(buffer).str();
 }
 
-std::string LogEscape(const kj::StringTree& string)
+std::string LogEscape(const kj::StringTree& string, size_t max_size)
 {
-    const int MAX_SIZE = 1000;
     std::string result;
     string.visit([&](const kj::ArrayPtr<const char>& piece) {
-        if (result.size() > MAX_SIZE) return;
+        if (result.size() > max_size) return;
         for (const char c : piece) {
             if (c == '\\') {
                 result.append("\\\\");
@@ -91,7 +95,7 @@ std::string LogEscape(const kj::StringTree& string)
             } else {
                 result.push_back(c);
             }
-            if (result.size() > MAX_SIZE) {
+            if (result.size() > max_size) {
                 result += "...";
                 break;
             }
@@ -138,6 +142,9 @@ void ExecProcess(const std::vector<std::string>& args)
     argv.push_back(nullptr);
     if (execvp(argv[0], argv.data()) != 0) {
         perror("execvp failed");
+        if (errno == ENOENT && !args.empty()) {
+            std::cerr << "Missing executable: " << fs::weakly_canonical(args.front()) << '\n';
+        }
         _exit(1);
     }
 }

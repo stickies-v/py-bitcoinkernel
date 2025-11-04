@@ -165,23 +165,36 @@ class MempoolTRUC(BitcoinTestFramework):
     def test_truc_reorg(self):
         node = self.nodes[0]
         self.log.info("Test that, during a reorg, TRUC rules are not enforced")
-        tx_v2_block = self.wallet.send_self_transfer(from_node=node, version=2)
-        tx_v3_block = self.wallet.send_self_transfer(from_node=node, version=3)
-        tx_v3_block2 = self.wallet.send_self_transfer(from_node=node, version=3)
-        self.check_mempool([tx_v3_block["txid"], tx_v2_block["txid"], tx_v3_block2["txid"]])
+        self.check_mempool([])
 
-        block = self.generate(node, 1)
+        # Testing 2<-3 versions allowed
+        tx_v2_block = self.wallet.create_self_transfer(version=2)
+
+        # Testing 3<-2 versions allowed
+        tx_v3_block = self.wallet.create_self_transfer(version=3)
+
+        # Testing overly-large child size
+        tx_v3_block2 = self.wallet.create_self_transfer(version=3)
+
+        # Also create a linear chain of 3 TRUC transactions that will be directly mined, followed by one v2 in-mempool after block is made
+        tx_chain_1 = self.wallet.create_self_transfer(version=3)
+        tx_chain_2 = self.wallet.create_self_transfer(utxo_to_spend=tx_chain_1["new_utxo"], version=3)
+        tx_chain_3 = self.wallet.create_self_transfer(utxo_to_spend=tx_chain_2["new_utxo"], version=3)
+
+        tx_to_mine = [tx_v3_block["hex"], tx_v2_block["hex"], tx_v3_block2["hex"], tx_chain_1["hex"], tx_chain_2["hex"], tx_chain_3["hex"]]
+        block = self.generateblock(node, output="raw(42)", transactions=tx_to_mine)
+
         self.check_mempool([])
         tx_v2_from_v3 = self.wallet.send_self_transfer(from_node=node, utxo_to_spend=tx_v3_block["new_utxo"], version=2)
         tx_v3_from_v2 = self.wallet.send_self_transfer(from_node=node, utxo_to_spend=tx_v2_block["new_utxo"], version=3)
         tx_v3_child_large = self.wallet.send_self_transfer(from_node=node, utxo_to_spend=tx_v3_block2["new_utxo"], target_vsize=1250, version=3)
         assert_greater_than(node.getmempoolentry(tx_v3_child_large["txid"])["vsize"], TRUC_CHILD_MAX_VSIZE)
-        self.check_mempool([tx_v2_from_v3["txid"], tx_v3_from_v2["txid"], tx_v3_child_large["txid"]])
-        node.invalidateblock(block[0])
-        self.check_mempool([tx_v3_block["txid"], tx_v2_block["txid"], tx_v3_block2["txid"], tx_v2_from_v3["txid"], tx_v3_from_v2["txid"], tx_v3_child_large["txid"]])
-        # This is needed because generate() will create the exact same block again.
-        node.reconsiderblock(block[0])
+        tx_chain_4 = self.wallet.send_self_transfer(from_node=node, utxo_to_spend=tx_chain_3["new_utxo"], version=2)
+        self.check_mempool([tx_v2_from_v3["txid"], tx_v3_from_v2["txid"], tx_v3_child_large["txid"], tx_chain_4["txid"]])
 
+        # Reorg should have all block transactions re-accepted, ignoring TRUC enforcement
+        node.invalidateblock(block["hash"])
+        self.check_mempool([tx_v3_block["txid"], tx_v2_block["txid"], tx_v3_block2["txid"], tx_v2_from_v3["txid"], tx_v3_from_v2["txid"], tx_v3_child_large["txid"], tx_chain_1["txid"], tx_chain_2["txid"], tx_chain_3["txid"], tx_chain_4["txid"]])
 
     @cleanup(extra_args=["-limitdescendantsize=10"])
     def test_nondefault_package_limits(self):
@@ -617,6 +630,10 @@ class MempoolTRUC(BitcoinTestFramework):
                 assert_greater_than(get_fee(tx_v3_0fee_parent["tx"].get_vsize(), minrelayfeerate), 0)
                 # Always need to pay at least 1 satoshi for entry, even if minimum feerate is very low
                 assert_greater_than(total_v3_fee, 0)
+                # Also create a version where the child is at minrelaytxfee
+                tx_v3_child_minrelay = self.wallet.create_self_transfer(utxo_to_spend=tx_v3_0fee_parent["new_utxo"], fee_rate=minrelayfeerate, version=3)
+                result_truc_minrelay = node.submitpackage([tx_v3_0fee_parent["hex"], tx_v3_child_minrelay["hex"]])
+                assert_equal(result_truc_minrelay["package_msg"], "transaction failed")
 
             tx_v2_0fee_parent = self.wallet.create_self_transfer(fee=0, fee_rate=0, confirmed_only=True, version=2)
             tx_v2_child = self.wallet.create_self_transfer(utxo_to_spend=tx_v2_0fee_parent["new_utxo"], fee_rate=high_feerate, version=2)

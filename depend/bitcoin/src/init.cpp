@@ -58,8 +58,8 @@
 #include <node/miner.h>
 #include <node/peerman_args.h>
 #include <policy/feerate.h>
-#include <policy/fees.h>
-#include <policy/fees_args.h>
+#include <policy/fees/block_policy_estimator.h>
+#include <policy/fees/block_policy_estimator_args.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <protocol.h>
@@ -179,7 +179,7 @@ static fs::path GetPidFile(const ArgsManager& args)
 {
     if (args.IsArgNegated("-pid")) return true;
 
-    std::ofstream file{GetPidFile(args)};
+    std::ofstream file{GetPidFile(args).std_path()};
     if (file) {
 #ifdef WIN32
         tfm::format(file, "%d\n", GetCurrentProcessId());
@@ -496,7 +496,7 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-coinstatsindex", strprintf("Maintain coinstats index used by the gettxoutsetinfo RPC (default: %u)", DEFAULT_COINSTATSINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-conf=<file>", strprintf("Specify path to read-only configuration file. Relative paths will be prefixed by datadir location (only useable from command line, not configuration file) (default: %s)", BITCOIN_CONF_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-datadir=<dir>", "Specify data directory", ArgsManager::ALLOW_ANY | ArgsManager::DISALLOW_NEGATION, OptionsCategory::OPTIONS);
-    argsman.AddArg("-dbbatchsize", strprintf("Maximum database write batch size in bytes (default: %u)", nDefaultDbBatchSize), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-dbbatchsize", strprintf("Maximum database write batch size in bytes (default: %u)", DEFAULT_DB_CACHE_BATCH), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::OPTIONS);
     argsman.AddArg("-dbcache=<n>", strprintf("Maximum database cache size <n> MiB (minimum %d, default: %d). Make sure you have enough RAM. In addition, unused memory allocated to the mempool is shared with this cache (see -maxmempool).", MIN_DB_CACHE >> 20, DEFAULT_DB_CACHE >> 20), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-includeconf=<file>", "Specify additional configuration file, relative to the -datadir path (only useable from configuration file, not command line)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-allowignoredconf", strprintf("For backwards compatibility, treat an unused %s file in the datadir as a warning, not an error.", BITCOIN_CONF_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
@@ -658,9 +658,9 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-dustrelayfee=<amt>", strprintf("Fee rate (in %s/kvB) used to define dust, the value of an output such that it will cost more than its value in fees at this fee rate to spend it. (default: %s)", CURRENCY_UNIT, FormatMoney(DUST_RELAY_TX_FEE)), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::NODE_RELAY);
     argsman.AddArg("-acceptstalefeeestimates", strprintf("Read fee estimates even if they are stale (%sdefault: %u) fee estimates are considered stale if they are %s hours old", "regtest only; ", DEFAULT_ACCEPT_STALE_FEE_ESTIMATES, Ticks<std::chrono::hours>(MAX_FILE_AGE)), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-bytespersigop", strprintf("Equivalent bytes per sigop in transactions for relay and mining (default: %u)", DEFAULT_BYTES_PER_SIGOP), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
-    argsman.AddArg("-datacarrier", strprintf("(DEPRECATED) Relay and mine data carrier transactions (default: %u)", DEFAULT_ACCEPT_DATACARRIER), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
+    argsman.AddArg("-datacarrier", strprintf("Relay and mine data carrier transactions (default: %u)", DEFAULT_ACCEPT_DATACARRIER), ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
     argsman.AddArg("-datacarriersize",
-                   strprintf("(DEPRECATED) Relay and mine transactions whose data-carrying raw scriptPubKeys in aggregate "
+                   strprintf("Relay and mine transactions whose data-carrying raw scriptPubKeys in aggregate "
                              "are of this size or less, allowing multiple outputs (default: %u)",
                              MAX_OP_RETURN_RELAY),
                    ArgsManager::ALLOW_ANY, OptionsCategory::NODE_RELAY);
@@ -901,10 +901,6 @@ bool AppInitParameterInteraction(const ArgsManager& args)
     // We removed checkpoints but keep the option to warn users who still have it in their config.
     if (args.IsArgSet("-checkpoints")) {
         InitWarning(_("Option '-checkpoints' is set but checkpoints were removed. This option has no effect."));
-    }
-
-    if (args.IsArgSet("-datacarriersize") || args.IsArgSet("-datacarrier")) {
-        InitWarning(_("Options '-datacarrier' or '-datacarriersize' are set but are marked as deprecated. They will be removed in a future version."));
     }
 
     // We no longer limit the orphanage based on number of transactions but keep the option to warn users who still have it in their config.
@@ -1231,6 +1227,40 @@ bool CheckHostPortOptions(const ArgsManager& args) {
     }
 
     return true;
+}
+
+/**
+ * @brief Checks for duplicate bindings across all binding configurations.
+ *
+ * @param[in] conn_options Connection options containing the binding vectors to check
+ * @return std::optional<CService> containing the first duplicate found, or std::nullopt if no duplicates
+ */
+static std::optional<CService> CheckBindingConflicts(const CConnman::Options& conn_options)
+{
+    std::set<CService> seen;
+
+    // Check all whitelisted bindings
+    for (const auto& wb : conn_options.vWhiteBinds) {
+        if (!seen.insert(wb.m_service).second) {
+            return wb.m_service;
+        }
+    }
+
+    // Check regular bindings
+    for (const auto& bind : conn_options.vBinds) {
+        if (!seen.insert(bind).second) {
+            return bind;
+        }
+    }
+
+    // Check onion bindings
+    for (const auto& onion_bind : conn_options.onion_binds) {
+        if (!seen.insert(onion_bind).second) {
+            return onion_bind;
+        }
+    }
+
+    return std::nullopt;
 }
 
 // A GUI user may opt to retry once with do_reindex set if there is a failure during chainstate initialization.
@@ -1733,6 +1763,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     // ********************************************************* Step 7: load block chain
 
     // cache size calculations
+    node::LogOversizedDbCache(args);
     const auto [index_cache_sizes, kernel_cache_sizes] = CalculateCacheSizes(args, g_enabled_filter_types.size());
 
     LogInfo("Cache configuration:");
@@ -2141,6 +2172,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     connOptions.m_i2p_accept_incoming = args.GetBoolArg("-i2pacceptincoming", DEFAULT_I2P_ACCEPT_INCOMING);
+
+    if (auto conflict = CheckBindingConflicts(connOptions)) {
+        return InitError(strprintf(
+            _("Duplicate binding configuration for address %s. "
+                "Please check your -bind, -bind=...=onion and -whitebind settings."),
+                    conflict->ToStringAddrPort()));
+    }
 
     if (!node.connman->Start(scheduler, connOptions)) {
         return false;
