@@ -7,7 +7,7 @@ def camel_to_snake(s):
     return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
 
 
-class KernelPtr:
+class KernelOpaquePtr:
     _as_parameter_: ctypes.c_void_p | None = None  # Underlying ctypes object
     _owns_ptr: bool = True  # If True, user is responsible for freeing the pointer
     _parent = (
@@ -15,7 +15,10 @@ class KernelPtr:
     )
 
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError("KernelPtr cannot be instantiated directly")
+        self._as_parameter_ = self._create(*args, **kwargs)
+        if not self._as_parameter_:
+            raise RuntimeError(f"Failed to create {self.__class__.__name__}")
+        self._owns_ptr = True
 
     @property
     def contents(self):
@@ -77,17 +80,3 @@ class KernelPtr:
 
     def _destroy(self):
         self._auto_btck_fn("destroy", self)
-
-
-class KernelOpaquePtr(KernelPtr):
-    def __init__(self, *args, **kwargs):
-        self._as_parameter_ = self._create(*args, **kwargs)
-        if not self._as_parameter_:
-            raise RuntimeError(f"Failed to create {self.__class__.__name__}")
-        self._owns_ptr = True
-
-    @property
-    def contents(self):
-        raise NotImplementedError(
-            "KernelOpaquePtr is an opaque pointer and its contents cannot be accessed directly"
-        )
