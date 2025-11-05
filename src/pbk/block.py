@@ -40,7 +40,7 @@ class BlockIndex(KernelOpaquePtr):
 
     @property
     def block_hash(self) -> BlockHash:
-        return BlockHash._from_handle(k.btck_block_tree_entry_get_block_hash(self))
+        return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self))
 
     @property
     def height(self) -> int:
