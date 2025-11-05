@@ -1,7 +1,7 @@
 import ctypes
 import typing
 
-from pbk.capi.base import KernelPtr
+from pbk.capi.base import KernelOpaquePtr
 import pbk.capi.bindings as k
 from pbk.util.type import UserData
 
@@ -27,7 +27,7 @@ class ByteWriter:
         self.buffer = bytearray()
         self.exception = None
 
-    def write(self, to_bytes_func: typing.Callable, obj: KernelPtr) -> bytes:
+    def write(self, to_bytes_func: typing.Callable, obj: KernelOpaquePtr) -> bytes:
         self.buffer.clear()
         self.exception = None
 

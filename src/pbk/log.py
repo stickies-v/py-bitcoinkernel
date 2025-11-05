@@ -92,6 +92,11 @@ def is_valid_log_callback(fn: typing.Any) -> bool:
     return True
 
 
+def logging_set_options(options: LoggingOptions) -> None:
+    with LOGGING_LOCK:
+        k.btck_logging_set_options(options)
+
+
 def set_log_level_category(category: LogCategory, level: LogLevel) -> None:
     """
     Set the log level of the global internal logger. This does not
@@ -129,16 +134,14 @@ class LoggingConnection(KernelOpaquePtr):
     ```
     """
 
-    def __init__(
-        self, cb: typing.Callable[[str], None], user_data=None, opts=LoggingOptions()
-    ):
+    def __init__(self, cb: typing.Callable[[str], None], user_data=None):
         if not is_valid_log_callback(cb):
             raise TypeError(
                 "Log callback must be a callable with 1 string parameter and no return value."
             )
         self._cb = self._wrap_log_fn(cb)  # ensure lifetime
         self._user_data = user_data
-        super().__init__(self._cb, user_data, k.btck_DestroyCallback(), opts)
+        super().__init__(self._cb, user_data, k.btck_DestroyCallback())
 
     @staticmethod
     def _wrap_log_fn(fn: Callable[[str], None]):
@@ -218,9 +221,8 @@ class KernelLogViewer:
             log_sourcelocations=True,
             always_print_category_levels=True,
         )
-        conn = LoggingConnection(
-            cb=self._create_log_callback(self.getLogger()), opts=log_opts
-        )
+        logging_set_options(log_opts)
+        conn = LoggingConnection(cb=self._create_log_callback(self.getLogger()))
         return conn
 
     @staticmethod

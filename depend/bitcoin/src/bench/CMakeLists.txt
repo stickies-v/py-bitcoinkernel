@@ -12,6 +12,7 @@ add_executable(bench_bitcoin
   bech32.cpp
   bip324_ecdh.cpp
   block_assemble.cpp
+  blockencodings.cpp
   ccoins_caching.cpp
   chacha20.cpp
   checkblock.cpp
@@ -54,6 +55,8 @@ add_executable(bench_bitcoin
   util_time.cpp
   verify_script.cpp
 )
+
+add_windows_application_manifest(bench_bitcoin)
 
 include(TargetDataSources)
 target_raw_data_sources(bench_bitcoin NAMESPACE benchmark::data

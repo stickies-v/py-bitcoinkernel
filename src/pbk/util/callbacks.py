@@ -13,14 +13,14 @@ def _initialize_callbacks(
     """
     # Store user_data
     interface_callbacks._user_data = pbk.util.type.UserData(user_data)
-    interface_callbacks.user_data = interface_callbacks._user_data.c_void_p
+    interface_callbacks.user_data = interface_callbacks._user_data._as_parameter_
 
     # Keep references to the C function pointers to prevent garbage collection
     interface_callbacks._callbacks = {}
 
     # Iterate over the fields in the struct
     for field_name, field_type in interface_callbacks._fields_:  # type: ignore
-        if field_name == "user_data":
+        if field_name in ["user_data", "user_data_destroy"]:
             continue
 
         cb_func = callbacks.pop(field_name)

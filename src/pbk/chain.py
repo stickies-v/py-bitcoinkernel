@@ -46,8 +46,25 @@ class ChainstateManagerOptions(KernelOpaquePtr):
     def set_worker_threads_num(self, worker_threads: int):
         k.btck_chainstate_manager_options_set_worker_threads_num(self, worker_threads)
 
+    def update_block_tree_db_in_memory(self, block_tree_db_in_memory: bool):
+        k.btck_chainstate_manager_options_update_block_tree_db_in_memory(
+            self, int(block_tree_db_in_memory)
+        )
+
+    def update_chainstate_db_in_memory(self, chainstate_db_in_memory: bool):
+        k.btck_chainstate_manager_options_update_chainstate_db_in_memory(
+            self, int(chainstate_db_in_memory)
+        )
+
 
 class Chain(KernelOpaquePtr):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    @property
+    def height(self) -> int:
+        return k.btck_chain_get_height(self)
+
     def get_tip(self) -> BlockIndex:
         return BlockIndex._from_view(k.btck_chain_get_tip(self))
 

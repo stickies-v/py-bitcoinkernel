@@ -1,3 +1,3 @@
-from pbk.capi.base import KernelOpaquePtr, KernelPtr
+from pbk.capi.base import KernelOpaquePtr
 
-__all__ = ["KernelOpaquePtr", "KernelPtr"]
+__all__ = ["KernelOpaquePtr"]

@@ -15,6 +15,7 @@ from pbk.log import (
     LoggingOptions,
     enable_log_category,
     disable_log_category,
+    logging_set_options,
     set_log_level_category,
 )
 from pbk.script import (
@@ -24,13 +25,23 @@ from pbk.script import (
     ScriptVerifyStatus,
     verify_script,
 )
-from pbk.transaction import Transaction, TransactionOutput, TransactionSpentOutputs
+from pbk.transaction import (
+    Transaction,
+    TransactionInput,
+    TransactionOutput,
+    TransactionOutPoint,
+    TransactionSpentOutputs,
+    Txid,
+)
+from pbk.validation import BlockValidationResult, BlockValidationState, ValidationMode
 
 __all__ = [
     "BlockHash",
     "BlockIndex",
     "Block",
     "BlockSpentOutputs",
+    "BlockValidationResult",
+    "BlockValidationState",
     "ChainParameters",
     "ChainstateManager",
     "ChainstateManagerOptions",
@@ -47,11 +58,16 @@ __all__ = [
     "ScriptVerifyException",
     "ScriptVerifyStatus",
     "Transaction",
+    "TransactionInput",
     "TransactionOutput",
+    "TransactionOutPoint",
     "TransactionSpentOutputs",
+    "Txid",
+    "ValidationMode",
     "block_index_generator",
     "disable_log_category",
     "enable_log_category",
+    "logging_set_options",
     "set_log_level_category",
     "verify_script",
 ]

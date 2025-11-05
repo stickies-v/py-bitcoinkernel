@@ -60,6 +60,12 @@ SQLite is required for the wallet:
 
 To build Bitcoin Core without the wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
+Cap'n Proto is needed for IPC functionality (see [multiprocess.md](multiprocess.md)):
+
+    sudo apt-get install libcapnp-dev capnproto
+
+Compile with `-DENABLE_IPC=OFF` if you do not need IPC functionality.
+
 ZMQ-enabled binaries are compiled with `-DWITH_ZMQ=ON` and require the following dependency:
 
     sudo apt-get install libzmq3-dev
@@ -68,19 +74,12 @@ User-Space, Statically Defined Tracing (USDT) dependencies:
 
     sudo apt install systemtap-sdt-dev
 
-IPC-enabled binaries are compiled  with `-DENABLE_IPC=ON` and require the following dependencies.
-Skip if you do not need IPC functionality.
-
-    sudo apt-get install libcapnp-dev capnproto
-
 GUI dependencies:
 
 Bitcoin Core includes a GUI built with the cross-platform Qt Framework. To compile the GUI, we need to install
 the necessary parts of Qt, the libqrencode and pass `-DBUILD_GUI=ON`. Skip if you don't intend to use the GUI.
 
     sudo apt-get install qt6-base-dev qt6-tools-dev qt6-l10n-tools qt6-tools-dev-tools libgl-dev
-
-For Qt 6.5 and later, the `libxcb-cursor0` package must be installed at runtime.
 
 Additionally, to support Wayland protocol for modern desktop environments:
 
@@ -119,10 +118,11 @@ User-Space, Statically Defined Tracing (USDT) dependencies:
 
     sudo dnf install systemtap-sdt-devel
 
-IPC-enabled binaries are compiled with `-DENABLE_IPC=ON` and require the following dependency.
-Skip if you do not need IPC functionality.
+Cap'n Proto is needed for IPC functionality (see [multiprocess.md](multiprocess.md)):
 
-    sudo dnf install capnproto
+    sudo dnf install capnproto capnproto-devel
+
+Compile with `-DENABLE_IPC=OFF` if you do not need IPC functionality.
 
 GUI dependencies:
 
@@ -130,8 +130,6 @@ Bitcoin Core includes a GUI built with the cross-platform Qt Framework. To compi
 the necessary parts of Qt, the libqrencode and pass `-DBUILD_GUI=ON`. Skip if you don't intend to use the GUI.
 
     sudo dnf install qt6-qtbase-devel qt6-qttools-devel
-
-For Qt 6.5 and later, the `xcb-util-cursor` package must be installed at runtime.
 
 Additionally, to support Wayland protocol for modern desktop environments:
 
@@ -161,6 +159,12 @@ SQLite is required for the wallet:
 
 To build Bitcoin Core without the wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
+Cap'n Proto is needed for IPC functionality (see [multiprocess.md](multiprocess.md)):
+
+    apk add capnproto capnproto-dev
+
+Compile with `-DENABLE_IPC=OFF` if you do not need IPC functionality.
+
 ZMQ dependencies (provides ZMQ API):
 
     apk add zeromq-dev
@@ -173,8 +177,6 @@ Bitcoin Core includes a GUI built with the cross-platform Qt Framework. To compi
 the necessary parts of Qt, the libqrencode and pass `-DBUILD_GUI=ON`. Skip if you don't intend to use the GUI.
 
     apk add qt6-qtbase-dev  qt6-qttools-dev
-
-For Qt 6.5 and later, the `xcb-util-cursor` package must be installed at runtime.
 
 The GUI will be able to encode addresses in QR codes unless this feature is explicitly disabled. To install libqrencode, run:
 
@@ -203,7 +205,7 @@ Setup and Build Example: Arch Linux
 -----------------------------------
 This example lists the steps necessary to setup and build a command line only distribution of the latest changes on Arch Linux:
 
-    pacman --sync --needed cmake boost gcc git libevent make python sqlite
+    pacman --sync --needed capnproto cmake boost gcc git libevent make python sqlite
     git clone https://github.com/bitcoin/bitcoin.git
     cd bitcoin/
     cmake -B build
