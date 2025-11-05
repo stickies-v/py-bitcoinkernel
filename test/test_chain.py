@@ -33,6 +33,10 @@ def test_chainstate_manager_options(temp_dir: Path):
         chain_man_opts.set_worker_threads_num(num_threads)
         pbk.ChainstateManager(chain_man_opts)
 
+    chain_man_opts.update_block_tree_db_in_memory(True)
+    chain_man_opts.update_chainstate_db_in_memory(True)
+    pbk.ChainstateManager(chain_man_opts)
+
 
 def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
@@ -43,6 +47,7 @@ def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     assert chain_man.get_block_index_from_hash(genesis.block_hash) == genesis
 
     tip = chain.get_tip()
+    assert tip.height == chain.height
     previous = chain.get_by_height(tip.height - 1)
     assert isinstance(previous, pbk.BlockIndex)
     assert previous.height == tip.height - 1
