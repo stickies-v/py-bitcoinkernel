@@ -15,6 +15,7 @@ from pbk.log import (
     LoggingOptions,
     enable_log_category,
     disable_log_category,
+    logging_set_options,
     set_log_level_category,
 )
 from pbk.script import (
@@ -52,6 +53,7 @@ __all__ = [
     "block_index_generator",
     "disable_log_category",
     "enable_log_category",
+    "logging_set_options",
     "set_log_level_category",
     "verify_script",
 ]

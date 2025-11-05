@@ -75,9 +75,8 @@ def print_no_newline(msg: str) -> None:
     """`bitcoinkernel` log messages already contain a newline."""
     print(msg, end="")
 
-log_opts = pbk.LoggingOptions(log_timestamps=True)
-
-log = pbk.LoggingConnection(cb=print_no_newline, opts=log_opts)
+logging_set_options(pbk.LoggingOptions(log_timestamps=True))
+log = pbk.LoggingConnection(cb=print_no_newline)
 ```
 
 > [!IMPORTANT]
