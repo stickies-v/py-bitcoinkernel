@@ -2,15 +2,25 @@ import ctypes
 import typing
 
 import pbk.capi.bindings as k
-from pbk.capi import KernelOpaquePtr, KernelPtr
+from pbk.capi import KernelOpaquePtr
 from pbk.transaction import TransactionSpentOutputs
 from pbk.writer import ByteWriter
 
 
-class BlockHash(KernelPtr):
+class BlockHash(KernelOpaquePtr):
+    def __init__(self, block_hash: bytes):
+        if len(block_hash) != 32:
+            raise ValueError(
+                f"block_hash argument must be bytes of length 32, got {len(block_hash)}"
+            )
+        hash_array = (ctypes.c_ubyte * 32).from_buffer_copy(block_hash)
+        super().__init__(hash_array)
+
     @property
     def bytes(self) -> bytes:
-        return bytes(self.contents.hash)
+        hash_array = (ctypes.c_ubyte * 32)()
+        k.btck_block_hash_to_bytes(self, hash_array)
+        return bytes(hash_array)
 
     @property
     def hex(self) -> str:
@@ -18,7 +28,7 @@ class BlockHash(KernelPtr):
 
     def __eq__(self, other):
         if isinstance(other, BlockHash):
-            return self.bytes == other.bytes
+            return bool(k.btck_block_hash_equals(self, other))
         return False
 
 
