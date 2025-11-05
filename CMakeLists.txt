@@ -62,6 +62,7 @@ else()
             -DBUILD_UTIL=OFF
             -DBUILD_UTIL_CHAINSTATE=OFF
             -DBUILD_WALLET_TOOL=OFF
+            -DENABLE_IPC=OFF
             -DENABLE_WALLET=OFF
         BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target bitcoinkernel
         INSTALL_COMMAND
