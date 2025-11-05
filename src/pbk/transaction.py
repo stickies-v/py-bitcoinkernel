@@ -6,9 +6,43 @@ from pbk.capi import KernelOpaquePtr
 from pbk.script import ScriptPubkey
 
 
-class Transaction(KernelOpaquePtr):
-    def __init__(self, data: bytes):
-        super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
+class Txid(KernelOpaquePtr):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def to_bytes(self) -> bytes:
+        hash_array = (ctypes.c_ubyte * 32)()
+        k.btck_txid_to_bytes(self, hash_array)
+        return bytes(hash_array)
+
+    def __eq__(self, other: typing.Any):
+        if not isinstance(other, Txid):
+            return False
+        return bool(k.btck_txid_equals(self, other))
+
+
+class TransactionOutPoint(KernelOpaquePtr):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    @property
+    def index(self) -> int:
+        return k.btck_transaction_out_point_get_index(self)
+
+    @property
+    def txid(self) -> Txid:
+        return Txid._from_view(k.btck_transaction_out_point_get_txid(self), self)
+
+
+class TransactionInput(KernelOpaquePtr):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    @property
+    def out_point(self) -> TransactionOutPoint:
+        return TransactionOutPoint._from_view(
+            k.btck_transaction_input_get_out_point(self), self
+        )
 
 
 class TransactionOutput(KernelOpaquePtr):
@@ -23,6 +57,33 @@ class TransactionOutput(KernelOpaquePtr):
     def script_pubkey(self) -> "ScriptPubkey":
         ptr = k.btck_transaction_output_get_script_pubkey(self)
         return ScriptPubkey._from_view(ptr, self)
+
+
+class Transaction(KernelOpaquePtr):
+    def __init__(self, data: bytes):
+        super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
+
+    @property
+    def input_count(self) -> int:
+        return k.btck_transaction_count_inputs(self)
+
+    @property
+    def output_count(self) -> int:
+        return k.btck_transaction_count_outputs(self)
+
+    def get_input_at(self, input_index: int) -> TransactionInput:
+        return TransactionInput._from_view(
+            k.btck_transaction_get_input_at(self, input_index), self
+        )
+
+    def get_output_at(self, output_index) -> TransactionOutput:
+        return TransactionOutput._from_view(
+            k.btck_transaction_get_output_at(self, output_index), self
+        )
+
+    @property
+    def txid(self) -> Txid:
+        return Txid._from_view(k.btck_transaction_get_txid(self), self)
 
 
 class Coin(KernelOpaquePtr):

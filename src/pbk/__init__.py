@@ -25,7 +25,15 @@ from pbk.script import (
     ScriptVerifyStatus,
     verify_script,
 )
-from pbk.transaction import Transaction, TransactionOutput, TransactionSpentOutputs
+from pbk.transaction import (
+    Transaction,
+    TransactionInput,
+    TransactionOutput,
+    TransactionOutPoint,
+    TransactionSpentOutputs,
+    Txid,
+)
+from pbk.validation import BlockValidationResult, BlockValidationState, ValidationMode
 
 __all__ = [
     "BlockHash",
@@ -48,8 +56,11 @@ __all__ = [
     "ScriptVerifyException",
     "ScriptVerifyStatus",
     "Transaction",
+    "TransactionInput",
     "TransactionOutput",
+    "TransactionOutPoint",
     "TransactionSpentOutputs",
+    "Txid",
     "block_index_generator",
     "disable_log_category",
     "enable_log_category",
