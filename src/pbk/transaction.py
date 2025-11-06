@@ -138,18 +138,30 @@ class Coin(KernelOpaquePtr):
         return TransactionOutput._from_view(ptr, self)
 
 
+class CoinSequence(LazySequence[Coin]):
+    def __init__(self, spent_outputs: "TransactionSpentOutputs"):
+        self._spent_outputs = spent_outputs
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_transaction_spent_outputs_count(
+                self._spent_outputs
+            )
+        return self._cached_len
+
+    def _get_item(self, index: int) -> Coin:
+        ptr = k.btck_transaction_spent_outputs_get_coin_at(self._spent_outputs, index)
+        return Coin._from_view(ptr, self._spent_outputs)
+
+
 class TransactionSpentOutputs(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError()
 
-    @property
-    def output_count(self) -> int:
-        return k.btck_transaction_spent_outputs_count(self)
-
-    def get_coin(self, index: int) -> Coin:
+    def _get_coin_at(self, index: int) -> Coin:
         ptr = k.btck_transaction_spent_outputs_get_coin_at(self, index)
         return Coin._from_view(ptr, self)
 
-    def iter_outputs(self) -> typing.Generator["TransactionOutput", None, None]:
-        for i in range(self.output_count):
-            yield self.get_coin(i).output
+    @property
+    def coins(self) -> CoinSequence:
+        return CoinSequence(self)

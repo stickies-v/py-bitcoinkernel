@@ -49,9 +49,7 @@ def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     for idx in pbk.block_index_generator(chain_man.get_active_chain(), start=1):
         undo = chain_man.read_block_undo_from_disk(idx)
         for tx in undo.transactions:
-            outputs = list(tx.iter_outputs())
-            assert len(outputs) == tx.output_count
-            assert tx.output_count > 0
-            for output in outputs:
-                assert output.amount > 0
-                assert len(output.script_pubkey.data) > 0
+            assert len(tx.coins) > 0
+            for coin in tx.coins:
+                assert coin.output.amount > 0
+                assert len(coin.output.script_pubkey.data) > 0
