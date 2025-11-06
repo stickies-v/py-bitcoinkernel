@@ -4,6 +4,7 @@ import typing
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 from pbk.script import ScriptPubkey
+from pbk.util.sequence import LazySequence
 
 
 class Txid(KernelOpaquePtr):
@@ -59,27 +60,58 @@ class TransactionOutput(KernelOpaquePtr):
         return ScriptPubkey._from_view(ptr, self)
 
 
+class TransactionInputSequence(LazySequence[TransactionInput]):
+    def __init__(self, transaction: "Transaction"):
+        self._transaction = transaction
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_transaction_count_inputs(self._transaction)
+        return self._cached_len
+
+    def _get_item(self, index: int) -> TransactionInput:
+        return TransactionInput._from_view(
+            k.btck_transaction_get_input_at(self._transaction, index), self._transaction
+        )
+
+
+class TransactionOutputSequence(LazySequence[TransactionOutput]):
+    def __init__(self, transaction: "Transaction"):
+        self._transaction = transaction
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_transaction_count_outputs(self._transaction)
+        return self._cached_len
+
+    def _get_item(self, index: int) -> TransactionOutput:
+        return TransactionOutput._from_view(
+            k.btck_transaction_get_output_at(self._transaction, index),
+            self._transaction,
+        )
+
+
 class Transaction(KernelOpaquePtr):
     def __init__(self, data: bytes):
         super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
 
-    @property
-    def input_count(self) -> int:
-        return k.btck_transaction_count_inputs(self)
-
-    @property
-    def output_count(self) -> int:
-        return k.btck_transaction_count_outputs(self)
-
-    def get_input_at(self, input_index: int) -> TransactionInput:
+    def _get_input_at(self, index: int) -> TransactionInput:
         return TransactionInput._from_view(
-            k.btck_transaction_get_input_at(self, input_index), self
+            k.btck_transaction_get_input_at(self, index), self
         )
 
-    def get_output_at(self, output_index) -> TransactionOutput:
+    def _get_output_at(self, index: int) -> TransactionOutput:
         return TransactionOutput._from_view(
-            k.btck_transaction_get_output_at(self, output_index), self
+            k.btck_transaction_get_output_at(self, index), self
         )
+
+    @property
+    def inputs(self) -> TransactionInputSequence:
+        return TransactionInputSequence(self)
+
+    @property
+    def outputs(self) -> TransactionOutputSequence:
+        return TransactionOutputSequence(self)
 
     @property
     def txid(self) -> Txid:
