@@ -6,6 +6,7 @@ from pathlib import Path
 import pbk.capi.bindings as k
 from pbk.block import Block, BlockIndex, BlockSpentOutputs
 from pbk.capi import KernelOpaquePtr
+from pbk.util.sequence import LazySequence
 
 if typing.TYPE_CHECKING:
     from pbk import BlockHash, Context
@@ -57,30 +58,43 @@ class ChainstateManagerOptions(KernelOpaquePtr):
         )
 
 
+class BlockIndexSequence(LazySequence[BlockIndex]):
+    def __init__(self, chain: "Chain"):
+        self._chain = chain
+
+    def __len__(self) -> int:
+        return len(self._chain)
+
+    def _get_item(self, index: int) -> BlockIndex:
+        return BlockIndex._from_view(k.btck_chain_get_by_height(self._chain, index))
+
+    def __contains__(self, other: typing.Any):
+        if not isinstance(other, BlockIndex):
+            return False
+        result = k.btck_chain_contains(self._chain, other)
+        assert result in [0, 1]
+        return bool(result)
+
+
 class Chain(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError()
 
     @property
     def height(self) -> int:
+        """Zero-based indexed height of the chain tip"""
         return k.btck_chain_get_height(self)
 
-    def get_tip(self) -> BlockIndex:
-        return BlockIndex._from_view(k.btck_chain_get_tip(self))
-
-    def current_height(self) -> int:
-        return self.get_tip().height
-
-    def get_genesis(self) -> BlockIndex:
-        return BlockIndex._from_view(k.btck_chain_get_genesis(self))
-
-    def get_by_height(self, height: int) -> BlockIndex:
+    def _get_by_height(self, height: int) -> BlockIndex:
         return BlockIndex._from_view(k.btck_chain_get_by_height(self, height))
 
-    def contains(self, entry: BlockIndex) -> bool:
-        result: int = k.btck_chain_contains(self, entry)
-        assert result in [0, 1]
-        return bool(result)
+    @property
+    def block_indexes(self) -> BlockIndexSequence:
+        return BlockIndexSequence(self)
+
+    def __len__(self) -> int:
+        # height is zero-based indexed
+        return self.height + 1
 
 
 class ChainstateManager(KernelOpaquePtr):
@@ -135,56 +149,3 @@ class ChainstateManager(KernelOpaquePtr):
         if not undo:
             raise RuntimeError(f"Error reading block undo for {block_index} from disk")
         return BlockSpentOutputs._from_handle(undo)
-
-
-def block_index_generator(
-    chain: Chain,
-    start: "BlockIndex | int | None" = None,  # default to genesis
-    end: "BlockIndex | int | None" = None,  # default to chaintip
-) -> typing.Generator[BlockIndex, typing.Any, None]:
-    """Iterate over BlockIndexes from start (inclusive, defaults to genesis) to end (inclusive,
-    defaults to chaintip).
-
-    @param start: BlockIndex or int. If int is provided, it represents the block height.
-                  Negative integers are supported and count backwards from the tip
-                  (e.g. -1 means the last block, -2 second to last, etc.).
-                  If None, starts from genesis block.
-    @param end: BlockIndex or int. If int is provided, it represents the block height.
-                Negative integers are supported and count backwards from the tip
-                (e.g. -1 means the last block, -2 second to last, etc.).
-                If None, ends at the current chain tip.
-    @return: Generator[BlockIndex, Any, None] that yields BlockIndex objects in sequence.
-             The sequence can go either forward or backward depending on whether
-             start.height <= end.height.
-    @raises IndexError: If the provided start or end heights are out of bounds
-    """
-    if start is None:
-        start = chain.get_genesis()
-    elif isinstance(start, int):
-        tip_height = chain.get_tip().height
-        if start < 0:
-            start = tip_height + start + 1
-        if start < 0 or start > tip_height:
-            raise IndexError(
-                f"Start height {start} is out of bounds for tip height {tip_height}"
-            )
-        start = chain.get_by_height(start)
-
-    if end is None:
-        end = chain.get_tip()
-    elif isinstance(end, int):
-        tip_height = chain.get_tip().height
-        if end < 0:
-            end = tip_height + end + 1
-        if end < 0 or end > tip_height:
-            raise IndexError(
-                f"End height {end} is out of bounds for tip height {tip_height}"
-            )
-        end = chain.get_by_height(end)
-
-    next = start
-    direction = 1 if start.height <= end.height else -1
-
-    while next:
-        yield next
-        next = chain.get_by_height(next.height + direction) if next != end else None
