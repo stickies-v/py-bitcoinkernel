@@ -56,8 +56,7 @@ def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     idx = chain_man.get_active_chain().get_by_height(202)
     undo = chain_man.read_block_undo_from_disk(idx)
-    transactions = list(undo.iter_transactions())
-    assert undo.transaction_count == 20
+    transactions = undo.transactions
     assert len(transactions) == 20
     for tx in transactions:
         assert isinstance(tx, pbk.TransactionSpentOutputs)

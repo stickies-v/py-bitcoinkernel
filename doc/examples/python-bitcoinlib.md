@@ -44,7 +44,7 @@ from pprint import pprint
 
 undo = chainman.read_block_undo_from_disk(tip)
 result = {}
-for i, tx in enumerate(undo.iter_transactions()):
+for i, tx in enumerate(undo.transactions):
     result[i] = [CScript(output.script_pubkey.data) for output in tx.iter_outputs()]
 print(f"Block {tip.height} has transactions spending the following previous outputs:")
 pprint(result)
