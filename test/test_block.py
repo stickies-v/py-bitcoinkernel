@@ -49,6 +49,8 @@ def test_block():
     assert block.hash.bytes == GENESIS_BLOCK_HASH_BYTES
     assert block.data == GENESIS_BLOCK_BYTES
 
+    assert len(block.transactions) == 1
+
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest

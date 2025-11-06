@@ -3,7 +3,8 @@ import typing
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
-from pbk.transaction import TransactionSpentOutputs
+from pbk.transaction import Transaction, TransactionSpentOutputs
+from pbk.util.sequence import LazySequence
 from pbk.writer import ByteWriter
 
 
@@ -55,6 +56,21 @@ class BlockIndex(KernelOpaquePtr):
         return f"BlockIndex(height={self.height}, hash={self.block_hash.hex})"
 
 
+class TransactionSequence(LazySequence[Transaction]):
+    def __init__(self, block: "Block"):
+        self._block = block
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_block_count_transactions(self._block)
+        return self._cached_len
+
+    def _get_item(self, index: int) -> Transaction:
+        return Transaction._from_view(
+            k.btck_block_get_transaction_at(self._block, index), self._block
+        )
+
+
 class Block(KernelOpaquePtr):
     def __init__(self, raw_block: bytes):
         super().__init__((ctypes.c_ubyte * len(raw_block))(*raw_block), len(raw_block))
@@ -67,6 +83,15 @@ class Block(KernelOpaquePtr):
     def data(self) -> bytes:
         writer = ByteWriter()
         return writer.write(k.btck_block_to_bytes, self)
+
+    def _get_transaction_at(self, transaction_index: int) -> Transaction:
+        return Transaction._from_view(
+            k.btck_block_get_transaction_at(self, transaction_index), self
+        )
+
+    @property
+    def transactions(self) -> TransactionSequence:
+        return TransactionSequence(self)
 
 
 class BlockSpentOutputs(KernelOpaquePtr):
