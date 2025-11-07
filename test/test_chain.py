@@ -43,7 +43,7 @@ def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     chain = chain_man.get_active_chain()
     genesis = chain.block_indexes[0]
 
-    assert chain_man.get_block_index_from_hash(genesis.block_hash) == genesis
+    assert chain_man.block_indexes[genesis.block_hash] == genesis
     assert chain_man.import_blocks([]) == 0  # TODO: implement actual test
 
 
@@ -67,10 +67,12 @@ def test_read_block(chainman_regtest: pbk.ChainstateManager):
     chain = chain_man.get_active_chain()
     chain_tip = chain.block_indexes[-1]
 
-    block_tip = chain_man.read_block_from_disk(chain_tip)
+    block_tip = chain_man.blocks[chain_tip]
     assert block_tip.hash == chain_tip.block_hash
     copied_block = pbk.Block(block_tip.data)
     assert copied_block.hash == block_tip.hash
 
-    with pytest.raises(ValueError, match="Genesis block does not have undo data"):
-        chain_man.read_block_undo_from_disk(chain.block_indexes[0])
+    with pytest.raises(
+        KeyError, match="Genesis block does not have BlockSpentOutputs data"
+    ):
+        chain_man.block_spent_outputs[chain.block_indexes[0]]

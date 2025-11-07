@@ -20,7 +20,7 @@ MAX_WORKERS = 1
 READ_N_LAST_BLOCKS = 1000
 
 def process_block(chainman: pbk.ChainstateManager, index: pbk.BlockIndex):
-    block_data = chainman.read_block_from_disk(index)
+    block_data = chainman.blocks[index]
     # implement block processing logic
     # ...
     print(f"Successfully processed block {index.height}")

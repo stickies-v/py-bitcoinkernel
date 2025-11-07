@@ -4,7 +4,7 @@ from enum import IntEnum
 from pathlib import Path
 
 import pbk.capi.bindings as k
-from pbk.block import Block, BlockIndex, BlockSpentOutputs
+from pbk.block import Block, BlockHash, BlockIndex, BlockSpentOutputs
 from pbk.capi import KernelOpaquePtr
 from pbk.util.sequence import LazySequence
 
@@ -97,6 +97,40 @@ class Chain(KernelOpaquePtr):
         return self.height + 1
 
 
+class MapBase:
+    def __init__(self, chainman: "ChainstateManager"):
+        self._chainman = chainman
+
+
+class BlockIndexMap(MapBase):
+    def __getitem__(self, key: BlockHash) -> BlockIndex:
+        entry = k.btck_chainstate_manager_get_block_tree_entry_by_hash(
+            self._chainman, key
+        )
+        if not entry:
+            raise KeyError(f"{key.hex} not found")
+        return BlockIndex._from_view(entry)
+
+
+class BlockMap(MapBase):
+    def __getitem__(self, key: BlockIndex) -> Block:
+        entry = k.btck_block_read(self._chainman, key)
+        if not entry:
+            raise RuntimeError(f"Error reading Block for {key} from disk")
+        return Block._from_handle(entry)
+
+
+class BlockSpentOutputsMap(MapBase):
+    def __getitem__(self, key: BlockIndex) -> BlockSpentOutputs:
+        if key.height == 0:
+            raise KeyError("Genesis block does not have BlockSpentOutputs data")
+
+        entry = k.btck_block_spent_outputs_read(self._chainman, key)
+        if not entry:
+            raise RuntimeError(f"Error reading BlockSpentOutputs for {key} from disk")
+        return BlockSpentOutputs._from_handle(entry)
+
+
 class ChainstateManager(KernelOpaquePtr):
     def __init__(
         self,
@@ -104,10 +138,9 @@ class ChainstateManager(KernelOpaquePtr):
     ):
         super().__init__(chain_man_opts)
 
-    def get_block_index_from_hash(self, hash: "BlockHash"):
-        return BlockIndex._from_view(
-            k.btck_chainstate_manager_get_block_tree_entry_by_hash(self, hash)
-        )
+    @property
+    def block_indexes(self) -> BlockIndexMap:
+        return BlockIndexMap(self)
 
     def get_active_chain(self) -> Chain:
         return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self))
@@ -135,17 +168,10 @@ class ChainstateManager(KernelOpaquePtr):
         )
         return k.btck_chainstate_manager_process_block(self, block, new_block_ptr)
 
-    def read_block_from_disk(self, block_index: "BlockIndex") -> Block:
-        block = k.btck_block_read(self, block_index)
-        if not block:
-            raise RuntimeError(f"Error reading block for {block_index} from disk")
-        return Block._from_handle(block)
+    @property
+    def blocks(self) -> BlockMap:
+        return BlockMap(self)
 
-    def read_block_undo_from_disk(self, block_index: "BlockIndex") -> BlockSpentOutputs:
-        if block_index.height == 0:
-            raise ValueError("Genesis block does not have undo data")
-
-        undo = k.btck_block_spent_outputs_read(self, block_index)
-        if not undo:
-            raise RuntimeError(f"Error reading block undo for {block_index} from disk")
-        return BlockSpentOutputs._from_handle(undo)
+    @property
+    def block_spent_outputs(self) -> BlockSpentOutputsMap:
+        return BlockSpentOutputsMap(self)

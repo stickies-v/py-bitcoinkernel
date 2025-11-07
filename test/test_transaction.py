@@ -47,7 +47,7 @@ def test_transaction():
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     for idx in chain_man.get_active_chain().block_indexes[1:]:
-        undo = chain_man.read_block_undo_from_disk(idx)
+        undo = chain_man.block_spent_outputs[idx]
         for tx in undo.transactions:
             assert len(tx.coins) > 0
             for coin in tx.coins:

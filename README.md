@@ -171,7 +171,7 @@ disk:
 ```py
 block_height = 1
 block_index = chainman.get_active_chain().block_indexes[block_height]
-block = chainman.read_block_from_disk(block_index)
+block = chainman.blocks[block_index]
 filename = f"block_{block_height}.bin"
 print(f"Writing block {block_height}: {block_index.block_hash.hex} to disk ({filename})...")
 with open(filename, "wb") as f:
