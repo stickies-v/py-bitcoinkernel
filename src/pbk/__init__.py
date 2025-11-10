@@ -4,7 +4,6 @@ from pbk.chain import (
     ChainstateManager,
     ChainstateManagerOptions,
     ChainType,
-    block_index_generator,
 )
 from pbk.context import Context, ContextOptions
 from pbk.log import (
@@ -64,7 +63,6 @@ __all__ = [
     "TransactionSpentOutputs",
     "Txid",
     "ValidationMode",
-    "block_index_generator",
     "disable_log_category",
     "enable_log_category",
     "logging_set_options",

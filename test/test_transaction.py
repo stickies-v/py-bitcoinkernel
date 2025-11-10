@@ -24,40 +24,32 @@ def test_transaction():
         [698, "a05cbe4ed88b104a0e16969627a561f9645fc7dbf770c21c1e7ead8f4e14e2cb"],
         [1, "766f9414a336b5612c4e76cf110cbbf9ad425e4772c10f11280e93f87043ef08"],
     ]
-    assert tx.input_count == len(inputs_expected_results)
+    assert len(tx.inputs) == len(inputs_expected_results)
 
-    for i in range(tx.input_count):
-        input = tx.get_input_at(i)
+    for i, input in enumerate(tx.inputs):
         exp_idx, exp_txid = inputs_expected_results[i]
         assert input.out_point.index == exp_idx
         assert input.out_point.txid.to_bytes()[::-1].hex() == exp_txid
 
     # TransactionOutput
-    assert tx.output_count == 2
-    output_1 = tx.get_output_at(0)
-    assert output_1.amount == 1000000
-    assert (
-        output_1.script_pubkey.data.hex()
-        == "76a9140542e43d197f1a2e525d02e95ab70a2517e625a888ac"
-    )
-    output_2 = tx.get_output_at(1)
-    assert output_2.amount == 1000441
-    assert (
-        output_2.script_pubkey.data.hex()
-        == "76a914b6bc75e3a6e8be9a86caab8cbeebb640d7468d4388ac"
-    )
+    outputs_expected_results = [
+        [1000000, "76a9140542e43d197f1a2e525d02e95ab70a2517e625a888ac"],
+        [1000441, "76a914b6bc75e3a6e8be9a86caab8cbeebb640d7468d4388ac"],
+    ]
+    assert len(tx.outputs) == len(outputs_expected_results)
+
+    for i, output in enumerate(tx.outputs):
+        exp_amount, exp_spk = outputs_expected_results[i]
+        assert output.amount == exp_amount
+        assert output.script_pubkey.data.hex() == exp_spk
 
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
-    for idx in pbk.block_index_generator(chain_man.get_active_chain(), start=1):
-        undo = chain_man.read_block_undo_from_disk(idx)
-        transactions = list(undo.iter_transactions())
-        assert len(transactions) == undo.transaction_count
-        for tx in transactions:
-            outputs = list(tx.iter_outputs())
-            assert len(outputs) == tx.output_count
-            assert tx.output_count > 0
-            for output in outputs:
-                assert output.amount > 0
-                assert len(output.script_pubkey.data) > 0
+    for idx in chain_man.get_active_chain().block_indexes[1:]:
+        undo = chain_man.block_spent_outputs[idx]
+        for tx in undo.transactions:
+            assert len(tx.coins) > 0
+            for coin in tx.coins:
+                assert coin.output.amount > 0
+                assert len(coin.output.script_pubkey.data) > 0

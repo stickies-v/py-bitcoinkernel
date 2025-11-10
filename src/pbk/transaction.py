@@ -4,6 +4,7 @@ import typing
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 from pbk.script import ScriptPubkey
+from pbk.util.sequence import LazySequence
 
 
 class Txid(KernelOpaquePtr):
@@ -59,27 +60,58 @@ class TransactionOutput(KernelOpaquePtr):
         return ScriptPubkey._from_view(ptr, self)
 
 
+class TransactionInputSequence(LazySequence[TransactionInput]):
+    def __init__(self, transaction: "Transaction"):
+        self._transaction = transaction
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_transaction_count_inputs(self._transaction)
+        return self._cached_len
+
+    def _get_item(self, index: int) -> TransactionInput:
+        return TransactionInput._from_view(
+            k.btck_transaction_get_input_at(self._transaction, index), self._transaction
+        )
+
+
+class TransactionOutputSequence(LazySequence[TransactionOutput]):
+    def __init__(self, transaction: "Transaction"):
+        self._transaction = transaction
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_transaction_count_outputs(self._transaction)
+        return self._cached_len
+
+    def _get_item(self, index: int) -> TransactionOutput:
+        return TransactionOutput._from_view(
+            k.btck_transaction_get_output_at(self._transaction, index),
+            self._transaction,
+        )
+
+
 class Transaction(KernelOpaquePtr):
     def __init__(self, data: bytes):
         super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
 
-    @property
-    def input_count(self) -> int:
-        return k.btck_transaction_count_inputs(self)
-
-    @property
-    def output_count(self) -> int:
-        return k.btck_transaction_count_outputs(self)
-
-    def get_input_at(self, input_index: int) -> TransactionInput:
+    def _get_input_at(self, index: int) -> TransactionInput:
         return TransactionInput._from_view(
-            k.btck_transaction_get_input_at(self, input_index), self
+            k.btck_transaction_get_input_at(self, index), self
         )
 
-    def get_output_at(self, output_index) -> TransactionOutput:
+    def _get_output_at(self, index: int) -> TransactionOutput:
         return TransactionOutput._from_view(
-            k.btck_transaction_get_output_at(self, output_index), self
+            k.btck_transaction_get_output_at(self, index), self
         )
+
+    @property
+    def inputs(self) -> TransactionInputSequence:
+        return TransactionInputSequence(self)
+
+    @property
+    def outputs(self) -> TransactionOutputSequence:
+        return TransactionOutputSequence(self)
 
     @property
     def txid(self) -> Txid:
@@ -106,18 +138,30 @@ class Coin(KernelOpaquePtr):
         return TransactionOutput._from_view(ptr, self)
 
 
+class CoinSequence(LazySequence[Coin]):
+    def __init__(self, spent_outputs: "TransactionSpentOutputs"):
+        self._spent_outputs = spent_outputs
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_transaction_spent_outputs_count(
+                self._spent_outputs
+            )
+        return self._cached_len
+
+    def _get_item(self, index: int) -> Coin:
+        ptr = k.btck_transaction_spent_outputs_get_coin_at(self._spent_outputs, index)
+        return Coin._from_view(ptr, self._spent_outputs)
+
+
 class TransactionSpentOutputs(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError()
 
-    @property
-    def output_count(self) -> int:
-        return k.btck_transaction_spent_outputs_count(self)
-
-    def get_coin(self, index: int) -> Coin:
+    def _get_coin_at(self, index: int) -> Coin:
         ptr = k.btck_transaction_spent_outputs_get_coin_at(self, index)
         return Coin._from_view(ptr, self)
 
-    def iter_outputs(self) -> typing.Generator["TransactionOutput", None, None]:
-        for i in range(self.output_count):
-            yield self.get_coin(i).output
+    @property
+    def coins(self) -> CoinSequence:
+        return CoinSequence(self)

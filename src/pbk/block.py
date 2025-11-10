@@ -1,9 +1,9 @@
 import ctypes
-import typing
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
-from pbk.transaction import TransactionSpentOutputs
+from pbk.transaction import Transaction, TransactionSpentOutputs
+from pbk.util.sequence import LazySequence
 from pbk.writer import ByteWriter
 
 
@@ -55,6 +55,21 @@ class BlockIndex(KernelOpaquePtr):
         return f"BlockIndex(height={self.height}, hash={self.block_hash.hex})"
 
 
+class TransactionSequence(LazySequence[Transaction]):
+    def __init__(self, block: "Block"):
+        self._block = block
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_block_count_transactions(self._block)
+        return self._cached_len
+
+    def _get_item(self, index: int) -> Transaction:
+        return Transaction._from_view(
+            k.btck_block_get_transaction_at(self._block, index), self._block
+        )
+
+
 class Block(KernelOpaquePtr):
     def __init__(self, raw_block: bytes):
         super().__init__((ctypes.c_ubyte * len(raw_block))(*raw_block), len(raw_block))
@@ -68,6 +83,33 @@ class Block(KernelOpaquePtr):
         writer = ByteWriter()
         return writer.write(k.btck_block_to_bytes, self)
 
+    def _get_transaction_at(self, transaction_index: int) -> Transaction:
+        return Transaction._from_view(
+            k.btck_block_get_transaction_at(self, transaction_index), self
+        )
+
+    @property
+    def transactions(self) -> TransactionSequence:
+        return TransactionSequence(self)
+
+
+class TransactionSpentOutputsSequence(LazySequence[TransactionSpentOutputs]):
+    def __init__(self, block_spent_outputs: "BlockSpentOutputs"):
+        self._block_spent_outputs = block_spent_outputs
+
+    def __len__(self) -> int:
+        if not hasattr(self, "_cached_len"):
+            self._cached_len = k.btck_block_spent_outputs_count(
+                self._block_spent_outputs
+            )
+        return self._cached_len
+
+    def _get_item(self, index: int) -> TransactionSpentOutputs:
+        ptr = k.btck_block_spent_outputs_get_transaction_spent_outputs_at(
+            self._block_spent_outputs, index
+        )
+        return TransactionSpentOutputs._from_view(ptr, self._block_spent_outputs)
+
 
 class BlockSpentOutputs(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
@@ -75,23 +117,10 @@ class BlockSpentOutputs(KernelOpaquePtr):
             "BlockSpentOutputs cannot be constructed directly"
         )  # pragma: no cover
 
-    @property
-    def transaction_count(self) -> int:
-        return k.btck_block_spent_outputs_count(self)
-
-    def get_transaction_spent_outputs(self, index: int) -> TransactionSpentOutputs:
+    def _get_transaction_spent_outputs_at(self, index: int) -> TransactionSpentOutputs:
         ptr = k.btck_block_spent_outputs_get_transaction_spent_outputs_at(self, index)
         return TransactionSpentOutputs._from_view(ptr, self)
 
-    def iter_transactions(
-        self,
-    ) -> typing.Generator[TransactionSpentOutputs, None, None]:
-        """
-        Generator that yields all the TransactionUndo objects in this
-        BlockSpentOutputs.
-
-        Synchronization is required if this generator is shared across
-        threads.
-        """
-        for i in range(self.transaction_count):
-            yield self.get_transaction_spent_outputs(i)
+    @property
+    def transactions(self) -> TransactionSpentOutputsSequence:
+        return TransactionSpentOutputsSequence(self)

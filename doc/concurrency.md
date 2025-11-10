@@ -22,10 +22,8 @@ synchronization (using e.g. `threading.Lock()`) is still required in
 some circumstances, including:
 - changes to the chainstate (such as advancing the tip, or rolling back)
   may invalidate earlier obtained objects. For example, the result from
-  `ChainstateManager.get_block_index_from_tip()` is not guaranteed to
+  `Chain.block_indexes[-1]` is not guaranteed to
   remain the tip if another thread can advance the chainstate.
-- using generators such as `block_index_generator()`, as is commonly
-  the case with using generators in multithreaded contexts in Python.
 
 ## Parallelism / multiprocessing
 

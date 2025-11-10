@@ -151,17 +151,17 @@ ChainstateManager exposes a range of functionality to interact with the
 chainstate. For example, to print the current block tip:
 
 ```py
-tip = chainman.get_block_index_from_tip()
+chain = chainman.get_active_chain()
+tip = chain.block_indexes[-1]
 print(f"Current block tip: {tip.block_hash.hex} at height {tip.height}")
 ```
 
-To lazily iterate over the last 10 block indexes, use the
-`block_index_generator` function:
+To lazily iterate over the last 10 block indexes:
 
 ```py
-from_block = -10  # Negative indexes are relative to the tip
-to_block = -1     # -1 is the chain tip
-for block_index in pbk.block_index_generator(chainman, from_block, to_block):
+start = -10  # Negative indexes are relative to the tip
+end = 0      # -1 is the chain tip, but slices are upper-bound exclusive
+for block_index in chain.block_indexes[start:end]:
     print(f"Block {block_index.height}: {block_index.block_hash.hex}")
 ```
 
@@ -170,8 +170,8 @@ disk:
 
 ```py
 block_height = 1
-block_index = chainman.get_block_index_from_height(block_height)
-block = chainman.read_block_from_disk(block_index)
+block_index = chainman.get_active_chain().block_indexes[block_height]
+block = chainman.blocks[block_index]
 filename = f"block_{block_height}.bin"
 print(f"Writing block {block_height}: {block_index.block_hash.hex} to disk ({filename})...")
 with open(filename, "wb") as f:

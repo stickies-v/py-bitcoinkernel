@@ -41,60 +41,38 @@ def test_chainstate_manager_options(temp_dir: Path):
 def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
+    genesis = chain.block_indexes[0]
 
-    genesis = chain.get_genesis()
-    assert chain.get_by_height(0) == genesis
-    assert chain_man.get_block_index_from_hash(genesis.block_hash) == genesis
+    assert chain_man.block_indexes[genesis.block_hash] == genesis
+    assert chain_man.import_blocks([]) == 0  # TODO: implement actual test
 
-    tip = chain.get_tip()
+
+def test_chain(chainman_regtest: pbk.ChainstateManager):
+    chain_man = chainman_regtest
+    chain = chain_man.get_active_chain()
+
+    assert chain.height == 206
+    assert chain.height + 1 == len(chain.block_indexes)
+
+    tip = chain.block_indexes[-1]
     assert tip.height == chain.height
-    previous = chain.get_by_height(tip.height - 1)
+    assert len(chain.block_indexes) == chain.height + 1
+    previous = chain.block_indexes[tip.height - 1]
     assert isinstance(previous, pbk.BlockIndex)
     assert previous.height == tip.height - 1
-    assert chain.get_by_height(previous.height + 1) == tip
-
-    assert chain_man.import_blocks([]) == 0
 
 
 def test_read_block(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
-    chain_tip = chain.get_tip()
+    chain_tip = chain.block_indexes[-1]
 
-    block_tip = chain_man.read_block_from_disk(chain_tip)
+    block_tip = chain_man.blocks[chain_tip]
     assert block_tip.hash == chain_tip.block_hash
     copied_block = pbk.Block(block_tip.data)
     assert copied_block.hash == block_tip.hash
 
-    with pytest.raises(ValueError, match="Genesis block does not have undo data"):
-        chain_man.read_block_undo_from_disk(chain.get_genesis())
-
-
-def test_block_index_generator(chainman_regtest: pbk.ChainstateManager):
-    chain = chainman_regtest.get_active_chain()
-    chain_tip = chain.get_tip()
-    for i, idx in enumerate(pbk.block_index_generator(chain)):
-        assert isinstance(idx, pbk.BlockIndex)
-        assert idx.height == i
-    assert idx == chain_tip
-
-    idx_5 = chain.get_by_height(5)
-    assert list(pbk.block_index_generator(chain, start=idx_5, end=5)) == [idx_5]
-    idx_6 = chain.get_by_height(6)
-    assert list(pbk.block_index_generator(chain, start=6, end=idx_5)) == [
-        idx_6,
-        idx_5,
-    ]
-    assert list(pbk.block_index_generator(chain, start=-1, end=-1)) == [chain_tip]
-
-    # Test invalid bounds
-    invalid_bounds = [
-        (None, chain_tip.height + 1),
-        (None, -(chain_tip.height + 2)),
-        (-(chain_tip.height + 2), -(chain_tip.height + 2)),
-        (-(chain_tip.height + 2), None),
-        (chain_tip.height + 1, None),
-    ]
-    for start, end in invalid_bounds:
-        with pytest.raises(IndexError, match="is out of bounds"):
-            list(pbk.block_index_generator(chain, start=start, end=end))
+    with pytest.raises(
+        KeyError, match="Genesis block does not have BlockSpentOutputs data"
+    ):
+        chain_man.block_spent_outputs[chain.block_indexes[0]]

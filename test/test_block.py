@@ -12,9 +12,9 @@ GENESIS_BLOCK_HASH_HEX = (
 def test_block_index(chainman_regtest: pbk.ChainstateManager):
     chain = chainman_regtest.get_active_chain()
 
-    block_0 = chain.get_by_height(0)
+    block_0 = chain.block_indexes[0]
     assert block_0.height == 0
-    block_1 = chain.get_by_height(1)
+    block_1 = chain.block_indexes[1]
     assert block_1.height == 1
     assert block_0 != block_1
     assert isinstance(block_0, pbk.BlockIndex)
@@ -49,13 +49,14 @@ def test_block():
     assert block.hash.bytes == GENESIS_BLOCK_HASH_BYTES
     assert block.data == GENESIS_BLOCK_BYTES
 
+    assert len(block.transactions) == 1
+
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
-    idx = chain_man.get_active_chain().get_by_height(202)
-    undo = chain_man.read_block_undo_from_disk(idx)
-    transactions = list(undo.iter_transactions())
-    assert undo.transaction_count == 20
+    idx = chain_man.get_active_chain().block_indexes[202]
+    undo = chain_man.block_spent_outputs[idx]
+    transactions = undo.transactions
     assert len(transactions) == 20
     for tx in transactions:
         assert isinstance(tx, pbk.TransactionSpentOutputs)

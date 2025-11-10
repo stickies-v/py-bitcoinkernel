@@ -28,7 +28,7 @@ To analyze the block, we can use the `python-bitcoinlib` `CBlock` class:
 ```py
 from bitcoin.core import CBlock
 
-block_bytes = chainman.read_block_from_disk(tip).data
+block_bytes = chainman.blocks[tip].data
 cblock = CBlock.deserialize(block_bytes)
 
 assert tip.block_hash.hex == cblock.GetHash().hex()
@@ -42,10 +42,10 @@ print(f"The last transaction has witness data: {cblock.vtx[-1].wit.vtxinwit}")
 from bitcoin.core.script import CScript
 from pprint import pprint
 
-undo = chainman.read_block_undo_from_disk(tip)
+undo = chainman.block_spent_outputs[tip]
 result = {}
-for i, tx in enumerate(undo.iter_transactions()):
-    result[i] = [CScript(output.script_pubkey.data) for output in tx.iter_outputs()]
+for i, tx in enumerate(undo.transactions):
+    result[i] = [CScript(coin.output.script_pubkey.data) for coin in tx.coins]
 print(f"Block {tip.height} has transactions spending the following previous outputs:")
 pprint(result)
 ```
