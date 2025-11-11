@@ -5,13 +5,14 @@ import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 from pbk.script import ScriptPubkey
 from pbk.util.sequence import LazySequence
+from pbk.writer import ByteWriter
 
 
 class Txid(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def to_bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         hash_array = (ctypes.c_ubyte * 32)()
         k.btck_txid_to_bytes(self, hash_array)
         return bytes(hash_array)
@@ -116,6 +117,10 @@ class Transaction(KernelOpaquePtr):
     @property
     def txid(self) -> Txid:
         return Txid._from_view(k.btck_transaction_get_txid(self), self)
+
+    def __bytes__(self) -> bytes:
+        writer = ByteWriter()
+        return writer.write(k.btck_transaction_to_bytes, self)
 
 
 class Coin(KernelOpaquePtr):

@@ -16,15 +16,14 @@ class BlockHash(KernelOpaquePtr):
         hash_array = (ctypes.c_ubyte * 32).from_buffer_copy(block_hash)
         super().__init__(hash_array)
 
-    @property
-    def bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         hash_array = (ctypes.c_ubyte * 32)()
         k.btck_block_hash_to_bytes(self, hash_array)
         return bytes(hash_array)
 
     @property
     def hex(self) -> str:
-        return self.bytes.hex()
+        return bytes(self).hex()
 
     def __eq__(self, other):
         if isinstance(other, BlockHash):
@@ -78,8 +77,7 @@ class Block(KernelOpaquePtr):
     def block_hash(self) -> BlockHash:
         return BlockHash._from_handle(k.btck_block_get_hash(self))
 
-    @property
-    def data(self) -> bytes:
+    def __bytes__(self) -> bytes:
         writer = ByteWriter()
         return writer.write(k.btck_block_to_bytes, self)
 

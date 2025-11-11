@@ -175,7 +175,7 @@ block = chainman.blocks[block_index]
 filename = f"block_{block_height}.bin"
 print(f"Writing block {block_height}: {block_index.block_hash.hex} to disk ({filename})...")
 with open(filename, "wb") as f:
-    f.write(block.data)
+    f.write(bytes(block))
 ```
 
 ### Concurrency

@@ -31,7 +31,7 @@ def test_block_hash(chainman_regtest: pbk.ChainstateManager):
     assert hash_zero == pbk.BlockHash(b"0" * 32)
     assert hash_zero != pbk.BlockHash(b"1" * 32)
 
-    assert hash_zero.bytes == b"0" * 32
+    assert bytes(hash_zero) == b"0" * 32
     assert (
         hash_zero.hex
         == "3030303030303030303030303030303030303030303030303030303030303030"
@@ -46,8 +46,8 @@ def test_block_hash(chainman_regtest: pbk.ChainstateManager):
 
 def test_block():
     block = pbk.Block(GENESIS_BLOCK_BYTES)
-    assert block.block_hash.bytes == GENESIS_BLOCK_HASH_BYTES
-    assert block.data == GENESIS_BLOCK_BYTES
+    assert bytes(block.block_hash) == GENESIS_BLOCK_HASH_BYTES
+    assert bytes(block) == GENESIS_BLOCK_BYTES
 
     assert len(block.transactions) == 1
 

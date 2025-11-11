@@ -62,8 +62,7 @@ class ScriptPubkey(KernelOpaquePtr):
     def __init__(self, data: bytes):
         super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
 
-    @property
-    def data(self) -> bytes:
+    def __bytes__(self) -> bytes:
         writer = ByteWriter()
         return writer.write(k.btck_script_pubkey_to_bytes, self)
 
