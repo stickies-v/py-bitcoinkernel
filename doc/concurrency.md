@@ -22,7 +22,7 @@ synchronization (using e.g. `threading.Lock()`) is still required in
 some circumstances, including:
 - changes to the chainstate (such as advancing the tip, or rolling back)
   may invalidate earlier obtained objects. For example, the result from
-  `Chain.block_indexes[-1]` is not guaranteed to
+  `Chain.block_tree_entries[-1]` is not guaranteed to
   remain the tip if another thread can advance the chainstate.
 
 ## Parallelism / multiprocessing

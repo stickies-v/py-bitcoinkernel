@@ -46,9 +46,9 @@ def test_chainstate_manager_options(temp_dir: Path):
 def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
-    genesis = chain.block_indexes[0]
+    genesis = chain.block_tree_entries[0]
 
-    assert chain_man.block_indexes[genesis.block_hash] == genesis
+    assert chain_man.block_tree_entries[genesis.block_hash] == genesis
     assert chain_man.import_blocks([]) == 0  # TODO: implement actual test
 
 
@@ -57,13 +57,13 @@ def test_chain(chainman_regtest: pbk.ChainstateManager):
     chain = chain_man.get_active_chain()
 
     assert chain.height == 206
-    assert chain.height + 1 == len(chain.block_indexes)
+    assert chain.height + 1 == len(chain.block_tree_entries)
 
-    tip = chain.block_indexes[-1]
+    tip = chain.block_tree_entries[-1]
     assert tip.height == chain.height
-    assert len(chain.block_indexes) == chain.height + 1
-    previous = chain.block_indexes[tip.height - 1]
-    assert isinstance(previous, pbk.BlockIndex)
+    assert len(chain.block_tree_entries) == chain.height + 1
+    previous = chain.block_tree_entries[tip.height - 1]
+    assert isinstance(previous, pbk.BlockTreeEntry)
     assert previous.height == tip.height - 1
 
     # Test Chain __repr__
@@ -77,7 +77,7 @@ def test_chain(chainman_regtest: pbk.ChainstateManager):
 def test_read_block(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
-    chain_tip = chain.block_indexes[-1]
+    chain_tip = chain.block_tree_entries[-1]
 
     block_tip = chain_man.blocks[chain_tip]
     assert block_tip.block_hash == chain_tip.block_hash
@@ -87,4 +87,4 @@ def test_read_block(chainman_regtest: pbk.ChainstateManager):
     with pytest.raises(
         KeyError, match="Genesis block does not have BlockSpentOutputs data"
     ):
-        chain_man.block_spent_outputs[chain.block_indexes[0]]
+        chain_man.block_spent_outputs[chain.block_tree_entries[0]]

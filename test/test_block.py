@@ -10,22 +10,22 @@ GENESIS_BLOCK_HASH_HEX = (
 )
 
 
-def test_block_index(chainman_regtest: pbk.ChainstateManager):
+def test_block_tree_entry(chainman_regtest: pbk.ChainstateManager):
     chain = chainman_regtest.get_active_chain()
 
-    block_0 = chain.block_indexes[0]
+    block_0 = chain.block_tree_entries[0]
     assert block_0.height == 0
-    block_1 = chain.block_indexes[1]
+    block_1 = chain.block_tree_entries[1]
     assert block_1.height == 1
     assert block_0 != block_1
-    assert isinstance(block_0, pbk.BlockIndex)
+    assert isinstance(block_0, pbk.BlockTreeEntry)
     assert block_1.previous == block_0
 
-    # Comparisons are only valid with other BlockIndex objects
+    # Comparisons are only valid with other BlockTreeEntry objects
     assert block_0 != 0
     assert block_0 != GENESIS_BLOCK_HASH_BYTES
 
-    assert repr(block_0) == f"<BlockIndex height=0 hash={GENESIS_BLOCK_HASH_HEX}>"
+    assert repr(block_0) == f"<BlockTreeEntry height=0 hash={GENESIS_BLOCK_HASH_HEX}>"
 
 
 def test_block_hash(chainman_regtest: pbk.ChainstateManager):
@@ -67,7 +67,7 @@ def test_block():
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
-    idx = chain_man.get_active_chain().block_indexes[202]
+    idx = chain_man.get_active_chain().block_tree_entries[202]
     undo = chain_man.block_spent_outputs[idx]
     transactions = undo.transactions
     assert len(transactions) == 20

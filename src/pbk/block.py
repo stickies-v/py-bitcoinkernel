@@ -40,7 +40,7 @@ class BlockHash(KernelOpaquePtr):
         return f"BlockHash({bytes(self)!r})"
 
 
-class BlockIndex(KernelOpaquePtr):
+class BlockTreeEntry(KernelOpaquePtr):
     @property
     def block_hash(self) -> BlockHash:
         return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self))
@@ -50,11 +50,11 @@ class BlockIndex(KernelOpaquePtr):
         return k.btck_block_tree_entry_get_height(self)
 
     @property
-    def previous(self) -> "BlockIndex":
-        return BlockIndex._from_view(k.btck_block_tree_entry_get_previous(self))
+    def previous(self) -> "BlockTreeEntry":
+        return BlockTreeEntry._from_view(k.btck_block_tree_entry_get_previous(self))
 
     def __eq__(self, other):
-        if isinstance(other, BlockIndex):
+        if isinstance(other, BlockTreeEntry):
             return self.height == other.height and self.block_hash == other.block_hash
         return False
 
@@ -62,7 +62,7 @@ class BlockIndex(KernelOpaquePtr):
         return hash((self.height, bytes(self.block_hash)))
 
     def __repr__(self) -> str:
-        return f"<BlockIndex height={self.height} hash={str(self.block_hash)}>"
+        return f"<BlockTreeEntry height={self.height} hash={str(self.block_hash)}>"
 
 
 class TransactionSequence(LazySequence[Transaction]):

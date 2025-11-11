@@ -18,7 +18,7 @@ First, we'll create a ChainstateManager and load the current chain tip:
 ```py
 import pbk
 chainman = pbk.load_chainman("/tmp/bitcoin/signet/", pbk.ChainType.SIGNET)
-tip = chainman.get_block_index_from_tip()
+tip = chainman.get_active_chain().block_tree_entries[-1]
 ```
 
 ## Inspecting Block Data

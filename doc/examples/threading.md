@@ -19,7 +19,7 @@ log = pbk.KernelLogViewer()
 MAX_WORKERS = 1
 READ_N_LAST_BLOCKS = 1000
 
-def process_block(chainman: pbk.ChainstateManager, index: pbk.BlockIndex):
+def process_block(chainman: pbk.ChainstateManager, index: pbk.BlockTreeEntry):
     block_data = chainman.blocks[index]
     # implement block processing logic
     # ...
@@ -27,6 +27,6 @@ def process_block(chainman: pbk.ChainstateManager, index: pbk.BlockIndex):
 
 chainman = pbk.load_chainman("/tmp/bitcoin/signet", pbk.ChainType.SIGNET)
 with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-    for idx in chainman.get_active_chain().block_indexes[-READ_N_LAST_BLOCKS:]:
+    for idx in chainman.get_active_chain().block_tree_entries[-READ_N_LAST_BLOCKS:]:
         pool.submit(process_block, chainman, idx)
 ```

@@ -8,7 +8,7 @@ def test_non_instantiable_classes_raise_type_error():
     """Non-instantiable classes should raise TypeError with a clear message."""
     # Only test publicly exported types
     non_instantiable_classes = [
-        (pbk.BlockIndex, "BlockIndex"),
+        (pbk.BlockTreeEntry, "BlockTreeEntry"),
         (pbk.BlockSpentOutputs, "BlockSpentOutputs"),
         (pbk.Chain, "Chain"),
         (pbk.Coin, "Coin"),

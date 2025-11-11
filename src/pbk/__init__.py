@@ -1,4 +1,4 @@
-from pbk.block import Block, BlockHash, BlockIndex, BlockSpentOutputs
+from pbk.block import Block, BlockHash, BlockTreeEntry, BlockSpentOutputs
 from pbk.chain import (
     Chain,
     ChainParameters,
@@ -38,7 +38,7 @@ from pbk.validation import BlockValidationResult, BlockValidationState, Validati
 
 __all__ = [
     "BlockHash",
-    "BlockIndex",
+    "BlockTreeEntry",
     "Block",
     "BlockSpentOutputs",
     "BlockValidationResult",
