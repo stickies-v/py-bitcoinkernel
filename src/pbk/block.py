@@ -75,7 +75,7 @@ class Block(KernelOpaquePtr):
         super().__init__((ctypes.c_ubyte * len(raw_block))(*raw_block), len(raw_block))
 
     @property
-    def hash(self) -> BlockHash:
+    def block_hash(self) -> BlockHash:
         return BlockHash._from_handle(k.btck_block_get_hash(self))
 
     @property

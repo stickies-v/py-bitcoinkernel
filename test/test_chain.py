@@ -68,9 +68,9 @@ def test_read_block(chainman_regtest: pbk.ChainstateManager):
     chain_tip = chain.block_indexes[-1]
 
     block_tip = chain_man.blocks[chain_tip]
-    assert block_tip.hash == chain_tip.block_hash
+    assert block_tip.block_hash == chain_tip.block_hash
     copied_block = pbk.Block(block_tip.data)
-    assert copied_block.hash == block_tip.hash
+    assert copied_block.block_hash == block_tip.block_hash
 
     with pytest.raises(
         KeyError, match="Genesis block does not have BlockSpentOutputs data"

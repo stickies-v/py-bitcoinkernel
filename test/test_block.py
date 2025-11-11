@@ -46,7 +46,7 @@ def test_block_hash(chainman_regtest: pbk.ChainstateManager):
 
 def test_block():
     block = pbk.Block(GENESIS_BLOCK_BYTES)
-    assert block.hash.bytes == GENESIS_BLOCK_HASH_BYTES
+    assert block.block_hash.bytes == GENESIS_BLOCK_HASH_BYTES
     assert block.data == GENESIS_BLOCK_BYTES
 
     assert len(block.transactions) == 1
