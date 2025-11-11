@@ -33,6 +33,9 @@ class BlockHash(KernelOpaquePtr):
     def __hash__(self) -> int:
         return hash(bytes(self))
 
+    def __repr__(self) -> str:
+        return f"BlockHash({bytes(self)!r})"
+
 
 class BlockIndex(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
@@ -56,8 +59,8 @@ class BlockIndex(KernelOpaquePtr):
     def __hash__(self):
         return hash((self.height, bytes(self.block_hash)))
 
-    def __repr__(self):  # pragma: no cover
-        return f"BlockIndex(height={self.height}, hash={self.block_hash})"
+    def __repr__(self) -> str:
+        return f"<BlockIndex height={self.height} hash={str(self.block_hash)}>"
 
 
 class TransactionSequence(LazySequence[Transaction]):
@@ -96,6 +99,9 @@ class Block(KernelOpaquePtr):
     def transactions(self) -> TransactionSequence:
         return TransactionSequence(self)
 
+    def __repr__(self) -> str:
+        return f"<Block hash={str(self.block_hash)} txs={len(self.transactions)}>"
+
 
 class TransactionSpentOutputsSequence(LazySequence[TransactionSpentOutputs]):
     def __init__(self, block_spent_outputs: "BlockSpentOutputs"):
@@ -128,3 +134,6 @@ class BlockSpentOutputs(KernelOpaquePtr):
     @property
     def transactions(self) -> TransactionSpentOutputsSequence:
         return TransactionSpentOutputsSequence(self)
+
+    def __repr__(self) -> str:
+        return f"<BlockSpentOutputs txs={len(self.transactions)}>"

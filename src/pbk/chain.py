@@ -96,6 +96,9 @@ class Chain(KernelOpaquePtr):
         # height is zero-based indexed
         return self.height + 1
 
+    def __repr__(self) -> str:
+        return f"<Chain height={self.height}>"
+
 
 class MapBase:
     def __init__(self, chainman: "ChainstateManager"):
@@ -175,3 +178,6 @@ class ChainstateManager(KernelOpaquePtr):
     @property
     def block_spent_outputs(self) -> BlockSpentOutputsMap:
         return BlockSpentOutputsMap(self)
+
+    def __repr__(self) -> str:
+        return f"<ChainstateManager at {hex(id(self))}>"

@@ -12,6 +12,11 @@ def test_chain_type():
 def test_chainstate_manager_options(temp_dir: Path):
     opts = pbk.ContextOptions()
     context = pbk.Context(opts)
+
+    # Test Context __repr__
+    assert repr(context).startswith("<Context at 0x")
+    assert repr(context).endswith(">")
+
     chain_man_opts = pbk.ChainstateManagerOptions(
         context, str(temp_dir), str(temp_dir / "blocks")
     )
@@ -60,6 +65,13 @@ def test_chain(chainman_regtest: pbk.ChainstateManager):
     previous = chain.block_indexes[tip.height - 1]
     assert isinstance(previous, pbk.BlockIndex)
     assert previous.height == tip.height - 1
+
+    # Test Chain __repr__
+    assert repr(chain) == "<Chain height=206>"
+
+    # Test ChainstateManager __repr__
+    assert repr(chain_man).startswith("<ChainstateManager at 0x")
+    assert repr(chain_man).endswith(">")
 
 
 def test_read_block(chainman_regtest: pbk.ChainstateManager):

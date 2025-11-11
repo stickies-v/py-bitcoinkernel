@@ -28,3 +28,6 @@ class Context(KernelOpaquePtr):
 
     def interrupt(self) -> bool:
         return k.btck_context_interrupt(self)
+
+    def __repr__(self) -> str:
+        return f"<Context at {hex(id(self))}>"

@@ -66,6 +66,11 @@ class ScriptPubkey(KernelOpaquePtr):
         writer = ByteWriter()
         return writer.write(k.btck_script_pubkey_to_bytes, self)
 
+    def __repr__(self) -> str:
+        hex_str = str(self)
+        preview = hex_str[:32] + "..." if len(hex_str) > 32 else hex_str
+        return f"<ScriptPubkey len={len(bytes(self))} hex={preview}>"
+
     def __str__(self) -> str:
         return bytes(self).hex()
 

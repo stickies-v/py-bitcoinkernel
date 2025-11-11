@@ -17,6 +17,13 @@ def test_transaction():
     assert txid == txid
     assert txid != 0
 
+    # Test Txid __repr__ - shows internal format (not evaluable since Txid can't be constructed)
+    # Note: bytes.__repr__() shows printable ASCII directly (L=\x4c, X=\x58, &=\x26)
+    assert (
+        repr(txid)
+        == "Txid(b'UL\\x99\\xd3\\xcf1\\xd4$\\x1c\\x81\\r\\xe9\\x03\\x05C\\x03\\xc3\\xb4\\xf6\\xfb\\x9e5\\x81iX(U&f\\xbd\\xba\\x9a')"
+    )
+
     # TransactionInput & TransactionOutPoint
     inputs_expected_results = [
         [1, "85038971e9235667f779f6d5d0f9cc3277e1b886469064a9a50c794a9843ad20"],
@@ -30,6 +37,17 @@ def test_transaction():
         assert input.out_point.index == exp_idx
         assert str(input.out_point.txid) == exp_txid
 
+    # Test TransactionInput and TransactionOutPoint __repr__
+    first_input = tx.inputs[0]
+    assert (
+        repr(first_input.out_point)
+        == "<TransactionOutPoint txid=85038971e9235667f779f6d5d0f9cc3277e1b886469064a9a50c794a9843ad20 index=1>"
+    )
+    assert (
+        repr(first_input)
+        == "<TransactionInput <TransactionOutPoint txid=85038971e9235667f779f6d5d0f9cc3277e1b886469064a9a50c794a9843ad20 index=1>>"
+    )
+
     # TransactionOutput
     outputs_expected_results = [
         [1000000, "76a9140542e43d197f1a2e525d02e95ab70a2517e625a888ac"],
@@ -42,13 +60,32 @@ def test_transaction():
         assert output.amount == exp_amount
         assert str(output.script_pubkey) == exp_spk
 
+    # Test TransactionOutput and ScriptPubkey __repr__
+    first_output = tx.outputs[0]
+    assert repr(first_output) == "<TransactionOutput amount=1000000 spk_len=25>"
+    assert (
+        repr(first_output.script_pubkey)
+        == "<ScriptPubkey len=25 hex=76a9140542e43d197f1a2e525d02e95a...>"
+    )
+
+    # Test Transaction __repr__
+    assert (
+        repr(tx)
+        == "<Transaction txid=9ababd66265528586981359efbf6b4c303430503e90d811c24d431cfd3994c55 ins=3 outs=2>"
+    )
+
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     for idx in chain_man.get_active_chain().block_indexes[1:]:
         undo = chain_man.block_spent_outputs[idx]
         for tx in undo.transactions:
+            assert repr(tx) == f"<TransactionSpentOutputs coins={len(tx.coins)}>"
             assert len(tx.coins) > 0
             for coin in tx.coins:
                 assert coin.output.amount > 0
                 assert len(bytes(coin.output.script_pubkey)) > 0
+                assert (
+                    repr(coin)
+                    == f"<Coin height={coin.confirmation_height} amount={coin.output.amount} coinbase={coin.is_coinbase}>"
+                )

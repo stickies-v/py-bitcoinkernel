@@ -66,4 +66,4 @@ class LazySequence(collections.abc.Sequence, typing.Generic[T], abc.ABC):
         return self._get_item(index)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(len={len(self)})"
+        return f"<{self.__class__.__name__} len={len(self)}>"

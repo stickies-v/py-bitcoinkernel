@@ -29,6 +29,10 @@ class Txid(KernelOpaquePtr):
         # bytes are serialized in little-endian byte order, typically displayed in big-endian byte order
         return bytes(self)[::-1].hex()
 
+    def __repr__(self) -> str:
+        # Note: Txid cannot be directly constructed, but showing internal format
+        return f"Txid({bytes(self)!r})"
+
 
 class TransactionOutPoint(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
@@ -42,6 +46,9 @@ class TransactionOutPoint(KernelOpaquePtr):
     def txid(self) -> Txid:
         return Txid._from_view(k.btck_transaction_out_point_get_txid(self), self)
 
+    def __repr__(self) -> str:
+        return f"<TransactionOutPoint txid={str(self.txid)} index={self.index}>"
+
 
 class TransactionInput(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
@@ -52,6 +59,9 @@ class TransactionInput(KernelOpaquePtr):
         return TransactionOutPoint._from_view(
             k.btck_transaction_input_get_out_point(self), self
         )
+
+    def __repr__(self) -> str:
+        return f"<TransactionInput {self.out_point!r}>"
 
 
 class TransactionOutput(KernelOpaquePtr):
@@ -66,6 +76,9 @@ class TransactionOutput(KernelOpaquePtr):
     def script_pubkey(self) -> "ScriptPubkey":
         ptr = k.btck_transaction_output_get_script_pubkey(self)
         return ScriptPubkey._from_view(ptr, self)
+
+    def __repr__(self) -> str:
+        return f"<TransactionOutput amount={self.amount} spk_len={len(bytes(self.script_pubkey))}>"
 
 
 class TransactionInputSequence(LazySequence[TransactionInput]):
@@ -129,6 +142,9 @@ class Transaction(KernelOpaquePtr):
         writer = ByteWriter()
         return writer.write(k.btck_transaction_to_bytes, self)
 
+    def __repr__(self) -> str:
+        return f"<Transaction txid={str(self.txid)} ins={len(self.inputs)} outs={len(self.outputs)}>"
+
 
 class Coin(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
@@ -148,6 +164,9 @@ class Coin(KernelOpaquePtr):
     def output(self) -> TransactionOutput:
         ptr = k.btck_coin_get_output(self)
         return TransactionOutput._from_view(ptr, self)
+
+    def __repr__(self) -> str:
+        return f"<Coin height={self.confirmation_height} amount={self.output.amount} coinbase={self.is_coinbase}>"
 
 
 class CoinSequence(LazySequence[Coin]):
@@ -177,3 +196,6 @@ class TransactionSpentOutputs(KernelOpaquePtr):
     @property
     def coins(self) -> CoinSequence:
         return CoinSequence(self)
+
+    def __repr__(self) -> str:
+        return f"<TransactionSpentOutputs coins={len(self.coins)}>"
