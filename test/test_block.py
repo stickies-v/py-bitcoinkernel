@@ -33,7 +33,7 @@ def test_block_hash(chainman_regtest: pbk.ChainstateManager):
 
     assert bytes(hash_zero) == b"0" * 32
     assert (
-        hash_zero.hex
+        str(hash_zero)
         == "3030303030303030303030303030303030303030303030303030303030303030"
     )
 

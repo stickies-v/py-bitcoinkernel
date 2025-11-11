@@ -11,8 +11,7 @@ def test_transaction():
     # Txid tests
     txid = tx.txid
     assert (
-        bytes(txid)[::-1].hex()  # txid bytes are little-endian
-        == "9ababd66265528586981359efbf6b4c303430503e90d811c24d431cfd3994c55"
+        str(txid) == "9ababd66265528586981359efbf6b4c303430503e90d811c24d431cfd3994c55"
     )
 
     assert txid == txid
@@ -29,7 +28,7 @@ def test_transaction():
     for i, input in enumerate(tx.inputs):
         exp_idx, exp_txid = inputs_expected_results[i]
         assert input.out_point.index == exp_idx
-        assert bytes(input.out_point.txid)[::-1].hex() == exp_txid
+        assert str(input.out_point.txid) == exp_txid
 
     # TransactionOutput
     outputs_expected_results = [
@@ -41,7 +40,7 @@ def test_transaction():
     for i, output in enumerate(tx.outputs):
         exp_amount, exp_spk = outputs_expected_results[i]
         assert output.amount == exp_amount
-        assert bytes(output.script_pubkey).hex() == exp_spk
+        assert str(output.script_pubkey) == exp_spk
 
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager):

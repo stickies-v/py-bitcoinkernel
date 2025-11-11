@@ -21,9 +21,9 @@ class BlockHash(KernelOpaquePtr):
         k.btck_block_hash_to_bytes(self, hash_array)
         return bytes(hash_array)
 
-    @property
-    def hex(self) -> str:
-        return bytes(self).hex()
+    def __str__(self) -> str:
+        # bytes are serialized in little-endian byte order, typically displayed in big-endian byte order
+        return bytes(self)[::-1].hex()
 
     def __eq__(self, other):
         if isinstance(other, BlockHash):
@@ -51,7 +51,7 @@ class BlockIndex(KernelOpaquePtr):
         return False
 
     def __repr__(self):  # pragma: no cover
-        return f"BlockIndex(height={self.height}, hash={self.block_hash.hex})"
+        return f"BlockIndex(height={self.height}, hash={self.block_hash})"
 
 
 class TransactionSequence(LazySequence[Transaction]):

@@ -31,8 +31,8 @@ from bitcoin.core import CBlock
 block_bytes = bytes(chainman.blocks[tip])
 cblock = CBlock.deserialize(block_bytes)
 
-assert tip.block_hash.hex == cblock.GetHash().hex()
-print(f"Block {cblock.GetHash().hex()} has {len(cblock.vtx)} transactions and {cblock.GetWeight()} weight")
+assert tip.block_hash == cblock.GetHash()
+print(f"Block {cblock.GetHash()} has {len(cblock.vtx)} transactions and {cblock.GetWeight()} weight")
 print(f"The last transaction has witness data: {cblock.vtx[-1].wit.vtxinwit}")
 ```
 

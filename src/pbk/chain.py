@@ -108,7 +108,7 @@ class BlockIndexMap(MapBase):
             self._chainman, key
         )
         if not entry:
-            raise KeyError(f"{key.hex} not found")
+            raise KeyError(f"{key} not found")
         return BlockIndex._from_view(entry)
 
 

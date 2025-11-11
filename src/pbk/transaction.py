@@ -22,6 +22,10 @@ class Txid(KernelOpaquePtr):
             return False
         return bool(k.btck_txid_equals(self, other))
 
+    def __str__(self) -> str:
+        # bytes are serialized in little-endian byte order, typically displayed in big-endian byte order
+        return bytes(self)[::-1].hex()
+
 
 class TransactionOutPoint(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):

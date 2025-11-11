@@ -66,6 +66,9 @@ class ScriptPubkey(KernelOpaquePtr):
         writer = ByteWriter()
         return writer.write(k.btck_script_pubkey_to_bytes, self)
 
+    def __str__(self) -> str:
+        return bytes(self).hex()
+
 
 def verify_script(
     script_pubkey: ScriptPubkey,
