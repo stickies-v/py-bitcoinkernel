@@ -51,6 +51,10 @@ class BlockIndex(KernelOpaquePtr):
     def height(self) -> int:
         return k.btck_block_tree_entry_get_height(self)
 
+    @property
+    def previous(self) -> "BlockIndex":
+        return BlockIndex._from_view(k.btck_block_tree_entry_get_previous(self))
+
     def __eq__(self, other):
         if isinstance(other, BlockIndex):
             return self.height == other.height and self.block_hash == other.block_hash

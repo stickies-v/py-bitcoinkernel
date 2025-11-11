@@ -19,6 +19,7 @@ def test_block_index(chainman_regtest: pbk.ChainstateManager):
     assert block_1.height == 1
     assert block_0 != block_1
     assert isinstance(block_0, pbk.BlockIndex)
+    assert block_1.previous == block_0
 
     # Comparisons are only valid with other BlockIndex objects
     assert block_0 != 0
