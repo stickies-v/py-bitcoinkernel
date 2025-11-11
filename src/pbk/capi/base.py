@@ -2,10 +2,6 @@ import ctypes
 import typing
 
 
-def camel_to_snake(s):
-    return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
-
-
 class KernelOpaquePtr:
     _as_parameter_: ctypes.c_void_p | None = None  # Underlying ctypes object
     _owns_ptr: bool = True  # If True, user is responsible for freeing the pointer
@@ -26,11 +22,6 @@ class KernelOpaquePtr:
         if not self._as_parameter_:
             raise RuntimeError(f"Failed to create {self.__class__.__name__}")
         self._owns_ptr = True
-
-    @property
-    def contents(self):
-        assert self._as_parameter_
-        return self._as_parameter_.contents  # type: ignore
 
     @classmethod
     def _from_handle(cls, ptr):
