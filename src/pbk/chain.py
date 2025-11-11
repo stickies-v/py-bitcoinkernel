@@ -4,7 +4,7 @@ from enum import IntEnum
 from pathlib import Path
 
 import pbk.capi.bindings as k
-from pbk.block import Block, BlockHash, BlockIndex, BlockSpentOutputs
+from pbk.block import Block, BlockHash, BlockTreeEntry, BlockSpentOutputs
 from pbk.capi import KernelOpaquePtr
 from pbk.util.sequence import LazySequence
 
@@ -23,11 +23,17 @@ class ChainType(IntEnum):
 
 
 class ChainParameters(KernelOpaquePtr):
+    _create_fn = k.btck_chain_parameters_create
+    _destroy_fn = k.btck_chain_parameters_destroy
+
     def __init__(self, chain_type: ChainType):
         super().__init__(chain_type)
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
+    _create_fn = k.btck_chainstate_manager_options_create
+    _destroy_fn = k.btck_chainstate_manager_options_destroy
+
     def __init__(self, context: "Context", datadir: str, blocks_dir: str):
         datadir_bytes = datadir.encode("utf-8")
         blocksdir_bytes = blocks_dir.encode("utf-8")
@@ -58,18 +64,18 @@ class ChainstateManagerOptions(KernelOpaquePtr):
         )
 
 
-class BlockIndexSequence(LazySequence[BlockIndex]):
+class BlockTreeEntrySequence(LazySequence[BlockTreeEntry]):
     def __init__(self, chain: "Chain"):
         self._chain = chain
 
     def __len__(self) -> int:
         return len(self._chain)
 
-    def _get_item(self, index: int) -> BlockIndex:
-        return BlockIndex._from_view(k.btck_chain_get_by_height(self._chain, index))
+    def _get_item(self, index: int) -> BlockTreeEntry:
+        return BlockTreeEntry._from_view(k.btck_chain_get_by_height(self._chain, index))
 
     def __contains__(self, other: typing.Any):
-        if not isinstance(other, BlockIndex):
+        if not isinstance(other, BlockTreeEntry):
             return False
         result = k.btck_chain_contains(self._chain, other)
         assert result in [0, 1]
@@ -77,24 +83,24 @@ class BlockIndexSequence(LazySequence[BlockIndex]):
 
 
 class Chain(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     @property
     def height(self) -> int:
         """Zero-based indexed height of the chain tip"""
         return k.btck_chain_get_height(self)
 
-    def _get_by_height(self, height: int) -> BlockIndex:
-        return BlockIndex._from_view(k.btck_chain_get_by_height(self, height))
+    def _get_by_height(self, height: int) -> BlockTreeEntry:
+        return BlockTreeEntry._from_view(k.btck_chain_get_by_height(self, height))
 
     @property
-    def block_indexes(self) -> BlockIndexSequence:
-        return BlockIndexSequence(self)
+    def block_tree_entries(self) -> BlockTreeEntrySequence:
+        return BlockTreeEntrySequence(self)
 
     def __len__(self) -> int:
         # height is zero-based indexed
         return self.height + 1
+
+    def __repr__(self) -> str:
+        return f"<Chain height={self.height}>"
 
 
 class MapBase:
@@ -102,18 +108,18 @@ class MapBase:
         self._chainman = chainman
 
 
-class BlockIndexMap(MapBase):
-    def __getitem__(self, key: BlockHash) -> BlockIndex:
+class BlockTreeEntryMap(MapBase):
+    def __getitem__(self, key: BlockHash) -> BlockTreeEntry:
         entry = k.btck_chainstate_manager_get_block_tree_entry_by_hash(
             self._chainman, key
         )
         if not entry:
-            raise KeyError(f"{key.hex} not found")
-        return BlockIndex._from_view(entry)
+            raise KeyError(f"{key} not found")
+        return BlockTreeEntry._from_view(entry)
 
 
 class BlockMap(MapBase):
-    def __getitem__(self, key: BlockIndex) -> Block:
+    def __getitem__(self, key: BlockTreeEntry) -> Block:
         entry = k.btck_block_read(self._chainman, key)
         if not entry:
             raise RuntimeError(f"Error reading Block for {key} from disk")
@@ -121,7 +127,7 @@ class BlockMap(MapBase):
 
 
 class BlockSpentOutputsMap(MapBase):
-    def __getitem__(self, key: BlockIndex) -> BlockSpentOutputs:
+    def __getitem__(self, key: BlockTreeEntry) -> BlockSpentOutputs:
         if key.height == 0:
             raise KeyError("Genesis block does not have BlockSpentOutputs data")
 
@@ -132,6 +138,9 @@ class BlockSpentOutputsMap(MapBase):
 
 
 class ChainstateManager(KernelOpaquePtr):
+    _create_fn = k.btck_chainstate_manager_create
+    _destroy_fn = k.btck_chainstate_manager_destroy
+
     def __init__(
         self,
         chain_man_opts: ChainstateManagerOptions,
@@ -139,8 +148,8 @@ class ChainstateManager(KernelOpaquePtr):
         super().__init__(chain_man_opts)
 
     @property
-    def block_indexes(self) -> BlockIndexMap:
-        return BlockIndexMap(self)
+    def block_tree_entries(self) -> BlockTreeEntryMap:
+        return BlockTreeEntryMap(self)
 
     def get_active_chain(self) -> Chain:
         return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self))
@@ -175,3 +184,6 @@ class ChainstateManager(KernelOpaquePtr):
     @property
     def block_spent_outputs(self) -> BlockSpentOutputsMap:
         return BlockSpentOutputsMap(self)
+
+    def __repr__(self) -> str:
+        return f"<ChainstateManager at {hex(id(self))}>"

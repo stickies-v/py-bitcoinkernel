@@ -8,6 +8,9 @@ from pbk.writer import ByteWriter
 
 
 class BlockHash(KernelOpaquePtr):
+    _create_fn = k.btck_block_hash_create
+    _destroy_fn = k.btck_block_hash_destroy
+
     def __init__(self, block_hash: bytes):
         if len(block_hash) != 32:
             raise ValueError(
@@ -16,28 +19,28 @@ class BlockHash(KernelOpaquePtr):
         hash_array = (ctypes.c_ubyte * 32).from_buffer_copy(block_hash)
         super().__init__(hash_array)
 
-    @property
-    def bytes(self) -> bytes:
+    def __bytes__(self) -> bytes:
         hash_array = (ctypes.c_ubyte * 32)()
         k.btck_block_hash_to_bytes(self, hash_array)
         return bytes(hash_array)
 
-    @property
-    def hex(self) -> str:
-        return self.bytes.hex()
+    def __str__(self) -> str:
+        # bytes are serialized in little-endian byte order, typically displayed in big-endian byte order
+        return bytes(self)[::-1].hex()
 
     def __eq__(self, other):
         if isinstance(other, BlockHash):
             return bool(k.btck_block_hash_equals(self, other))
         return False
 
+    def __hash__(self) -> int:
+        return hash(bytes(self))
 
-class BlockIndex(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError(  # pragma: no cover
-            "BlockIndex needs to be constructed via its `from_*` factory methods"
-        )
+    def __repr__(self) -> str:
+        return f"BlockHash({bytes(self)!r})"
 
+
+class BlockTreeEntry(KernelOpaquePtr):
     @property
     def block_hash(self) -> BlockHash:
         return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self))
@@ -46,13 +49,20 @@ class BlockIndex(KernelOpaquePtr):
     def height(self) -> int:
         return k.btck_block_tree_entry_get_height(self)
 
+    @property
+    def previous(self) -> "BlockTreeEntry":
+        return BlockTreeEntry._from_view(k.btck_block_tree_entry_get_previous(self))
+
     def __eq__(self, other):
-        if isinstance(other, BlockIndex):
+        if isinstance(other, BlockTreeEntry):
             return self.height == other.height and self.block_hash == other.block_hash
         return False
 
-    def __repr__(self):  # pragma: no cover
-        return f"BlockIndex(height={self.height}, hash={self.block_hash.hex})"
+    def __hash__(self):
+        return hash((self.height, bytes(self.block_hash)))
+
+    def __repr__(self) -> str:
+        return f"<BlockTreeEntry height={self.height} hash={str(self.block_hash)}>"
 
 
 class TransactionSequence(LazySequence[Transaction]):
@@ -71,15 +81,17 @@ class TransactionSequence(LazySequence[Transaction]):
 
 
 class Block(KernelOpaquePtr):
+    _create_fn = k.btck_block_create
+    _destroy_fn = k.btck_block_destroy
+
     def __init__(self, raw_block: bytes):
         super().__init__((ctypes.c_ubyte * len(raw_block))(*raw_block), len(raw_block))
 
     @property
-    def hash(self) -> BlockHash:
+    def block_hash(self) -> BlockHash:
         return BlockHash._from_handle(k.btck_block_get_hash(self))
 
-    @property
-    def data(self) -> bytes:
+    def __bytes__(self) -> bytes:
         writer = ByteWriter()
         return writer.write(k.btck_block_to_bytes, self)
 
@@ -91,6 +103,9 @@ class Block(KernelOpaquePtr):
     @property
     def transactions(self) -> TransactionSequence:
         return TransactionSequence(self)
+
+    def __repr__(self) -> str:
+        return f"<Block hash={str(self.block_hash)} txs={len(self.transactions)}>"
 
 
 class TransactionSpentOutputsSequence(LazySequence[TransactionSpentOutputs]):
@@ -112,10 +127,8 @@ class TransactionSpentOutputsSequence(LazySequence[TransactionSpentOutputs]):
 
 
 class BlockSpentOutputs(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError(
-            "BlockSpentOutputs cannot be constructed directly"
-        )  # pragma: no cover
+    # Non-instantiable but can own pointers when read from disk
+    _destroy_fn = k.btck_block_spent_outputs_destroy
 
     def _get_transaction_spent_outputs_at(self, index: int) -> TransactionSpentOutputs:
         ptr = k.btck_block_spent_outputs_get_transaction_spent_outputs_at(self, index)
@@ -124,3 +137,6 @@ class BlockSpentOutputs(KernelOpaquePtr):
     @property
     def transactions(self) -> TransactionSpentOutputsSequence:
         return TransactionSpentOutputsSequence(self)
+
+    def __repr__(self) -> str:
+        return f"<BlockSpentOutputs txs={len(self.transactions)}>"

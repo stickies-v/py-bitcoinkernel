@@ -134,6 +134,9 @@ class LoggingConnection(KernelOpaquePtr):
     ```
     """
 
+    _create_fn = k.btck_logging_connection_create
+    _destroy_fn = k.btck_logging_connection_destroy
+
     def __init__(self, cb: typing.Callable[[str], None], user_data=None):
         if not is_valid_log_callback(cb):
             raise TypeError(

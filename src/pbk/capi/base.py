@@ -1,10 +1,5 @@
 import ctypes
-
-import pbk.capi.bindings
-
-
-def camel_to_snake(s):
-    return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
+import typing
 
 
 class KernelOpaquePtr:
@@ -13,17 +8,20 @@ class KernelOpaquePtr:
     _parent = (
         None  # Parent object that must be kept alive for the lifetime of this object
     )
+    _create_fn: typing.Callable | None = None  # If None, cannot be created directly
+    _destroy_fn: typing.Callable | None = (
+        None  # If None, cannot be destroyed. Should only be used for view-only classes.
+    )
 
     def __init__(self, *args, **kwargs):
-        self._as_parameter_ = self._create(*args, **kwargs)
+        if self._create_fn is None:
+            raise TypeError(
+                f"{self.__class__.__name__} cannot be instantiated directly. "
+            )
+        self._as_parameter_ = self._create_fn(*args, **kwargs)
         if not self._as_parameter_:
             raise RuntimeError(f"Failed to create {self.__class__.__name__}")
         self._owns_ptr = True
-
-    @property
-    def contents(self):
-        assert self._as_parameter_
-        return self._as_parameter_.contents  # type: ignore
 
     @classmethod
     def _from_handle(cls, ptr):
@@ -54,7 +52,13 @@ class KernelOpaquePtr:
         # In theory, this is not thread-safe. In practice, this should
         # never be reached from multiple threads.
         if self._as_parameter_ and self._owns_ptr:
-            self._destroy()
+            if not self._destroy_fn:
+                raise RuntimeError(
+                    f"{self.__class__.__name__} owns pointer but has no _destroy_fn set. "
+                    "This is a library error that will leak memory. Please report the issue at "
+                    "https://github.com/stickies-v/py-bitcoinkernel/issues."
+                )
+            self._destroy_fn(self)
             self._as_parameter_ = None  # type: ignore
 
     def __enter__(self):
@@ -62,21 +66,3 @@ class KernelOpaquePtr:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.__del__()
-
-    @property
-    def btck_name(self):
-        snake_name = camel_to_snake(type(self).__name__)
-        return f"btck_{snake_name}"
-
-    def _auto_btck_fn(self, suffix: str, *args, **kwargs):
-        fn_name = f"{self.btck_name}_{suffix}"
-        if hasattr(pbk.capi.bindings, fn_name):
-            return getattr(pbk.capi.bindings, fn_name)(*args, **kwargs)
-
-        raise NotImplementedError(f"'{fn_name}' does not exists")
-
-    def _create(self, *args, **kwargs):
-        return self._auto_btck_fn("create", *args, **kwargs)
-
-    def _destroy(self):
-        self._auto_btck_fn("destroy", self)

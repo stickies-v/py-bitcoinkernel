@@ -18,7 +18,7 @@ First, we'll create a ChainstateManager and load the current chain tip:
 ```py
 import pbk
 chainman = pbk.load_chainman("/tmp/bitcoin/signet/", pbk.ChainType.SIGNET)
-tip = chainman.get_block_index_from_tip()
+tip = chainman.get_active_chain().block_tree_entries[-1]
 ```
 
 ## Inspecting Block Data
@@ -28,11 +28,11 @@ To analyze the block, we can use the `python-bitcoinlib` `CBlock` class:
 ```py
 from bitcoin.core import CBlock
 
-block_bytes = chainman.blocks[tip].data
+block_bytes = bytes(chainman.blocks[tip])
 cblock = CBlock.deserialize(block_bytes)
 
-assert tip.block_hash.hex == cblock.GetHash().hex()
-print(f"Block {cblock.GetHash().hex()} has {len(cblock.vtx)} transactions and {cblock.GetWeight()} weight")
+assert tip.block_hash == cblock.GetHash()
+print(f"Block {cblock.GetHash()} has {len(cblock.vtx)} transactions and {cblock.GetWeight()} weight")
 print(f"The last transaction has witness data: {cblock.vtx[-1].wit.vtxinwit}")
 ```
 
@@ -45,7 +45,7 @@ from pprint import pprint
 undo = chainman.block_spent_outputs[tip]
 result = {}
 for i, tx in enumerate(undo.transactions):
-    result[i] = [CScript(coin.output.script_pubkey.data) for coin in tx.coins]
+    result[i] = [CScript(bytes(coin.output.script_pubkey)) for coin in tx.coins]
 print(f"Block {tip.height} has transactions spending the following previous outputs:")
 pprint(result)
 ```

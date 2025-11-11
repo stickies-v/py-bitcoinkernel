@@ -1,5 +1,6 @@
-from pbk.block import Block, BlockHash, BlockIndex, BlockSpentOutputs
+from pbk.block import Block, BlockHash, BlockTreeEntry, BlockSpentOutputs
 from pbk.chain import (
+    Chain,
     ChainParameters,
     ChainstateManager,
     ChainstateManagerOptions,
@@ -25,6 +26,7 @@ from pbk.script import (
     verify_script,
 )
 from pbk.transaction import (
+    Coin,
     Transaction,
     TransactionInput,
     TransactionOutput,
@@ -36,15 +38,17 @@ from pbk.validation import BlockValidationResult, BlockValidationState, Validati
 
 __all__ = [
     "BlockHash",
-    "BlockIndex",
+    "BlockTreeEntry",
     "Block",
     "BlockSpentOutputs",
     "BlockValidationResult",
     "BlockValidationState",
+    "Chain",
     "ChainParameters",
     "ChainstateManager",
     "ChainstateManagerOptions",
     "ChainType",
+    "Coin",
     "Context",
     "ContextOptions",
     "KernelLogViewer",

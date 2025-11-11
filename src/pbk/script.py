@@ -59,13 +59,23 @@ class ScriptVerifyException(KernelException):
 
 
 class ScriptPubkey(KernelOpaquePtr):
+    _create_fn = k.btck_script_pubkey_create
+    _destroy_fn = k.btck_script_pubkey_destroy
+
     def __init__(self, data: bytes):
         super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
 
-    @property
-    def data(self) -> bytes:
+    def __bytes__(self) -> bytes:
         writer = ByteWriter()
         return writer.write(k.btck_script_pubkey_to_bytes, self)
+
+    def __repr__(self) -> str:
+        hex_str = str(self)
+        preview = hex_str[:32] + "..." if len(hex_str) > 32 else hex_str
+        return f"<ScriptPubkey len={len(bytes(self))} hex={preview}>"
+
+    def __str__(self) -> str:
+        return bytes(self).hex()
 
 
 def verify_script(

@@ -12,6 +12,11 @@ def test_chain_type():
 def test_chainstate_manager_options(temp_dir: Path):
     opts = pbk.ContextOptions()
     context = pbk.Context(opts)
+
+    # Test Context __repr__
+    assert repr(context).startswith("<Context at 0x")
+    assert repr(context).endswith(">")
+
     chain_man_opts = pbk.ChainstateManagerOptions(
         context, str(temp_dir), str(temp_dir / "blocks")
     )
@@ -41,9 +46,9 @@ def test_chainstate_manager_options(temp_dir: Path):
 def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
-    genesis = chain.block_indexes[0]
+    genesis = chain.block_tree_entries[0]
 
-    assert chain_man.block_indexes[genesis.block_hash] == genesis
+    assert chain_man.block_tree_entries[genesis.block_hash] == genesis
     assert chain_man.import_blocks([]) == 0  # TODO: implement actual test
 
 
@@ -52,27 +57,34 @@ def test_chain(chainman_regtest: pbk.ChainstateManager):
     chain = chain_man.get_active_chain()
 
     assert chain.height == 206
-    assert chain.height + 1 == len(chain.block_indexes)
+    assert chain.height + 1 == len(chain.block_tree_entries)
 
-    tip = chain.block_indexes[-1]
+    tip = chain.block_tree_entries[-1]
     assert tip.height == chain.height
-    assert len(chain.block_indexes) == chain.height + 1
-    previous = chain.block_indexes[tip.height - 1]
-    assert isinstance(previous, pbk.BlockIndex)
+    assert len(chain.block_tree_entries) == chain.height + 1
+    previous = chain.block_tree_entries[tip.height - 1]
+    assert isinstance(previous, pbk.BlockTreeEntry)
     assert previous.height == tip.height - 1
+
+    # Test Chain __repr__
+    assert repr(chain) == "<Chain height=206>"
+
+    # Test ChainstateManager __repr__
+    assert repr(chain_man).startswith("<ChainstateManager at 0x")
+    assert repr(chain_man).endswith(">")
 
 
 def test_read_block(chainman_regtest: pbk.ChainstateManager):
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
-    chain_tip = chain.block_indexes[-1]
+    chain_tip = chain.block_tree_entries[-1]
 
     block_tip = chain_man.blocks[chain_tip]
-    assert block_tip.hash == chain_tip.block_hash
-    copied_block = pbk.Block(block_tip.data)
-    assert copied_block.hash == block_tip.hash
+    assert block_tip.block_hash == chain_tip.block_hash
+    copied_block = pbk.Block(bytes(block_tip))
+    assert copied_block.block_hash == block_tip.block_hash
 
     with pytest.raises(
         KeyError, match="Genesis block does not have BlockSpentOutputs data"
     ):
-        chain_man.block_spent_outputs[chain.block_indexes[0]]
+        chain_man.block_spent_outputs[chain.block_tree_entries[0]]
