@@ -22,6 +22,9 @@ class Txid(KernelOpaquePtr):
             return False
         return bool(k.btck_txid_equals(self, other))
 
+    def __hash__(self) -> int:
+        return hash(bytes(self))
+
     def __str__(self) -> str:
         # bytes are serialized in little-endian byte order, typically displayed in big-endian byte order
         return bytes(self)[::-1].hex()

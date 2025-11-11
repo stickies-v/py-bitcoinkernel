@@ -30,6 +30,9 @@ class BlockHash(KernelOpaquePtr):
             return bool(k.btck_block_hash_equals(self, other))
         return False
 
+    def __hash__(self) -> int:
+        return hash(bytes(self))
+
 
 class BlockIndex(KernelOpaquePtr):
     def __init__(self, *args, **kwargs):
@@ -49,6 +52,9 @@ class BlockIndex(KernelOpaquePtr):
         if isinstance(other, BlockIndex):
             return self.height == other.height and self.block_hash == other.block_hash
         return False
+
+    def __hash__(self):
+        return hash((self.height, bytes(self.block_hash)))
 
     def __repr__(self):  # pragma: no cover
         return f"BlockIndex(height={self.height}, hash={self.block_hash})"
