@@ -23,9 +23,6 @@ class BlockValidationResult(IntEnum):
 
 
 class BlockValidationState(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     @property
     def validation_mode(self) -> ValidationMode:
         return k.btck_block_validation_state_get_validation_mode(self)

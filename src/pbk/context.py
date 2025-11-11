@@ -10,6 +10,9 @@ if typing.TYPE_CHECKING:
 
 
 class ContextOptions(KernelOpaquePtr):
+    _create_fn = k.btck_context_options_create
+    _destroy_fn = k.btck_context_options_destroy
+
     def set_chainparams(self, chain_parameters: "ChainParameters"):
         k.btck_context_options_set_chainparams(self, chain_parameters)
 
@@ -23,6 +26,9 @@ class ContextOptions(KernelOpaquePtr):
 
 
 class Context(KernelOpaquePtr):
+    _create_fn = k.btck_context_create
+    _destroy_fn = k.btck_context_destroy
+
     def __init__(self, options: ContextOptions):
         super().__init__(options)
 

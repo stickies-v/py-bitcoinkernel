@@ -23,11 +23,17 @@ class ChainType(IntEnum):
 
 
 class ChainParameters(KernelOpaquePtr):
+    _create_fn = k.btck_chain_parameters_create
+    _destroy_fn = k.btck_chain_parameters_destroy
+
     def __init__(self, chain_type: ChainType):
         super().__init__(chain_type)
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
+    _create_fn = k.btck_chainstate_manager_options_create
+    _destroy_fn = k.btck_chainstate_manager_options_destroy
+
     def __init__(self, context: "Context", datadir: str, blocks_dir: str):
         datadir_bytes = datadir.encode("utf-8")
         blocksdir_bytes = blocks_dir.encode("utf-8")
@@ -77,9 +83,6 @@ class BlockIndexSequence(LazySequence[BlockIndex]):
 
 
 class Chain(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     @property
     def height(self) -> int:
         """Zero-based indexed height of the chain tip"""
@@ -135,6 +138,9 @@ class BlockSpentOutputsMap(MapBase):
 
 
 class ChainstateManager(KernelOpaquePtr):
+    _create_fn = k.btck_chainstate_manager_create
+    _destroy_fn = k.btck_chainstate_manager_destroy
+
     def __init__(
         self,
         chain_man_opts: ChainstateManagerOptions,

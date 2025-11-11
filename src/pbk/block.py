@@ -8,6 +8,9 @@ from pbk.writer import ByteWriter
 
 
 class BlockHash(KernelOpaquePtr):
+    _create_fn = k.btck_block_hash_create
+    _destroy_fn = k.btck_block_hash_destroy
+
     def __init__(self, block_hash: bytes):
         if len(block_hash) != 32:
             raise ValueError(
@@ -38,11 +41,6 @@ class BlockHash(KernelOpaquePtr):
 
 
 class BlockIndex(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError(  # pragma: no cover
-            "BlockIndex needs to be constructed via its `from_*` factory methods"
-        )
-
     @property
     def block_hash(self) -> BlockHash:
         return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self))
@@ -83,6 +81,9 @@ class TransactionSequence(LazySequence[Transaction]):
 
 
 class Block(KernelOpaquePtr):
+    _create_fn = k.btck_block_create
+    _destroy_fn = k.btck_block_destroy
+
     def __init__(self, raw_block: bytes):
         super().__init__((ctypes.c_ubyte * len(raw_block))(*raw_block), len(raw_block))
 
@@ -126,10 +127,8 @@ class TransactionSpentOutputsSequence(LazySequence[TransactionSpentOutputs]):
 
 
 class BlockSpentOutputs(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError(
-            "BlockSpentOutputs cannot be constructed directly"
-        )  # pragma: no cover
+    # Non-instantiable but can own pointers when read from disk
+    _destroy_fn = k.btck_block_spent_outputs_destroy
 
     def _get_transaction_spent_outputs_at(self, index: int) -> TransactionSpentOutputs:
         ptr = k.btck_block_spent_outputs_get_transaction_spent_outputs_at(self, index)

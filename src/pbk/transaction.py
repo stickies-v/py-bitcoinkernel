@@ -9,9 +9,6 @@ from pbk.writer import ByteWriter
 
 
 class Txid(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     def __bytes__(self) -> bytes:
         hash_array = (ctypes.c_ubyte * 32)()
         k.btck_txid_to_bytes(self, hash_array)
@@ -35,9 +32,6 @@ class Txid(KernelOpaquePtr):
 
 
 class TransactionOutPoint(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     @property
     def index(self) -> int:
         return k.btck_transaction_out_point_get_index(self)
@@ -51,9 +45,6 @@ class TransactionOutPoint(KernelOpaquePtr):
 
 
 class TransactionInput(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     @property
     def out_point(self) -> TransactionOutPoint:
         return TransactionOutPoint._from_view(
@@ -65,6 +56,9 @@ class TransactionInput(KernelOpaquePtr):
 
 
 class TransactionOutput(KernelOpaquePtr):
+    _create_fn = k.btck_transaction_output_create
+    _destroy_fn = k.btck_transaction_output_destroy
+
     def __init__(self, script_pubkey: "ScriptPubkey", amount: int):
         super().__init__(script_pubkey, amount)
 
@@ -113,6 +107,9 @@ class TransactionOutputSequence(LazySequence[TransactionOutput]):
 
 
 class Transaction(KernelOpaquePtr):
+    _create_fn = k.btck_transaction_create
+    _destroy_fn = k.btck_transaction_destroy
+
     def __init__(self, data: bytes):
         super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
 
@@ -147,9 +144,6 @@ class Transaction(KernelOpaquePtr):
 
 
 class Coin(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     @property
     def confirmation_height(self) -> int:
         return k.btck_coin_confirmation_height(self)
@@ -186,9 +180,6 @@ class CoinSequence(LazySequence[Coin]):
 
 
 class TransactionSpentOutputs(KernelOpaquePtr):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError()
-
     def _get_coin_at(self, index: int) -> Coin:
         ptr = k.btck_transaction_spent_outputs_get_coin_at(self, index)
         return Coin._from_view(ptr, self)

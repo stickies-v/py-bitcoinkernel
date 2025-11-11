@@ -59,6 +59,9 @@ class ScriptVerifyException(KernelException):
 
 
 class ScriptPubkey(KernelOpaquePtr):
+    _create_fn = k.btck_script_pubkey_create
+    _destroy_fn = k.btck_script_pubkey_destroy
+
     def __init__(self, data: bytes):
         super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
 
