@@ -140,7 +140,7 @@ class Coin(KernelOpaquePtr):
 
     @property
     def is_coinbase(self) -> bool:
-        res = k.btck_coin_is_coinbase()
+        res = k.btck_coin_is_coinbase(self)
         assert res in [0, 1]
         return bool(res)
 
