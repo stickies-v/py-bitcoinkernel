@@ -7,9 +7,9 @@ bytes, such as [`Block`](#inspecting-block-data) (`kernel_Block`) and
 [`TransactionOutput`](#inspecting-transactionoutput-data)
 (`kernel_TransactionOutput`).
 
-> [!NOTE]
-> The `python-bitcoinlib` library is unrelated to this project, and
-> information here is provided only on a best-effort basis.
+!!! note
+    The `python-bitcoinlib` library is unrelated to this project, and
+    information here is provided only on a best-effort basis.
 
 ## Setup
 

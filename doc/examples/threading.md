@@ -1,8 +1,8 @@
 # Threading
 
-> [!NOTE]
-> See also [doc/concurrency.md](../concurrency.md) for more information
-> on multithreading.
+!!! note
+    See also [concurrency](../concurrency.md) for more information
+    on multithreading.
 
 You can use a ThreadPoolExecutor to speed up slow, I/O-heavy operations
 such as reading a block from disk.

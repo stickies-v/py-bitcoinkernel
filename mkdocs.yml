@@ -1,0 +1,86 @@
+site_name: py-bitcoinkernel
+site_description: A Python wrapper for libbitcoinkernel
+site_author: Stephan Vuylsteke
+site_url: https://stickies-v.github.io/py-bitcoinkernel/
+repo_url: https://github.com/stickies-v/py-bitcoinkernel
+repo_name: stickies-v/py-bitcoinkernel
+edit_uri: edit/main/doc/
+docs_dir: doc
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_section_style: spacy
+            docstring_style: google
+            members_order: alphabetical
+            merge_init_into_class: false
+            separate_signature: true
+            show_if_no_docstring: true
+            show_root_full_path: false
+            show_root_heading: true
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+
+nav:
+  - Getting Started:
+    - Overview: index.md
+    - Installation: install.md
+  - API Reference:
+    - Block: api/block.md
+    - Chain: api/chain.md
+    - Context: api/context.md
+    - Exception: api/exception.md
+    - Logging: api/logging.md
+    - Script: api/script.md
+    - Transaction: api/transaction.md
+    - Validation: api/validation.md
+  - Examples:
+    - examples/index.md
+    - Logging: examples/logging.md
+    - Python-bitcoinlib: examples/python-bitcoinlib.md
+    - Threading: examples/threading.md
+  - Concurrency: concurrency.md
+  - Developer Notes: developer-notes.md
