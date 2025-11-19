@@ -5,7 +5,15 @@ import pbk.util.callbacks
 
 
 class NotificationInterfaceCallbacks(k.btck_NotificationInterfaceCallbacks):
+    """Callbacks for receiving kernel notification events."""
+
     def __init__(self, user_data=None, **callbacks):
+        """Create notification interface callbacks.
+
+        Args:
+            user_data: Optional user-defined data passed to all callbacks.
+            **callbacks: Callback functions for notification events.
+        """
         super().__init__()
         pbk.util.callbacks._initialize_callbacks(self, user_data, **callbacks)
 

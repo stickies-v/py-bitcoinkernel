@@ -47,10 +47,14 @@ class LazySequence(collections.abc.Sequence, typing.Generic[T], abc.ABC):
         raise NotImplementedError
 
     @typing.overload
-    def __getitem__(self, index: int) -> T: ...
+    def __getitem__(self, index: int) -> T:
+        """Get item at integer index."""
+        ...
 
     @typing.overload
-    def __getitem__(self, index: slice) -> "typing.Sequence[T]": ...
+    def __getitem__(self, index: slice) -> "typing.Sequence[T]":
+        """Get items at slice indices."""
+        ...
 
     def __getitem__(self, index: int | slice) -> "T | typing.Sequence[T]":
         """Get item(s) at index. Supports negative indexing and slicing."""
@@ -66,4 +70,5 @@ class LazySequence(collections.abc.Sequence, typing.Generic[T], abc.ABC):
         return self._get_item(index)
 
     def __repr__(self) -> str:
+        """Return a string representation of the sequence."""
         return f"<{self.__class__.__name__} len={len(self)}>"
