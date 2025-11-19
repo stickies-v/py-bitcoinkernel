@@ -21,6 +21,6 @@ def chainman_regtest(temp_dir):
 
     with (Path(__file__).parent / "data" / "regtest" / "blocks.txt").open("r") as file:
         for line in file.readlines():
-            chain_man.process_block(pbk.Block(bytes.fromhex(line)), True)
+            assert chain_man.process_block(pbk.Block(bytes.fromhex(line)))
 
     return chain_man

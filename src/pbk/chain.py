@@ -6,6 +6,7 @@ from pathlib import Path
 import pbk.capi.bindings as k
 from pbk.block import Block, BlockHash, BlockTreeEntry, BlockSpentOutputs
 from pbk.capi import KernelOpaquePtr
+from pbk.util.exc import ProcessBlockException
 from pbk.util.sequence import LazySequence
 
 if typing.TYPE_CHECKING:
@@ -171,11 +172,30 @@ class ChainstateManager(KernelOpaquePtr):
             len(paths),
         )
 
-    def process_block(self, block: Block, new_block: int | None) -> bool:
-        new_block_ptr = (
-            ctypes.pointer(ctypes.c_int(new_block)) if new_block is not None else None
+    def process_block(self, block: Block) -> bool:
+        """Process and validate the passed in block with the chainstate manager.
+
+        Processing first does checks on the block, and if these passed, saves it to disk.
+        It then validates the block against the utxo set. If it is valid, the chain is
+        extended with it.
+
+        Args:
+            block: The block to process.
+
+        Returns:
+            True if the block was not processed and saved to disk before, False otherwise.
+
+        Raises:
+            ProcessBlockException: If processing the block failed. Duplicate blocks do not throw.
+        """
+        is_new_block = ctypes.c_int()
+        result = k.btck_chainstate_manager_process_block(
+            self, block, ctypes.pointer(is_new_block)
         )
-        return k.btck_chainstate_manager_process_block(self, block, new_block_ptr)
+        if result != 0:
+            raise ProcessBlockException(result)
+        assert is_new_block.value in [0, 1]
+        return bool(is_new_block.value)
 
     @property
     def blocks(self) -> BlockMap:

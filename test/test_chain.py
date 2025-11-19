@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pbk
 import pytest
+from pbk.util.exc import ProcessBlockException
 
 
 def test_chain_type():
@@ -50,6 +51,28 @@ def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
 
     assert chain_man.block_tree_entries[genesis.block_hash] == genesis
     assert chain_man.import_blocks([]) == 0  # TODO: implement actual test
+
+
+def test_process_block(temp_dir: Path):
+    chain_man = pbk.load_chainman(temp_dir, pbk.ChainType.REGTEST)
+
+    blocks_path = Path(__file__).parent / "data" / "regtest" / "blocks.txt"
+    with open(blocks_path, "r") as f:
+        block_1 = pbk.Block(bytes.fromhex(f.readline()))
+
+    # It should be a new block
+    assert chain_man.process_block(block_1) is True
+
+    # Process the same block again, not a new block anymore
+    assert chain_man.process_block(block_1) is False
+
+    # Create a corrupted block by modifying the raw bytes. Flip a bit in the merkle root
+    corrupted_raw = bytearray(bytes(block_1))
+    corrupted_raw[40] ^= 0xFF  # Flip bits in merkle root
+    corrupted_block = pbk.Block(bytes(corrupted_raw))
+
+    with pytest.raises(ProcessBlockException):
+        chain_man.process_block(corrupted_block)
 
 
 def test_chain(chainman_regtest: pbk.ChainstateManager):

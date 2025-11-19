@@ -138,7 +138,7 @@ import blocks from disk first:
 with open("raw_blocks.txt", "r") as file:
     for line in file.readlines():
         block = pbk.Block(bytes.fromhex(line))
-        chainman.process_block(block, new_block=True)
+        chainman.process_block(block)
 ```
 
 ### Common operations
