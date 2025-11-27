@@ -13,27 +13,23 @@ if typing.TYPE_CHECKING:
 
 # TODO: add enum auto-generation or testing to ensure it remains in
 # sync with bitcoinkernel.h
-class ScriptFlags(IntEnum):
-    VERIFY_NONE = 0  # btck_ScriptVerificationFlags_NONE
-    VERIFY_P2SH = 1 << 0  # btck_ScriptVerificationFlags_P2SH
-    VERIFY_DERSIG = 1 << 2  # btck_ScriptVerificationFlags_DERSIG
-    VERIFY_NULLDUMMY = 1 << 4  # btck_ScriptVerificationFlags_NULLDUMMY
-    VERIFY_CHECKLOCKTIMEVERIFY = (
-        1 << 9
-    )  # btck_ScriptVerificationFlags_CHECKLOCKTIMEVERIFY
-    VERIFY_CHECKSEQUENCEVERIFY = (
-        1 << 10
-    )  # btck_ScriptVerificationFlags_CHECKSEQUENCEVERIFY
-    VERIFY_WITNESS = 1 << 11  # btck_ScriptVerificationFlags_WITNESS
-    VERIFY_TAPROOT = 1 << 17  # btck_ScriptVerificationFlags_TAPROOT
-    VERIFY_ALL = (
-        VERIFY_P2SH
-        | VERIFY_DERSIG
-        | VERIFY_NULLDUMMY
-        | VERIFY_CHECKLOCKTIMEVERIFY
-        | VERIFY_CHECKSEQUENCEVERIFY
-        | VERIFY_WITNESS
-        | VERIFY_TAPROOT
+class ScriptVerificationFlags(IntEnum):
+    NONE = 0  # btck_ScriptVerificationFlags_NONE
+    P2SH = 1 << 0  # btck_ScriptVerificationFlags_P2SH
+    DERSIG = 1 << 2  # btck_ScriptVerificationFlags_DERSIG
+    NULLDUMMY = 1 << 4  # btck_ScriptVerificationFlags_NULLDUMMY
+    CHECKLOCKTIMEVERIFY = 1 << 9  # btck_ScriptVerificationFlags_CHECKLOCKTIMEVERIFY
+    CHECKSEQUENCEVERIFY = 1 << 10  # btck_ScriptVerificationFlags_CHECKSEQUENCEVERIFY
+    WITNESS = 1 << 11  # btck_ScriptVerificationFlags_WITNESS
+    TAPROOT = 1 << 17  # btck_ScriptVerificationFlags_TAPROOT
+    ALL = (
+        P2SH
+        | DERSIG
+        | NULLDUMMY
+        | CHECKLOCKTIMEVERIFY
+        | CHECKSEQUENCEVERIFY
+        | WITNESS
+        | TAPROOT
     )  # btck_ScriptVerificationFlags_ALL
 
 

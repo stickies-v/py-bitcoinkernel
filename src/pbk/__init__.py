@@ -20,7 +20,7 @@ from pbk.log import (
 )
 from pbk.script import (
     ScriptPubkey,
-    ScriptFlags,
+    ScriptVerificationFlags,
     ScriptVerifyException,
     ScriptVerifyStatus,
     verify_script,
@@ -56,8 +56,8 @@ __all__ = [
     "LogLevel",
     "LoggingConnection",
     "LoggingOptions",
-    "ScriptFlags",
     "ScriptPubkey",
+    "ScriptVerificationFlags",
     "ScriptVerifyException",
     "ScriptVerifyStatus",
     "Transaction",
