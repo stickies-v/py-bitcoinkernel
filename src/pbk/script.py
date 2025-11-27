@@ -38,10 +38,10 @@ class ScriptVerificationFlags(IntEnum):
 class ScriptVerifyStatus(IntEnum):
     OK = 0  # btck_ScriptVerifyStatus_SCRIPT_VERIFY_OK
     ERROR_INVALID_FLAGS_COMBINATION = (
-        2  # btck_ScriptVerifyStatus_ERROR_INVALID_FLAGS_COMBINATION
+        1  # btck_ScriptVerifyStatus_ERROR_INVALID_FLAGS_COMBINATION
     )
     ERROR_SPENT_OUTPUTS_REQUIRED = (
-        3  # btck_ScriptVerifyStatus_ERROR_SPENT_OUTPUTS_REQUIRED
+        2  # btck_ScriptVerifyStatus_ERROR_SPENT_OUTPUTS_REQUIRED
     )
     INVALID = -1
 
