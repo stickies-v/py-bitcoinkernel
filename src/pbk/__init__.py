@@ -23,7 +23,6 @@ from pbk.script import (
     ScriptVerificationFlags,
     ScriptVerifyException,
     ScriptVerifyStatus,
-    verify_script,
 )
 from pbk.transaction import (
     Coin,
@@ -71,7 +70,6 @@ __all__ = [
     "enable_log_category",
     "logging_set_options",
     "set_log_level_category",
-    "verify_script",
 ]
 
 from pathlib import Path

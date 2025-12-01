@@ -72,37 +72,36 @@ class ScriptPubkey(KernelOpaquePtr):
     def __str__(self) -> str:
         return bytes(self).hex()
 
-
-def verify_script(
-    script_pubkey: ScriptPubkey,
-    amount: int,
-    tx_to: "Transaction",
-    spent_outputs: list["TransactionOutput"] | None,
-    input_index: int,
-    flags: int,
-) -> bool:
-    spent_outputs_array = (
-        (ctypes.POINTER(k.btck_TransactionOutput) * len(spent_outputs))(
-            *[output._as_parameter_ for output in spent_outputs]
+    def verify(
+        self,
+        amount: int,
+        tx_to: "Transaction",
+        spent_outputs: list["TransactionOutput"] | None,
+        input_index: int,
+        flags: int,
+    ) -> bool:
+        spent_outputs_array = (
+            (ctypes.POINTER(k.btck_TransactionOutput) * len(spent_outputs))(
+                *[output._as_parameter_ for output in spent_outputs]
+            )
+            if spent_outputs
+            else None
         )
-        if spent_outputs
-        else None
-    )
-    spent_outputs_len = len(spent_outputs) if spent_outputs else 0
-    k_status = k.btck_ScriptVerifyStatus(ScriptVerifyStatus.OK)
-    success = k.btck_script_pubkey_verify(
-        script_pubkey,
-        amount,
-        tx_to,
-        spent_outputs_array,
-        spent_outputs_len,
-        ctypes.c_uint32(input_index),
-        ctypes.c_uint32(flags),
-        k_status,
-    )
+        spent_outputs_len = len(spent_outputs) if spent_outputs else 0
+        k_status = k.btck_ScriptVerifyStatus(ScriptVerifyStatus.OK)
+        success = k.btck_script_pubkey_verify(
+            self,
+            amount,
+            tx_to,
+            spent_outputs_array,
+            spent_outputs_len,
+            ctypes.c_uint32(input_index),
+            ctypes.c_uint32(flags),
+            k_status,
+        )
 
-    status = ScriptVerifyStatus(k_status.value)
-    if not success and status != ScriptVerifyStatus.OK:
-        raise ScriptVerifyException(status)
+        status = ScriptVerifyStatus(k_status.value)
+        if not success and status != ScriptVerifyStatus.OK:
+            raise ScriptVerifyException(status)
 
-    return success
+        return success

@@ -9,8 +9,7 @@ def _test_verify_script(
 ) -> bool:
     script_pubkey = pbk.ScriptPubkey(bytes.fromhex(script_pubkey_hex))
     tx_to = pbk.Transaction(bytes.fromhex(tx_to_hex))
-    return pbk.verify_script(
-        script_pubkey,
+    return script_pubkey.verify(
         amount,
         tx_to,
         None,
