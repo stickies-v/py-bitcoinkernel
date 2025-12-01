@@ -20,10 +20,9 @@ from pbk.log import (
 )
 from pbk.script import (
     ScriptPubkey,
-    ScriptFlags,
+    ScriptVerificationFlags,
     ScriptVerifyException,
     ScriptVerifyStatus,
-    verify_script,
 )
 from pbk.transaction import (
     Coin,
@@ -56,8 +55,8 @@ __all__ = [
     "LogLevel",
     "LoggingConnection",
     "LoggingOptions",
-    "ScriptFlags",
     "ScriptPubkey",
+    "ScriptVerificationFlags",
     "ScriptVerifyException",
     "ScriptVerifyStatus",
     "Transaction",
@@ -71,7 +70,6 @@ __all__ = [
     "enable_log_category",
     "logging_set_options",
     "set_log_level_category",
-    "verify_script",
 ]
 
 from pathlib import Path
