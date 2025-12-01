@@ -43,15 +43,14 @@ class ScriptVerifyStatus(IntEnum):
     ERROR_SPENT_OUTPUTS_REQUIRED = (
         2  # btck_ScriptVerifyStatus_ERROR_SPENT_OUTPUTS_REQUIRED
     )
-    INVALID = -1
 
 
 class ScriptVerifyException(KernelException):
-    script_verify_status: ScriptVerifyStatus
+    status: ScriptVerifyStatus
 
     def __init__(self, status: ScriptVerifyStatus):
         super().__init__(f"Script verification failed: {status.name}")
-        self.script_verify_status = status
+        self.status = status
 
 
 class ScriptPubkey(KernelOpaquePtr):
@@ -103,9 +102,7 @@ def verify_script(
     )
 
     status = ScriptVerifyStatus(k_status.value)
-    if not success:
-        if status == ScriptVerifyStatus.OK:  # TODO: remove once INVALID is added
-            status = ScriptVerifyStatus.INVALID
+    if not success and status != ScriptVerifyStatus.OK:
         raise ScriptVerifyException(status)
 
-    return True
+    return success
