@@ -118,7 +118,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22
         env:
-          CIBW_BUILD: "cp310-${{ env.PLATFORM_TAG }} cp311-${{ env.PLATFORM_TAG }} cp312-${{ env.PLATFORM_TAG }} cp313-${{ env.PLATFORM_TAG }}"
+          CIBW_BUILD: "cp310-${{ env.PLATFORM_TAG }} cp311-${{ env.PLATFORM_TAG }} cp312-${{ env.PLATFORM_TAG }} cp313-${{ env.PLATFORM_TAG }} cp314-${{ env.PLATFORM_TAG }}"
           CIBW_ARCHS: "${{ matrix.platform_config.arch }}"
           CIBW_ENVIRONMENT: "BITCOINKERNEL_LIB=build/_libs/*bitcoinkernel*"
           MACOSX_DEPLOYMENT_TARGET: 13.0
