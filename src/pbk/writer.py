@@ -9,6 +9,7 @@ from pbk.util.type import UserData
 def _py_callback(
     c_bytes_ptr: ctypes.c_void_p, size: int, byte_writer_ptr: ctypes.c_void_p
 ):
+    """C callback that receives serialized bytes and appends them to a ByteWriter buffer."""
     byte_writer: typing.Optional["ByteWriter"] = None
     try:
         byte_writer = UserData.from_void_ptr(byte_writer_ptr)
@@ -23,11 +24,15 @@ def _py_callback(
 
 
 class ByteWriter:
+    """Buffer for collecting serialized bytes from C serialization functions."""
+
     def __init__(self):
+        """Create a new byte writer with an empty buffer."""
         self.buffer = bytearray()
         self.exception = None
 
     def write(self, to_bytes_func: typing.Callable, obj: KernelOpaquePtr) -> bytes:
+        """Serialize a kernel object to bytes using the provided C function."""
         self.buffer.clear()
         self.exception = None
 

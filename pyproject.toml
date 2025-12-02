@@ -21,6 +21,20 @@ requires-python=">=3.10"
 test-command = "pytest {project}/test"
 test-extras = ["test"]
 
+[tool.interrogate]
+exclude = ["depend", "test", "src/pbk/capi/bindings.py"]
+ignore-init-module = true
+ignore-module = true
+ignore-nested-functions = true
+ignore-private = true
+ignore-semiprivate = true
+fail-under=100
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+addopts = ["--doctest-modules", "--doctest-continue-on-failure"]
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
+
 [tool.coverage.report]
 exclude_also = [
     "if (?:\\w+\\.)?TYPE_CHECKING:"
@@ -46,4 +60,12 @@ test = [
     "coverage[toml]",
     "pytest>=7.0",
     "pytest-cov",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+]
+docs-test = [
+    "interrogate",
 ]

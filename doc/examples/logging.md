@@ -25,9 +25,10 @@ logging.basicConfig(
 logger = pbk.KernelLogViewer()
 ```
 
-To inspect DEBUG logs, set the appropriate `logging.DEBUG` level and
-initialize `KernelLogViewer` with the categories you want the log output
-for (or `pbk.LogCategory.ALL` to view all DEBUG log output, which is noisy).
+To inspect DEBUG logs, set the appropriate `logging.DEBUG`
+[level][pbk.LogLevel] and initialize `KernelLogViewer` with the
+[categories][pbk.LogCategory] you want the log output for (or
+`pbk.LogCategory.ALL` to view all DEBUG log output, which is noisy).
 
 ```py
 logging.basicConfig(
@@ -61,8 +62,8 @@ with logger.temporary_categories(categories=[pbk.LogCategory.LEVELDB]):
 ## Custom logging
 
 `KernelLogViewer` is a convenience class around the
-`kernel_LoggingConnection`, which allows any callback that takes a
-single string argument.
+[`LoggingConnection`][pbk.LoggingConnection], which allows any callback
+that takes a single string argument.
 
 For example, to implement your own logging with a simple print
 statement:

@@ -5,14 +5,11 @@
 This project uses `pytest` for its test suite. The dependencies are
 defined in `pyproject.toml`, and the test settings are in `pytest.ini`.
 
-To install the project and its test dependencies, run:
+To install the project and its test dependencies in editable, run:
 
 ```sh
-pip install ".[test]"
+pip install -e ".[test]"
 ```
-
-> [!NOTE] This project supports [editable
-> installs](https://setuptools.pypa.io/en/latest/userguide/development_mode.html).
 
 Then, the test suite can be ran with:
 
