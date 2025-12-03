@@ -6,7 +6,7 @@ import threading
 import typing
 from collections.abc import Callable
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import IntEnum
 from pathlib import Path
 
@@ -106,6 +106,118 @@ class LoggingOptions(k.btck_LoggingOptions):
     def _as_parameter_(self):
         """Return the ctypes reference for passing to C functions."""
         return ctypes.byref(self)
+
+
+class SourceLocation:
+    """Source code location information for a log entry.
+
+    Represents the file, function, and line number where a log message
+    originated. All fields are optional and may be None if the information
+    was unavailable or logging of source locations was disabled.
+    """
+
+    def __init__(
+        self,
+        file: str | None = None,
+        func: str | None = None,
+        line: int | None = None,
+    ):
+        """Create a source location.
+
+        Args:
+            file: The source file path, or None if unavailable.
+            func: The function name, or None if unavailable.
+            line: The line number, or None if unavailable.
+        """
+        self.file = file
+        self.func = func
+        self.line = line
+
+    def __str__(self) -> str:
+        """Format the source location as a string.
+
+        Returns a string like "file.cpp:123 (function_name)", omitting
+        parts that are unavailable.
+        """
+        parts = []
+        if self.file:
+            if self.line:
+                parts.append(f"{self.file}:{self.line}")
+            else:
+                parts.append(self.file)
+        elif self.line:
+            parts.append(f":{self.line}")
+
+        if self.func:
+            if parts:
+                parts.append(f"({self.func})")
+            else:
+                parts.append(self.func)
+
+        return " ".join(parts)
+
+    def __repr__(self) -> str:
+        return f"SourceLocation(file={self.file!r}, func={self.func!r}, line={self.line!r})"
+
+
+class LogEntry(k.btck_LogEntry):
+    """A structured log entry from the kernel.
+
+    Provides Pythonic access to log entry fields including message,
+    source location, timestamp, and metadata. This class wraps the
+    C btck_LogEntry structure and converts raw fields to Python types.
+    """
+
+    @property
+    def level(self) -> LogLevel:
+        """The severity level of this log entry."""
+        return LogLevel(super().level)
+
+    @property
+    def category(self) -> LogCategory:
+        """The category this log entry belongs to."""
+        return LogCategory(super().category)
+
+    @property
+    def message(self) -> str:
+        """The log message text."""
+        return ctypes.string_at(super().message, super().message_len).decode("utf-8")
+
+    @property
+    def source_location(self) -> SourceLocation:
+        """The source code location where this log was generated."""
+        file = None
+        if super().source_file:
+            file = ctypes.string_at(
+                super().source_file, super().source_file_len
+            ).decode("utf-8")
+
+        func = None
+        if super().source_func:
+            func = ctypes.string_at(
+                super().source_func, super().source_func_len
+            ).decode("utf-8")
+
+        line = super().source_line if super().source_line != 0 else None
+
+        return SourceLocation(file=file, func=func, line=line)
+
+    @property
+    def timestamp(self) -> datetime:
+        """The timestamp when this log was generated (UTC, timezone-aware)."""
+        return datetime.fromtimestamp(
+            super().timestamp_s + super().timestamp_us / 1_000_000,
+            tz=timezone.utc,
+        )
+
+    @property
+    def thread_name(self) -> str | None:
+        """The name of the thread that generated this log, or None if unavailable."""
+        if not super().thread_name:
+            return None
+        return ctypes.string_at(super().thread_name, super().thread_name_len).decode(
+            "utf-8"
+        )
 
 
 def is_valid_log_callback(fn: typing.Any) -> bool:
