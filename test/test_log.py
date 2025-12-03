@@ -5,16 +5,16 @@ import pbk
 import pbk.log
 
 
-def dummy_fn(msg):
+def dummy_fn(entry):
     pass
 
 
 def test_is_valid_log_callback():
-    assert pbk.log.is_valid_log_callback(lambda msg: print(msg))
+    assert pbk.log.is_valid_log_callback(lambda entry: print(entry.message))
     assert pbk.log.is_valid_log_callback(dummy_fn)
 
     assert not pbk.log.is_valid_log_callback(lambda: print("hello"))
-    assert not pbk.log.is_valid_log_callback(lambda msg, dummy: print(msg))
+    assert not pbk.log.is_valid_log_callback(lambda entry, dummy: print(entry))
 
 
 def test_level_category():

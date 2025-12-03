@@ -48,19 +48,21 @@ class LogLevel(IntEnum):
 
     These levels control the minimum severity of messages that will be logged.
     Setting a level filters out messages below that severity.
-
-    Note:
-        The TRACE level from bitcoinkernel is not exposed, as it is not
-        natively supported by Python's logging library.
     """
 
+    TRACE = 0  #: Trace-level messages (very verbose, typically disabled)
     DEBUG = 1  #: Debug-level messages with detailed information
     INFO = 2  #: Informational messages about normal operations
+    WARNING = 3  #: Warning messages about potential issues
+    ERROR = 4  #: Error messages about failures
 
 
-KERNEL_LEVEL_TO_PYTHON = {  # numeric value
-    LogLevel.INFO: logging.INFO,  # 20
-    LogLevel.DEBUG: logging.DEBUG,  # 10
+KERNEL_LEVEL_TO_PYTHON = {
+    LogLevel.TRACE: logging.DEBUG,  # Map TRACE to DEBUG since Python has no TRACE
+    LogLevel.DEBUG: logging.DEBUG,
+    LogLevel.INFO: logging.INFO,
+    LogLevel.WARNING: logging.WARNING,
+    LogLevel.ERROR: logging.ERROR,
 }
 
 
@@ -314,12 +316,14 @@ class LoggingConnection(KernelOpaquePtr):
     _create_fn = k.btck_logging_connection_create
     _destroy_fn = k.btck_logging_connection_destroy
 
-    def __init__(self, cb: typing.Callable[[str], None], user_data: UserData = None):
+    def __init__(
+        self, cb: typing.Callable[[LogEntry], None], user_data: UserData = None
+    ):
         """Create a logging connection with a callback.
 
         Args:
-            cb: Callback function that accepts a single string parameter
-                (the log message) and returns None.
+            cb: Callback function that accepts a single LogEntry parameter
+                and returns None.
             user_data: Optional user data to associate with the connection.
 
         Raises:
@@ -328,26 +332,28 @@ class LoggingConnection(KernelOpaquePtr):
         """
         if not is_valid_log_callback(cb):
             raise TypeError(
-                "Log callback must be a callable with 1 string parameter and no return value."
+                "Log callback must be a callable with 1 LogEntry parameter and no return value."
             )
         self._cb = self._wrap_log_fn(cb)  # ensure lifetime
         self._user_data = user_data
         super().__init__(self._cb, user_data, k.btck_DestroyCallback())
 
     @staticmethod
-    def _wrap_log_fn(fn: Callable[[str], None]):
+    def _wrap_log_fn(fn: Callable[[LogEntry], None]):
         """Wrap a Python callback for use with the C logging API.
 
         Args:
-            fn: Python callback function accepting a string.
+            fn: Python callback function accepting a LogEntry.
 
         Returns:
             A C-compatible callback function.
         """
 
-        def wrapped(user_data: None, message: bytes, message_len: int):
-            """C callback wrapper that decodes the message and calls the Python function."""
-            return fn(ctypes.string_at(message, message_len).decode("utf-8"))
+        def wrapped(user_data, entry_ptr):
+            """C callback wrapper that converts the entry pointer and calls the Python function."""
+            # Create a LogEntry view at the same memory address as the raw struct
+            entry = LogEntry.from_address(ctypes.addressof(entry_ptr.contents))
+            return fn(entry)
 
         return k.btck_LogCallback(wrapped)
 
@@ -436,48 +442,81 @@ class KernelLogViewer:
     def _create_log_connection(self) -> LoggingConnection:
         """Create the internal logging connection.
 
-        Sets up logging options and creates a connection that parses and
-        forwards kernel messages to Python loggers.
+        Sets up logging options and creates a connection that forwards
+        kernel messages to Python loggers.
 
         Returns:
             A LoggingConnection instance.
         """
-        # TODO: avoid logging stuff the user doesn't need
-        log_opts = LoggingOptions(
-            log_timestamps=True,
-            log_time_micros=False,
-            log_threadnames=True,
-            log_sourcelocations=True,
-            always_print_category_levels=True,
-        )
-        logging_set_options(log_opts)
         conn = LoggingConnection(cb=self._create_log_callback(self.getLogger()))
         return conn
 
     @staticmethod
-    def _create_log_callback(logger: logging.Logger) -> typing.Callable[[str], None]:
-        """Create a callback that parses kernel logs and forwards to Python logger.
+    def _create_log_callback(
+        logger: logging.Logger,
+    ) -> typing.Callable[[LogEntry], None]:
+        """Create a callback that forwards kernel logs to Python logger.
 
         Args:
-            logger: The Python logger to forward parsed messages to.
+            logger: The Python logger to forward messages to.
 
         Returns:
-            A callback function that accepts kernel log messages.
+            A callback function that accepts LogEntry objects.
         """
 
-        def callback(msg: str) -> None:
-            """Parse and forward a kernel log message to the Python logger."""
-            try:
-                record = parse_btck_log_string(logger.name, msg)
-                logger.handle(record)
-            except ValueError:
-                logging.getLogger().error(f"Failed to parse log message: {msg}")
+        def callback(entry: LogEntry) -> None:
+            """Forward a kernel log entry to the Python logger."""
+            record = log_entry_to_record(logger.name, entry)
+            logger.handle(record)
 
         return callback
 
 
+def log_entry_to_record(logger_name: str, entry: LogEntry) -> logging.LogRecord:
+    """Convert a LogEntry to a Python LogRecord.
+
+    Creates a Python LogRecord from a structured LogEntry, mapping kernel
+    log levels and categories to their Python logging equivalents.
+
+    Args:
+        logger_name: Base name for the logger. Category will be appended
+            if not LogCategory.ALL.
+        entry: The structured log entry from the kernel.
+
+    Returns:
+        A LogRecord suitable for handling by Python's logging system.
+    """
+    # Append category to logger name if not ALL
+    name = logger_name
+    if entry.category != LogCategory.ALL:
+        name = f"{logger_name}.{entry.category.name}"
+
+    source = entry.source_location
+    record = logging.makeLogRecord(
+        {
+            "name": name,
+            "levelno": KERNEL_LEVEL_TO_PYTHON.get(entry.level, logging.INFO),
+            "levelname": entry.level.name,
+            "filename": Path(source.file).name if source.file else "",
+            "pathname": source.file or "",
+            "lineno": source.line or 0,
+            "msg": entry.message,
+            "args": (),
+            "exc_info": None,
+            "funcName": source.func or "",
+            "created": entry.timestamp.timestamp(),
+            "threadName": entry.thread_name or "",
+        }
+    )
+    return record
+
+
 def parse_btck_log_string(logger_name: str, log_string: str) -> logging.LogRecord:
-    """Parse a bitcoinkernel log message into a Python LogRecord.
+    """Parse a bitcoinkernel log message string into a Python LogRecord.
+
+    .. deprecated::
+        This function parses the old string-based log format. Prefer using
+        :func:`log_entry_to_record` with structured :class:`LogEntry` objects.
 
     Extracts metadata from the kernel's log format and creates a Python
     LogRecord with appropriate fields set. The kernel log format includes
