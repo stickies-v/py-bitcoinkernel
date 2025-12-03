@@ -191,7 +191,11 @@ BasicTestingSetup::BasicTestingSetup(const ChainType chainType, TestOpts opts)
     gArgs.ForceSetArg("-datadir", fs::PathToString(m_path_root));
 
     SelectParams(chainType);
-    if (G_TEST_LOG_FUN) LogInstance().PushBackCallback(G_TEST_LOG_FUN);
+    if (G_TEST_LOG_FUN) {
+        LogInstance().PushBackCallback([](const BCLog::LogEntry& entry) {
+            G_TEST_LOG_FUN(entry.message);
+        });
+    }
     InitLogging(*m_node.args);
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();

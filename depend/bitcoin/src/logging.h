@@ -105,6 +105,19 @@ namespace BCLog {
         Error,
     };
     constexpr auto DEFAULT_LOG_LEVEL{Level::Debug};
+
+    /**
+     * Log entry passed to callbacks. All string_views are valid only for the
+     * duration of the callback invocation.
+     */
+    struct LogEntry {
+        Level level;
+        LogFlags category;
+        std::string_view message;        //!< The message body (without prefix/formatting)
+        std::source_location source_loc; //!< Source location of the log call
+        SystemClock::time_point timestamp;
+        std::string_view thread_name; //!< Thread name (may be empty)
+    };
     constexpr size_t DEFAULT_MAX_LOG_BUFFER{1'000'000}; // buffer up to 1MB of log data prior to StartLogging
     constexpr uint64_t RATELIMIT_MAX_BYTES{1024 * 1024}; // maximum number of bytes per source location that can be logged within the RATELIMIT_WINDOW
     constexpr auto RATELIMIT_WINDOW{1h}; // time window after which log ratelimit stats are reset
@@ -209,8 +222,8 @@ namespace BCLog {
 
         std::string LogTimestampStr(SystemClock::time_point now, std::chrono::seconds mocktime) const;
 
-        /** Slots that connect to the print signal */
-        std::list<std::function<void(const std::string&)>> m_print_callbacks GUARDED_BY(m_cs) {};
+        /** Slots that connect to the log signal */
+        std::list<std::function<void(const LogEntry&)>> m_callbacks GUARDED_BY(m_cs){};
 
         /** Send a string to the log output (internal) */
         void LogPrintStr_(std::string_view str, std::source_location&& source_loc, BCLog::LogFlags category, BCLog::Level level, bool should_ratelimit)
@@ -239,28 +252,28 @@ namespace BCLog {
         bool Enabled() const EXCLUSIVE_LOCKS_REQUIRED(!m_cs)
         {
             StdLockGuard scoped_lock(m_cs);
-            return m_buffering || m_print_to_console || m_print_to_file || !m_print_callbacks.empty();
+            return m_buffering || m_print_to_console || m_print_to_file || !m_callbacks.empty();
         }
 
-        /** Connect a slot to the print signal and return the connection */
-        std::list<std::function<void(const std::string&)>>::iterator PushBackCallback(std::function<void(const std::string&)> fun) EXCLUSIVE_LOCKS_REQUIRED(!m_cs)
+        /** Connect a slot to the log signal and return the connection */
+        std::list<std::function<void(const LogEntry&)>>::iterator PushBackCallback(std::function<void(const LogEntry&)> fun) EXCLUSIVE_LOCKS_REQUIRED(!m_cs)
         {
             StdLockGuard scoped_lock(m_cs);
-            m_print_callbacks.push_back(std::move(fun));
-            return --m_print_callbacks.end();
+            m_callbacks.push_back(std::move(fun));
+            return --m_callbacks.end();
         }
 
         /** Delete a connection */
-        void DeleteCallback(std::list<std::function<void(const std::string&)>>::iterator it) EXCLUSIVE_LOCKS_REQUIRED(!m_cs)
+        void DeleteCallback(std::list<std::function<void(const LogEntry&)>>::iterator it) EXCLUSIVE_LOCKS_REQUIRED(!m_cs)
         {
             StdLockGuard scoped_lock(m_cs);
-            m_print_callbacks.erase(it);
+            m_callbacks.erase(it);
         }
 
         size_t NumConnections()
         {
             StdLockGuard scoped_lock(m_cs);
-            return m_print_callbacks.size();
+            return m_callbacks.size();
         }
 
         /** Start logging (and flush all buffered messages) */

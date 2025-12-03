@@ -28,7 +28,7 @@
 
 #include <functional>
 
-const std::function<void(const std::string&)> G_TEST_LOG_FUN{};
+const std::function<void(std::string_view)> G_TEST_LOG_FUN{};
 
 const std::function<std::vector<const char*>()> G_TEST_COMMAND_LINE_ARGUMENTS{};
 

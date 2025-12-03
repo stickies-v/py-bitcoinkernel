@@ -92,9 +92,13 @@ void check_equal(std::span<const std::byte> _actual, std::span<const std::byte> 
 class TestLog
 {
 public:
-    void LogMessage(std::string_view message)
+    void LogMessage(const LogEntryView& entry)
     {
-        std::cout << "kernel: " << message;
+        std::cout << "[" << entry.LevelName() << ":" << entry.CategoryName() << "] " << entry.Message();
+        // Ensure message ends with newline for readability
+        if (entry.Message().empty() || entry.Message().back() != '\n') {
+            std::cout << '\n';
+        }
     }
 };
 

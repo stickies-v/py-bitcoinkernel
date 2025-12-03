@@ -37,7 +37,7 @@
 __AFL_FUZZ_INIT();
 #endif
 
-const std::function<void(const std::string&)> G_TEST_LOG_FUN{};
+const std::function<void(std::string_view)> G_TEST_LOG_FUN{};
 
 /**
  * A copy of the command line arguments that start with `--`.
