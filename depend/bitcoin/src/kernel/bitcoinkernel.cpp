@@ -209,6 +209,9 @@ btck_LogCategory get_btck_log_category(BCLog::LogFlags flag)
         return btck_LogCategory_KERNEL;
     case BCLog::ALL:
         return btck_LogCategory_ALL;
+    case BCLog::NONE:
+        // BCLog::NONE (0) can occur for log entries with no specific category
+        return btck_LogCategory_ALL;
     default:
         assert(false);
     }
