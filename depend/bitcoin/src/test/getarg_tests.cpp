@@ -438,8 +438,8 @@ BOOST_AUTO_TEST_CASE(logargs)
     // Everything logged to debug.log will also append to str
     std::string str;
     auto print_connection = LogInstance().PushBackCallback(
-        [&str](const std::string& s) {
-            str += s;
+        [&str](const BCLog::LogEntry& entry) {
+            str += entry.message;
         });
 
     // Log the arguments

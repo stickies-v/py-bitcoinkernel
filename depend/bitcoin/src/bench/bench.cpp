@@ -25,7 +25,7 @@
 using namespace std::chrono_literals;
 using util::Join;
 
-const std::function<void(const std::string&)> G_TEST_LOG_FUN{};
+const std::function<void(std::string_view)> G_TEST_LOG_FUN{};
 
 /**
  * Retrieves the available test setup command line arguments that may be used

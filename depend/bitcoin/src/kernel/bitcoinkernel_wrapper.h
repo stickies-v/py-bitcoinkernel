@@ -38,7 +38,9 @@ enum class LogCategory : btck_LogCategory {
 enum class LogLevel : btck_LogLevel {
     TRACE_LEVEL = btck_LogLevel_TRACE,
     DEBUG_LEVEL = btck_LogLevel_DEBUG,
-    INFO_LEVEL = btck_LogLevel_INFO
+    INFO_LEVEL = btck_LogLevel_INFO,
+    WARNING_LEVEL = btck_LogLevel_WARNING,
+    ERROR_LEVEL = btck_LogLevel_ERROR
 };
 
 enum class ChainType : btck_ChainType {
@@ -759,9 +761,48 @@ inline void logging_disable_category(LogCategory category)
     btck_logging_disable_category(static_cast<btck_LogCategory>(category));
 }
 
+/**
+ * A C++ view over a btck_LogEntry.
+ * Valid only for the duration of the log callback.
+ */
+class LogEntryView
+{
+private:
+    const btck_LogEntry* m_entry;
+
+public:
+    explicit LogEntryView(const btck_LogEntry* entry) : m_entry{entry} {}
+
+    LogLevel Level() const { return static_cast<LogLevel>(m_entry->level); }
+    LogCategory Category() const { return static_cast<LogCategory>(m_entry->category); }
+
+    std::string_view Message() const { return {m_entry->message, m_entry->message_len}; }
+
+    std::string_view SourceFile() const
+    {
+        return m_entry->source_file ? std::string_view{m_entry->source_file, m_entry->source_file_len} : std::string_view{};
+    }
+    std::string_view SourceFunc() const
+    {
+        return m_entry->source_func ? std::string_view{m_entry->source_func, m_entry->source_func_len} : std::string_view{};
+    }
+    uint32_t SourceLine() const { return m_entry->source_line; }
+
+    int64_t TimestampSeconds() const { return m_entry->timestamp_s; }
+    int32_t TimestampMicros() const { return m_entry->timestamp_us; }
+
+    std::string_view ThreadName() const
+    {
+        return m_entry->thread_name ? std::string_view{m_entry->thread_name, m_entry->thread_name_len} : std::string_view{};
+    }
+
+    const char* LevelName() const { return btck_log_level_name(m_entry->level); }
+    const char* CategoryName() const { return btck_log_category_name(m_entry->category); }
+};
+
 template <typename T>
-concept Log = requires(T a, std::string_view message) {
-    { a.LogMessage(message) } -> std::same_as<void>;
+concept Log = requires(T a, const LogEntryView& entry) {
+    { a.LogMessage(entry) } -> std::same_as<void>;
 };
 
 template <Log T>
@@ -770,7 +811,9 @@ class Logger : UniqueHandle<btck_LoggingConnection, btck_logging_connection_dest
 public:
     Logger(std::unique_ptr<T> log)
         : UniqueHandle{btck_logging_connection_create(
-              +[](void* user_data, const char* message, size_t message_len) { static_cast<T*>(user_data)->LogMessage({message, message_len}); },
+              +[](void* user_data, const btck_LogEntry* entry) {
+                  static_cast<T*>(user_data)->LogMessage(LogEntryView{entry});
+              },
               log.release(),
               +[](void* user_data) { delete static_cast<T*>(user_data); })}
     {

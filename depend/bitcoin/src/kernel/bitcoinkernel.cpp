@@ -157,8 +157,61 @@ BCLog::Level get_bclog_level(btck_LogLevel level)
     case btck_LogLevel_TRACE: {
         return BCLog::Level::Trace;
     }
+    case btck_LogLevel_WARNING: {
+        return BCLog::Level::Warning;
+    }
+    case btck_LogLevel_ERROR: {
+        return BCLog::Level::Error;
+    }
     }
     assert(false);
+}
+
+btck_LogLevel get_btck_log_level(BCLog::Level level)
+{
+    switch (level) {
+    case BCLog::Level::Trace:
+        return btck_LogLevel_TRACE;
+    case BCLog::Level::Debug:
+        return btck_LogLevel_DEBUG;
+    case BCLog::Level::Info:
+        return btck_LogLevel_INFO;
+    case BCLog::Level::Warning:
+        return btck_LogLevel_WARNING;
+    case BCLog::Level::Error:
+        return btck_LogLevel_ERROR;
+    }
+    assert(false);
+}
+
+btck_LogCategory get_btck_log_category(BCLog::LogFlags flag)
+{
+    switch (flag) {
+    case BCLog::BENCH:
+        return btck_LogCategory_BENCH;
+    case BCLog::BLOCKSTORAGE:
+        return btck_LogCategory_BLOCKSTORAGE;
+    case BCLog::COINDB:
+        return btck_LogCategory_COINDB;
+    case BCLog::LEVELDB:
+        return btck_LogCategory_LEVELDB;
+    case BCLog::MEMPOOL:
+        return btck_LogCategory_MEMPOOL;
+    case BCLog::PRUNE:
+        return btck_LogCategory_PRUNE;
+    case BCLog::RAND:
+        return btck_LogCategory_RAND;
+    case BCLog::REINDEX:
+        return btck_LogCategory_REINDEX;
+    case BCLog::VALIDATION:
+        return btck_LogCategory_VALIDATION;
+    case BCLog::KERNEL:
+        return btck_LogCategory_KERNEL;
+    case BCLog::ALL:
+        return btck_LogCategory_ALL;
+    default:
+        assert(false);
+    }
 }
 
 BCLog::LogFlags get_bclog_flag(btck_LogCategory category)
@@ -226,7 +279,7 @@ btck_Warning cast_btck_warning(kernel::Warning warning)
 }
 
 struct LoggingConnection {
-    std::unique_ptr<std::list<std::function<void(const std::string&)>>::iterator> m_connection;
+    std::unique_ptr<std::list<std::function<void(const BCLog::LogEntry&)>>::iterator> m_connection;
     void* m_user_data;
     std::function<void(void* user_data)> m_deleter;
 
@@ -234,7 +287,32 @@ struct LoggingConnection {
     {
         LOCK(cs_main);
 
-        auto connection{LogInstance().PushBackCallback([callback, user_data](const std::string& str) { callback(user_data, str.c_str(), str.length()); })};
+        auto connection{LogInstance().PushBackCallback([callback, user_data](const BCLog::LogEntry& entry) {
+            auto ts_seconds = std::chrono::time_point_cast<std::chrono::seconds>(entry.timestamp);
+            auto ts_micros = std::chrono::duration_cast<std::chrono::microseconds>(entry.timestamp - ts_seconds);
+
+            const char* source_file = entry.source_loc.file_name();
+            const char* source_func = entry.source_loc.function_name();
+            size_t source_file_len = std::strlen(source_file);
+            size_t source_func_len = std::strlen(source_func);
+
+            btck_LogEntry c_entry{
+                .level = get_btck_log_level(entry.level),
+                .category = get_btck_log_category(entry.category),
+                .message = entry.message.data(),
+                .message_len = entry.message.size(),
+                .source_file = source_file_len > 0 ? source_file : nullptr,
+                .source_file_len = source_file_len,
+                .source_func = source_func_len > 0 ? source_func : nullptr,
+                .source_func_len = source_func_len,
+                .source_line = entry.source_loc.line(),
+                .timestamp_s = std::chrono::duration_cast<std::chrono::seconds>(ts_seconds.time_since_epoch()).count(),
+                .timestamp_us = static_cast<int32_t>(ts_micros.count()),
+                .thread_name = entry.thread_name.empty() ? nullptr : entry.thread_name.data(),
+                .thread_name_len = entry.thread_name.size(),
+            };
+            callback(user_data, &c_entry);
+        })};
 
         // Only start logging if we just added the connection.
         if (LogInstance().NumConnections() == 1 && !LogInstance().StartLogging()) {
@@ -246,7 +324,7 @@ struct LoggingConnection {
             throw std::runtime_error("Failed to start logging");
         }
 
-        m_connection = std::make_unique<std::list<std::function<void(const std::string&)>>::iterator>(connection);
+        m_connection = std::make_unique<std::list<std::function<void(const BCLog::LogEntry&)>>::iterator>(connection);
         m_user_data = user_data;
         m_deleter = user_data_destroy_callback;
 
@@ -753,6 +831,52 @@ btck_LoggingConnection* btck_logging_connection_create(btck_LogCallback callback
 void btck_logging_connection_destroy(btck_LoggingConnection* connection)
 {
     delete connection;
+}
+
+const char* btck_log_level_name(btck_LogLevel level)
+{
+    switch (level) {
+    case btck_LogLevel_TRACE:
+        return "trace";
+    case btck_LogLevel_DEBUG:
+        return "debug";
+    case btck_LogLevel_INFO:
+        return "info";
+    case btck_LogLevel_WARNING:
+        return "warning";
+    case btck_LogLevel_ERROR:
+        return "error";
+    }
+    return "unknown";
+}
+
+const char* btck_log_category_name(btck_LogCategory category)
+{
+    switch (category) {
+    case btck_LogCategory_ALL:
+        return "all";
+    case btck_LogCategory_BENCH:
+        return "bench";
+    case btck_LogCategory_BLOCKSTORAGE:
+        return "blockstorage";
+    case btck_LogCategory_COINDB:
+        return "coindb";
+    case btck_LogCategory_LEVELDB:
+        return "leveldb";
+    case btck_LogCategory_MEMPOOL:
+        return "mempool";
+    case btck_LogCategory_PRUNE:
+        return "prune";
+    case btck_LogCategory_RAND:
+        return "rand";
+    case btck_LogCategory_REINDEX:
+        return "reindex";
+    case btck_LogCategory_VALIDATION:
+        return "validation";
+    case btck_LogCategory_KERNEL:
+        return "kernel";
+    }
+    return "unknown";
 }
 
 btck_ChainParameters* btck_chain_parameters_create(const btck_ChainType chain_type)

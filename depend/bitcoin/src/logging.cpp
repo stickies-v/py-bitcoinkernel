@@ -85,8 +85,18 @@ bool BCLog::Logger::StartLogging()
 
         if (m_print_to_file) FileWriteStr(s, m_fileout);
         if (m_print_to_console) fwrite(s.data(), 1, s.size(), stdout);
-        for (const auto& cb : m_print_callbacks) {
-            cb(s);
+        if (!m_callbacks.empty()) {
+            LogEntry entry{
+                .level = buflog.level,
+                .category = buflog.category,
+                .message = buflog.str,
+                .source_loc = buflog.source_loc,
+                .timestamp = buflog.now,
+                .thread_name = buflog.threadname,
+            };
+            for (const auto& cb : m_callbacks) {
+                cb(entry);
+            }
         }
     }
     m_cur_buffer_memusage = 0;
@@ -101,7 +111,7 @@ void BCLog::Logger::DisconnectTestLogger()
     m_buffering = true;
     if (m_fileout != nullptr) fclose(m_fileout);
     m_fileout = nullptr;
-    m_print_callbacks.clear();
+    m_callbacks.clear();
     m_max_buffer_memusage = DEFAULT_MAX_LOG_BUFFER;
     m_cur_buffer_memusage = 0;
     m_buffer_lines_discarded = 0;
@@ -113,7 +123,7 @@ void BCLog::Logger::DisableLogging()
     {
         StdLockGuard scoped_lock(m_cs);
         assert(m_buffering);
-        assert(m_print_callbacks.empty());
+        assert(m_callbacks.empty());
     }
     m_print_to_file = false;
     m_print_to_console = false;
@@ -431,13 +441,15 @@ void BCLog::Logger::LogPrintStr_(std::string_view str, std::source_location&& so
 {
     std::string str_prefixed = LogEscapeMessage(str);
 
+    const auto now{SystemClock::now()};
+    const auto threadname{util::ThreadGetInternalName()};
     if (m_buffering) {
         {
             BufferedLog buf{
-                .now = SystemClock::now(),
+                .now = now,
                 .mocktime = GetMockTime(),
                 .str = str_prefixed,
-                .threadname = util::ThreadGetInternalName(),
+                .threadname = threadname,
                 .source_loc = std::move(source_loc),
                 .category = category,
                 .level = level,
@@ -459,7 +471,7 @@ void BCLog::Logger::LogPrintStr_(std::string_view str, std::source_location&& so
         return;
     }
 
-    FormatLogStrInPlace(str_prefixed, category, level, source_loc, util::ThreadGetInternalName(), SystemClock::now(), GetMockTime());
+    FormatLogStrInPlace(str_prefixed, category, level, source_loc, threadname, now, GetMockTime());
     bool ratelimit{false};
     if (should_ratelimit && m_limiter) {
         auto status{m_limiter->Consume(source_loc, str_prefixed)};
@@ -490,8 +502,18 @@ void BCLog::Logger::LogPrintStr_(std::string_view str, std::source_location&& so
         fwrite(str_prefixed.data(), 1, str_prefixed.size(), stdout);
         fflush(stdout);
     }
-    for (const auto& cb : m_print_callbacks) {
-        cb(str_prefixed);
+    if (!m_callbacks.empty()) {
+        LogEntry entry{
+            .level = level,
+            .category = category,
+            .message = str,
+            .source_loc = source_loc,
+            .timestamp = now,
+            .thread_name = threadname,
+        };
+        for (const auto& cb : m_callbacks) {
+            cb(entry);
+        }
     }
     if (m_print_to_file && !ratelimit) {
         assert(m_fileout != nullptr);

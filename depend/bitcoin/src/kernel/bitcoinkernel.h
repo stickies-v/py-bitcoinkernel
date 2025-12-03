@@ -287,12 +287,6 @@ typedef uint8_t btck_Warning;
 /** Callback function types */
 
 /**
- * Function signature for the global logging callback. All bitcoin kernel
- * internal logs will pass through this callback.
- */
-typedef void (*btck_LogCallback)(void* user_data, const char* message, size_t message_len);
-
-/**
  * Function signature for freeing user data.
  */
 typedef void (*btck_DestroyCallback)(void* user_data);
@@ -406,12 +400,14 @@ typedef uint8_t btck_LogCategory;
 #define btck_LogCategory_KERNEL ((btck_LogCategory)(10))
 
 /**
- * The level at which logs should be produced.
+ * The severity level of a log message.
  */
 typedef uint8_t btck_LogLevel;
 #define btck_LogLevel_TRACE ((btck_LogLevel)(0))
 #define btck_LogLevel_DEBUG ((btck_LogLevel)(1))
 #define btck_LogLevel_INFO ((btck_LogLevel)(2))
+#define btck_LogLevel_WARNING ((btck_LogLevel)(3))
+#define btck_LogLevel_ERROR ((btck_LogLevel)(4))
 
 /**
  * Options controlling the format of log messages.
@@ -425,6 +421,44 @@ typedef struct {
     int log_sourcelocations;          //!< Prepend the source location to log messages.
     int always_print_category_levels; //!< Prepend the log category and level to log messages.
 } btck_LoggingOptions;
+
+/**
+ * A structured log entry passed to logging callbacks.
+ *
+ * All string pointers within this struct are valid only for the duration
+ * of the callback invocation. To retain data, consumers must copy it.
+ */
+typedef struct {
+    btck_LogLevel level;       //!< Severity level of the message.
+    btck_LogCategory category; //!< Category/subsystem that produced the message.
+
+    const char* message; //!< The log message body (not null-terminated).
+    size_t message_len;  //!< Length of message in bytes.
+
+    const char* source_file; //!< Source file name (may be null if unavailable or disabled).
+    size_t source_file_len;  //!< Length of source file name.
+    const char* source_func; //!< Function name (may be null if unavailable or disabled).
+    size_t source_func_len;  //!< Length of source function name.
+    uint32_t source_line;    //!< Line number (0 if unavailable or disabled).
+
+    int64_t timestamp_s;  //!< Seconds since Unix epoch (UTC) at log time.
+    int32_t timestamp_us; //!< Microseconds component of timestamp.
+
+    const char* thread_name; //!< Name of the originating thread (may be null if unavailable or disabled).
+    size_t thread_name_len;  //!< Length of thread name.
+} btck_LogEntry;
+
+/**
+ * Function signature for the global logging callback. All bitcoin kernel
+ * internal logs will pass through this callback.
+ *
+ * The callback may be invoked from any thread. Implementations must be
+ * thread-safe if the application uses multiple threads.
+ *
+ * @param[in] user_data   The opaque pointer provided when registering the callback.
+ * @param[in] entry       The structured log entry. Valid only for the duration of this call.
+ */
+typedef void (*btck_LogCallback)(void* user_data, const btck_LogEntry* entry);
 
 /**
  * A collection of status codes that may be issued by the script verify function.
@@ -765,6 +799,24 @@ BITCOINKERNEL_API btck_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT btck_
  * Stop logging and destroy the logging connection.
  */
 BITCOINKERNEL_API void btck_logging_connection_destroy(btck_LoggingConnection* logging_connection);
+
+/**
+ * @brief Get a human-readable string for a log level.
+ *
+ * @param[in] level The log level.
+ * @return          A static null-terminated string like "trace", "debug", "info",
+ *                  "warning", "error". Returns "unknown" for invalid values.
+ */
+BITCOINKERNEL_API const char* btck_log_level_name(btck_LogLevel level);
+
+/**
+ * @brief Get a human-readable string for a log category.
+ *
+ * @param[in] category The log category.
+ * @return             A static null-terminated string like "validation", "blockstorage", etc.
+ *                     Returns "all" for btck_LogCategory_ALL, "unknown" for invalid values.
+ */
+BITCOINKERNEL_API const char* btck_log_category_name(btck_LogCategory category);
 
 ///@}
 

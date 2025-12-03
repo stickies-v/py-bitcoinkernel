@@ -15,7 +15,7 @@
 #include <iostream>
 
 /** Redirect debug log to unit_test.log files */
-const std::function<void(const std::string&)> G_TEST_LOG_FUN = [](const std::string& s) {
+const std::function<void(std::string_view)> G_TEST_LOG_FUN = [](std::string_view s) {
     static const bool should_log{std::any_of(
         &boost::unit_test::framework::master_test_suite().argv[1],
         &boost::unit_test::framework::master_test_suite().argv[boost::unit_test::framework::master_test_suite().argc],
