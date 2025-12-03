@@ -496,18 +496,6 @@ try:
 except AttributeError:
     pass
 try:
-    btck_log_level_name = BITCOINKERNEL_LIB.btck_log_level_name
-    btck_log_level_name.restype = ctypes.POINTER(ctypes.c_char)
-    btck_log_level_name.argtypes = [btck_LogLevel]
-except AttributeError:
-    pass
-try:
-    btck_log_category_name = BITCOINKERNEL_LIB.btck_log_category_name
-    btck_log_category_name.restype = ctypes.POINTER(ctypes.c_char)
-    btck_log_category_name.argtypes = [btck_LogCategory]
-except AttributeError:
-    pass
-try:
     btck_chain_parameters_create = BITCOINKERNEL_LIB.btck_chain_parameters_create
     btck_chain_parameters_create.restype = ctypes.POINTER(struct_btck_ChainParameters)
     btck_chain_parameters_create.argtypes = [btck_ChainType]
@@ -1005,7 +993,6 @@ __all__ = \
     'btck_context_options_set_chainparams',
     'btck_context_options_set_notifications',
     'btck_context_options_set_validation_interface',
-    'btck_log_category_name', 'btck_log_level_name',
     'btck_logging_connection_create',
     'btck_logging_connection_destroy', 'btck_logging_disable',
     'btck_logging_disable_category', 'btck_logging_enable_category',
