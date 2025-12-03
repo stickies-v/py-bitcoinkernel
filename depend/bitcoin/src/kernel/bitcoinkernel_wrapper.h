@@ -795,9 +795,6 @@ public:
     {
         return m_entry->thread_name ? std::string_view{m_entry->thread_name, m_entry->thread_name_len} : std::string_view{};
     }
-
-    const char* LevelName() const { return btck_log_level_name(m_entry->level); }
-    const char* CategoryName() const { return btck_log_category_name(m_entry->category); }
 };
 
 template <typename T>

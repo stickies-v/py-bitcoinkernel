@@ -800,24 +800,6 @@ BITCOINKERNEL_API btck_LoggingConnection* BITCOINKERNEL_WARN_UNUSED_RESULT btck_
  */
 BITCOINKERNEL_API void btck_logging_connection_destroy(btck_LoggingConnection* logging_connection);
 
-/**
- * @brief Get a human-readable string for a log level.
- *
- * @param[in] level The log level.
- * @return          A static null-terminated string like "trace", "debug", "info",
- *                  "warning", "error". Returns "unknown" for invalid values.
- */
-BITCOINKERNEL_API const char* btck_log_level_name(btck_LogLevel level);
-
-/**
- * @brief Get a human-readable string for a log category.
- *
- * @param[in] category The log category.
- * @return             A static null-terminated string like "validation", "blockstorage", etc.
- *                     Returns "all" for btck_LogCategory_ALL, "unknown" for invalid values.
- */
-BITCOINKERNEL_API const char* btck_log_category_name(btck_LogCategory category);
-
 ///@}
 
 /** @name ChainParameters

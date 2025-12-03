@@ -836,52 +836,6 @@ void btck_logging_connection_destroy(btck_LoggingConnection* connection)
     delete connection;
 }
 
-const char* btck_log_level_name(btck_LogLevel level)
-{
-    switch (level) {
-    case btck_LogLevel_TRACE:
-        return "trace";
-    case btck_LogLevel_DEBUG:
-        return "debug";
-    case btck_LogLevel_INFO:
-        return "info";
-    case btck_LogLevel_WARNING:
-        return "warning";
-    case btck_LogLevel_ERROR:
-        return "error";
-    }
-    return "unknown";
-}
-
-const char* btck_log_category_name(btck_LogCategory category)
-{
-    switch (category) {
-    case btck_LogCategory_ALL:
-        return "all";
-    case btck_LogCategory_BENCH:
-        return "bench";
-    case btck_LogCategory_BLOCKSTORAGE:
-        return "blockstorage";
-    case btck_LogCategory_COINDB:
-        return "coindb";
-    case btck_LogCategory_LEVELDB:
-        return "leveldb";
-    case btck_LogCategory_MEMPOOL:
-        return "mempool";
-    case btck_LogCategory_PRUNE:
-        return "prune";
-    case btck_LogCategory_RAND:
-        return "rand";
-    case btck_LogCategory_REINDEX:
-        return "reindex";
-    case btck_LogCategory_VALIDATION:
-        return "validation";
-    case btck_LogCategory_KERNEL:
-        return "kernel";
-    }
-    return "unknown";
-}
-
 btck_ChainParameters* btck_chain_parameters_create(const btck_ChainType chain_type)
 {
     switch (chain_type) {
