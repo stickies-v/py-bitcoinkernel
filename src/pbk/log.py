@@ -1,7 +1,6 @@
 import ctypes
 import inspect
 import logging
-import re
 import threading
 import typing
 from collections.abc import Callable
@@ -362,8 +361,8 @@ class KernelLogViewer:
     """Integration between bitcoinkernel logging and Python's logging module.
 
     KernelLogViewer bridges bitcoinkernel's logging system with Python's
-    standard logging module. It creates a LoggingConnection that parses
-    kernel log messages and forwards them to a Python Logger instance.
+    standard logging module. It creates a LoggingConnection that forwards
+    structured kernel log entries to a Python Logger instance.
 
     Messages are organized by category, with each category getting its own
     child logger. For example, VALIDATION messages go to a logger named
@@ -378,7 +377,7 @@ class KernelLogViewer:
     def __init__(
         self,
         name: str = "bitcoinkernel",
-        categories: typing.List[LogCategory] | None = None,
+        categories: list[LogCategory] | None = None,
     ):
         """Create a log viewer that forwards kernel logs to Python logging.
 
@@ -391,15 +390,19 @@ class KernelLogViewer:
         self.categories = categories or []
         self._logger = logging.getLogger(name)
 
-        # To simplify things, just set the level for to DEBUG for all
-        # log categories. This shouldn't have any effect until categories
-        # are actually enabled with enable_log_category.
+        # Set the kernel log level to DEBUG for all categories.
+        # This has no effect until categories are enabled.
         set_log_level_category(LogCategory.ALL, LogLevel.DEBUG)
-        if categories is None:
-            categories = []
-        for category in categories:
+        for category in self.categories:
             enable_log_category(category)
-        self.conn = self._create_log_connection()
+
+        # Create the logging connection with a callback that forwards to Python
+        self.conn = LoggingConnection(cb=self._forward_to_logger)
+
+    def _forward_to_logger(self, entry: LogEntry) -> None:
+        """Forward a kernel log entry to the Python logger."""
+        record = log_entry_to_record(self.name, entry)
+        self._logger.handle(record)
 
     def getLogger(self, category: LogCategory | None = None) -> logging.Logger:
         """Get the Python logger for a specific category.
@@ -416,7 +419,7 @@ class KernelLogViewer:
         return self._logger
 
     @contextmanager
-    def temporary_categories(self, categories: typing.List[LogCategory]) -> None:
+    def temporary_categories(self, categories: list[LogCategory]):
         """Context manager to temporarily enable log categories.
 
         Enables the specified categories for the duration of the context,
@@ -429,47 +432,14 @@ class KernelLogViewer:
         Yields:
             None
         """
-        [enable_log_category(category) for category in categories]
+        for category in categories:
+            enable_log_category(category)
         try:
             yield
         finally:
-            [
-                disable_log_category(category)
-                for category in categories
-                if category not in self.categories
-            ]
-
-    def _create_log_connection(self) -> LoggingConnection:
-        """Create the internal logging connection.
-
-        Sets up logging options and creates a connection that forwards
-        kernel messages to Python loggers.
-
-        Returns:
-            A LoggingConnection instance.
-        """
-        conn = LoggingConnection(cb=self._create_log_callback(self.getLogger()))
-        return conn
-
-    @staticmethod
-    def _create_log_callback(
-        logger: logging.Logger,
-    ) -> typing.Callable[[LogEntry], None]:
-        """Create a callback that forwards kernel logs to Python logger.
-
-        Args:
-            logger: The Python logger to forward messages to.
-
-        Returns:
-            A callback function that accepts LogEntry objects.
-        """
-
-        def callback(entry: LogEntry) -> None:
-            """Forward a kernel log entry to the Python logger."""
-            record = log_entry_to_record(logger.name, entry)
-            logger.handle(record)
-
-        return callback
+            for category in categories:
+                if category not in self.categories:
+                    disable_log_category(category)
 
 
 def log_entry_to_record(logger_name: str, entry: LogEntry) -> logging.LogRecord:
@@ -506,75 +476,6 @@ def log_entry_to_record(logger_name: str, entry: LogEntry) -> logging.LogRecord:
             "funcName": source.func or "",
             "created": entry.timestamp.timestamp(),
             "threadName": entry.thread_name or "",
-        }
-    )
-    return record
-
-
-def parse_btck_log_string(logger_name: str, log_string: str) -> logging.LogRecord:
-    """Parse a bitcoinkernel log message string into a Python LogRecord.
-
-    .. deprecated::
-        This function parses the old string-based log format. Prefer using
-        :func:`log_entry_to_record` with structured :class:`LogEntry` objects.
-
-    Extracts metadata from the kernel's log format and creates a Python
-    LogRecord with appropriate fields set. The kernel log format includes
-    timestamp, thread name, source location, function name, category, level,
-    and message.
-
-    Args:
-        logger_name: Base name for the logger. Category will be appended.
-        log_string: The raw log message string from the kernel.
-
-    Returns:
-        A LogRecord suitable for handling by Python's logging system.
-
-    Raises:
-        ValueError: If the log message doesn't match the expected format.
-    """
-    pattern = r"""
-        ^([\d-]+T[\d:]+Z)              # timestamp
-        \s+\[([^\]]+)\]                # threadname
-        \s+\[([^\]]+)\]                # filepath:lineno
-        \s+\[(.+)\]                    # filename/function
-        \s+\[([^:]+):([^\]]+)\]        # category:level
-        \s+(.+)$                       # message
-    """
-    match = re.match(pattern, log_string, re.VERBOSE)
-    if not match:
-        raise ValueError(f"Log pattern matching failed: {log_string}")
-    timestamp, thread_name, source_loc, func_name, category, level, message = (
-        match.groups()
-    )
-    pathname, lineno = (
-        source_loc.rsplit(":", 1) if ":" in source_loc else (source_loc, 0)
-    )
-    filename = Path(pathname).name
-    if category.upper() != "ALL":
-        logger_name += f".{category.upper()}"
-    created = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").timestamp()
-    levels = {
-        "debug": logging.DEBUG,
-        "info": logging.INFO,
-        "warning": logging.WARN,
-        "error": logging.ERROR,
-    }
-
-    record = logging.makeLogRecord(
-        {
-            "name": logger_name,
-            "levelno": levels.get(level.lower(), 0),
-            "levelname": level.upper(),
-            "filename": filename,
-            "pathname": pathname,
-            "lineno": int(lineno) if lineno and lineno.isdigit() else 0,
-            "msg": message,
-            "args": (),
-            "exc_info": None,
-            "funcName": func_name,
-            "created": created,
-            "threadName": thread_name,
         }
     )
     return record
