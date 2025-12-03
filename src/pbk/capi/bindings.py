@@ -248,7 +248,6 @@ class struct_btck_Txid(Structure):
 btck_Txid = struct_btck_Txid
 btck_SynchronizationState = ctypes.c_ubyte
 btck_Warning = ctypes.c_ubyte
-btck_LogCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
 btck_DestroyCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None))
 btck_NotifyBlockTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.POINTER(struct_btck_BlockTreeEntry), ctypes.c_double)
 btck_NotifyHeaderTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.c_int64, ctypes.c_int64, ctypes.c_int32)
@@ -310,6 +309,31 @@ struct_btck_LoggingOptions._fields_ = [
 ]
 
 btck_LoggingOptions = struct_btck_LoggingOptions
+class struct_btck_LogEntry(Structure):
+    pass
+
+struct_btck_LogEntry._pack_ = 1 # source:False
+struct_btck_LogEntry._fields_ = [
+    ('level', ctypes.c_ubyte),
+    ('category', ctypes.c_ubyte),
+    ('PADDING_0', ctypes.c_ubyte * 6),
+    ('message', ctypes.POINTER(ctypes.c_char)),
+    ('message_len', ctypes.c_uint64),
+    ('source_file', ctypes.POINTER(ctypes.c_char)),
+    ('source_file_len', ctypes.c_uint64),
+    ('source_func', ctypes.POINTER(ctypes.c_char)),
+    ('source_func_len', ctypes.c_uint64),
+    ('source_line', ctypes.c_uint32),
+    ('PADDING_1', ctypes.c_ubyte * 4),
+    ('timestamp_s', ctypes.c_int64),
+    ('timestamp_us', ctypes.c_int32),
+    ('PADDING_2', ctypes.c_ubyte * 4),
+    ('thread_name', ctypes.POINTER(ctypes.c_char)),
+    ('thread_name_len', ctypes.c_uint64),
+]
+
+btck_LogEntry = struct_btck_LogEntry
+btck_LogCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(struct_btck_LogEntry))
 btck_ScriptVerifyStatus = ctypes.c_ubyte
 btck_ScriptVerificationFlags = ctypes.c_uint32
 btck_ChainType = ctypes.c_ubyte
@@ -469,6 +493,18 @@ try:
     btck_logging_connection_destroy = BITCOINKERNEL_LIB.btck_logging_connection_destroy
     btck_logging_connection_destroy.restype = None
     btck_logging_connection_destroy.argtypes = [ctypes.POINTER(struct_btck_LoggingConnection)]
+except AttributeError:
+    pass
+try:
+    btck_log_level_name = BITCOINKERNEL_LIB.btck_log_level_name
+    btck_log_level_name.restype = ctypes.POINTER(ctypes.c_char)
+    btck_log_level_name.argtypes = [btck_LogLevel]
+except AttributeError:
+    pass
+try:
+    btck_log_category_name = BITCOINKERNEL_LIB.btck_log_category_name
+    btck_log_category_name.restype = ctypes.POINTER(ctypes.c_char)
+    btck_log_category_name.argtypes = [btck_LogCategory]
 except AttributeError:
     pass
 try:
@@ -912,17 +948,18 @@ __all__ = \
     'btck_ChainType', 'btck_ChainstateManager',
     'btck_ChainstateManagerOptions', 'btck_Coin', 'btck_Context',
     'btck_ContextOptions', 'btck_DestroyCallback', 'btck_LogCallback',
-    'btck_LogCategory', 'btck_LogLevel', 'btck_LoggingConnection',
-    'btck_LoggingOptions', 'btck_NotificationInterfaceCallbacks',
-    'btck_NotifyBlockTip', 'btck_NotifyFatalError',
-    'btck_NotifyFlushError', 'btck_NotifyHeaderTip',
-    'btck_NotifyProgress', 'btck_NotifyWarningSet',
-    'btck_NotifyWarningUnset', 'btck_ScriptPubkey',
-    'btck_ScriptVerificationFlags', 'btck_ScriptVerifyStatus',
-    'btck_SynchronizationState', 'btck_Transaction',
-    'btck_TransactionInput', 'btck_TransactionOutPoint',
-    'btck_TransactionOutput', 'btck_TransactionSpentOutputs',
-    'btck_Txid', 'btck_ValidationInterfaceBlockChecked',
+    'btck_LogCategory', 'btck_LogEntry', 'btck_LogLevel',
+    'btck_LoggingConnection', 'btck_LoggingOptions',
+    'btck_NotificationInterfaceCallbacks', 'btck_NotifyBlockTip',
+    'btck_NotifyFatalError', 'btck_NotifyFlushError',
+    'btck_NotifyHeaderTip', 'btck_NotifyProgress',
+    'btck_NotifyWarningSet', 'btck_NotifyWarningUnset',
+    'btck_ScriptPubkey', 'btck_ScriptVerificationFlags',
+    'btck_ScriptVerifyStatus', 'btck_SynchronizationState',
+    'btck_Transaction', 'btck_TransactionInput',
+    'btck_TransactionOutPoint', 'btck_TransactionOutput',
+    'btck_TransactionSpentOutputs', 'btck_Txid',
+    'btck_ValidationInterfaceBlockChecked',
     'btck_ValidationInterfaceBlockConnected',
     'btck_ValidationInterfaceBlockDisconnected',
     'btck_ValidationInterfaceCallbacks',
@@ -968,6 +1005,7 @@ __all__ = \
     'btck_context_options_set_chainparams',
     'btck_context_options_set_notifications',
     'btck_context_options_set_validation_interface',
+    'btck_log_category_name', 'btck_log_level_name',
     'btck_logging_connection_create',
     'btck_logging_connection_destroy', 'btck_logging_disable',
     'btck_logging_disable_category', 'btck_logging_enable_category',
@@ -1002,7 +1040,8 @@ __all__ = \
     'struct_btck_ChainstateManager',
     'struct_btck_ChainstateManagerOptions', 'struct_btck_Coin',
     'struct_btck_Context', 'struct_btck_ContextOptions',
-    'struct_btck_LoggingConnection', 'struct_btck_LoggingOptions',
+    'struct_btck_LogEntry', 'struct_btck_LoggingConnection',
+    'struct_btck_LoggingOptions',
     'struct_btck_NotificationInterfaceCallbacks',
     'struct_btck_ScriptPubkey', 'struct_btck_Transaction',
     'struct_btck_TransactionInput', 'struct_btck_TransactionOutPoint',
