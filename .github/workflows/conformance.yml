@@ -1,0 +1,75 @@
+name: conformance
+
+on: [ push ]
+
+env:
+  BUILD_OUTPUT: build/_libs/libbitcoinkernel.so
+  RUNNER_VERSION: v0.0.3-alpha.4
+
+jobs:
+  build-bitcoinkernel:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore bitcoinkernel from cache
+        id: cache-lib
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.BUILD_OUTPUT }}
+          key: pytest-bitcoinkernel-${{ runner.os }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+
+      - name: Install build dependencies
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libboost-dev
+
+      - name: Build bitcoinkernel library
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        run: |
+          cmake -B build
+          cmake --build build -j
+          cmake --install build --prefix build/_libs/
+
+      - name: Save lib cache
+        if: steps.cache-lib.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.BUILD_OUTPUT }}
+          key: ${{ steps.cache-lib.outputs.cache-primary-key }}
+
+  test:
+    needs: build-bitcoinkernel
+    runs-on: ubuntu-latest
+    if: ${{ success() || needs.build-bitcoinkernel.result == 'skipped' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Restore bitcoinkernel from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.BUILD_OUTPUT }}
+          key: pytest-bitcoinkernel-${{ runner.os }}-${{ hashFiles('depend/bitcoin/**', 'CMakeLists.txt') }}
+
+      - name: Install pbk
+        env:
+          BITCOINKERNEL_LIB: ${{ env.BUILD_OUTPUT }}
+        run: pip install .
+
+      - name: Download conformance test runner
+        run: |
+          curl -sL "https://github.com/stringintech/kernel-bindings-tests/releases/download/${{ env.RUNNER_VERSION }}/kernel-bindings-tests_${RUNNER_VERSION#v}_linux_amd64.tar.gz" | tar xz
+          chmod +x runner
+
+      - name: Run conformance tests
+        run: ./runner --handler ./conformance/run
