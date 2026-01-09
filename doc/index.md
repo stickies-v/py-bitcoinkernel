@@ -130,6 +130,10 @@ more information.
 See the [Developer Notes](https://github.com/stickies-v/py-bitcoinkernel/blob/main/doc/developer-notes.md#testing) for more
 information on running the test suite.
 
+Additionally, `py-bitcoinkernel` is validated against the
+[kernel-bindings-tests](https://github.com/stringintech/kernel-bindings-tests/)
+conformance test suite. See [conformance/](https://github.com/stickies-v/py-bitcoinkernel/tree/main/conformance) for details.
+
 ## Limitations
 
 - `Bitcoin Core` requires exclusive access to its data directory. If you

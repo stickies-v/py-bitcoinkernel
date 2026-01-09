@@ -1,0 +1,4 @@
+#!/bin/sh
+# Set PYTHONPATH so the conformance package is found regardless of working directory
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH" exec python -m conformance "$@"
