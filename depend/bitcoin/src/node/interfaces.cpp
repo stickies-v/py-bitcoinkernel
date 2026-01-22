@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022 The Bitcoin Core developers
+// Copyright (c) 2018-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -81,8 +81,10 @@ using interfaces::MakeSignalHandler;
 using interfaces::Mining;
 using interfaces::Node;
 using interfaces::WalletLoader;
+using kernel::ChainstateRole;
 using node::BlockAssembler;
 using node::BlockWaitOptions;
+using node::CoinbaseTx;
 using util::Join;
 
 namespace node {
@@ -132,7 +134,6 @@ public:
     }
     void appShutdown() override
     {
-        Interrupt(*m_context);
         Shutdown(*m_context);
     }
     void startShutdown() override
@@ -141,12 +142,7 @@ public:
         if (!(Assert(ctx.shutdown_request))()) {
             LogError("Failed to send shutdown signal\n");
         }
-
-        // Stop RPC for clean shutdown if any of waitfor* commands is executed.
-        if (args().GetBoolArg("-server", false)) {
-            InterruptRPC();
-            StopRPC();
-        }
+        Interrupt(*m_context);
     }
     bool shutdownRequested() override { return ShutdownRequested(*Assert(m_context)); };
     bool isSettingIgnored(const std::string& name) override
@@ -467,7 +463,7 @@ public:
     {
         m_notifications->transactionRemovedFromMempool(tx, reason);
     }
-    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* index) override
+    void BlockConnected(const ChainstateRole& role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* index) override
     {
         m_notifications->blockConnected(role, kernel::MakeBlockInfo(index, block.get()));
     }
@@ -479,7 +475,8 @@ public:
     {
         m_notifications->updatedBlockTip();
     }
-    void ChainStateFlushed(ChainstateRole role, const CBlockLocator& locator) override {
+    void ChainStateFlushed(const ChainstateRole& role, const CBlockLocator& locator) override
+    {
         m_notifications->chainStateFlushed(role, locator);
     }
     std::shared_ptr<Chain::Notifications> m_notifications;
@@ -664,16 +661,12 @@ public:
     bool isInMempool(const Txid& txid) override
     {
         if (!m_node.mempool) return false;
-        LOCK(m_node.mempool->cs);
         return m_node.mempool->exists(txid);
     }
     bool hasDescendantsInMempool(const Txid& txid) override
     {
         if (!m_node.mempool) return false;
-        LOCK(m_node.mempool->cs);
-        const auto entry{m_node.mempool->GetEntry(txid)};
-        if (entry == nullptr) return false;
-        return entry->GetCountWithDescendants() > 1;
+        return m_node.mempool->HasDescendants(txid);
     }
     bool broadcastTransaction(const CTransactionRef& tx,
         const CAmount& max_tx_fee,
@@ -686,11 +679,11 @@ public:
         // that Chain clients do not need to know about.
         return TransactionError::OK == err;
     }
-    void getTransactionAncestry(const Txid& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize, CAmount* ancestorfees) override
+    void getTransactionAncestry(const Txid& txid, size_t& ancestors, size_t& cluster_count, size_t* ancestorsize, CAmount* ancestorfees) override
     {
-        ancestors = descendants = 0;
+        ancestors = cluster_count = 0;
         if (!m_node.mempool) return;
-        m_node.mempool->GetTransactionAncestry(txid, ancestors, descendants, ancestorsize, ancestorfees);
+        m_node.mempool->GetTransactionAncestry(txid, ancestors, cluster_count, ancestorsize, ancestorfees);
     }
 
     std::map<COutPoint, CAmount> calculateIndividualBumpFees(const std::vector<COutPoint>& outpoints, const CFeeRate& target_feerate) override
@@ -724,10 +717,10 @@ public:
     util::Result<void> checkChainLimits(const CTransactionRef& tx) override
     {
         if (!m_node.mempool) return {};
-        LockPoints lp;
-        CTxMemPoolEntry entry(tx, 0, 0, 0, 0, false, 0, lp);
-        LOCK(m_node.mempool->cs);
-        return m_node.mempool->CheckPackageLimits({tx}, entry.GetTxSize());
+        if (!m_node.mempool->CheckPolicyLimits(tx)) {
+            return util::Error{Untranslated("too many unconfirmed transactions in cluster")};
+        }
+        return {};
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {
@@ -853,7 +846,8 @@ public:
     }
     bool hasAssumedValidChain() override
     {
-        return chainman().IsSnapshotActive();
+        LOCK(::cs_main);
+        return bool{chainman().CurrentChainstate().m_from_snapshot_blockhash};
     }
 
     NodeContext* context() override { return &m_node; }
@@ -895,9 +889,14 @@ public:
         return m_block_template->vTxSigOpsCost;
     }
 
-    CTransactionRef getCoinbaseTx() override
+    CTransactionRef getCoinbaseRawTx() override
     {
         return m_block_template->block.vtx[0];
+    }
+
+    CoinbaseTx getCoinbaseTx() override
+    {
+        return m_block_template->m_coinbase_tx;
     }
 
     std::vector<unsigned char> getCoinbaseCommitment() override
@@ -923,15 +922,21 @@ public:
 
     std::unique_ptr<BlockTemplate> waitNext(BlockWaitOptions options) override
     {
-        auto new_template = WaitAndCreateNewBlock(chainman(), notifications(), m_node.mempool.get(), m_block_template, options, m_assemble_options);
+        auto new_template = WaitAndCreateNewBlock(chainman(), notifications(), m_node.mempool.get(), m_block_template, options, m_assemble_options, m_interrupt_wait);
         if (new_template) return std::make_unique<BlockTemplateImpl>(m_assemble_options, std::move(new_template), m_node);
         return nullptr;
+    }
+
+    void interruptWait() override
+    {
+        InterruptWait(notifications(), m_interrupt_wait);
     }
 
     const BlockAssembler::Options m_assemble_options;
 
     const std::unique_ptr<CBlockTemplate> m_block_template;
 
+    bool m_interrupt_wait{false};
     ChainstateManager& chainman() { return *Assert(m_node.chainman); }
     KernelNotifications& notifications() { return *Assert(m_node.notifications); }
     NodeContext& m_node;

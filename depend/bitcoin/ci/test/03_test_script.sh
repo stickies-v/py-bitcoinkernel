@@ -8,6 +8,9 @@ export LC_ALL=C.UTF-8
 
 set -ex
 
+cd "${BASE_ROOT_DIR}"
+
+export PATH="/path_with space:${PATH}"
 export ASAN_OPTIONS="detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1"
 export LSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/lsan"
 export TSAN_OPTIONS="suppressions=${BASE_ROOT_DIR}/test/sanitizer_suppressions/tsan:halt_on_error=1:second_deadlock_stack=1"
@@ -41,10 +44,10 @@ echo "=== BEGIN env ==="
 env
 echo "=== END env ==="
 
-# Don't apply patches in the tidy job, because it relies on the `git diff`
-# command to detect IWYU errors. It is safe to skip this patch in the tidy job
+# Don't apply patches in the iwyu job, because it relies on the `git diff`
+# command to detect IWYU errors. It is safe to skip this patch in the iwyu job
 # because it doesn't run a UB detector.
-if [ "$RUN_TIDY" != "true" ]; then
+if [[ "${RUN_IWYU}" != true ]]; then
   # compact->outputs[i].file_size is uninitialized memory, so reading it is UB.
   # The statistic bytes_written is only used for logging, which is disabled in
   # CI, so as a temporary minimal fix to work around UB and CI failures, leave
@@ -85,15 +88,6 @@ elif [ "$RUN_UNIT_TESTS" = "true" ]; then
   fi
 fi
 
-if [ "$USE_BUSY_BOX" = "true" ]; then
-  echo "Setup to use BusyBox utils"
-  # tar excluded for now because it requires passing in the exact archive type in ./depends (fixed in later BusyBox version)
-  # ar excluded for now because it does not recognize the -q option in ./depends (unknown if fixed)
-  for util in $(busybox --list | grep -v "^ar$" | grep -v "^tar$" ); do ln -s "$(command -v busybox)" "${BINS_SCRATCH_DIR}/$util"; done
-  # Print BusyBox version
-  patch --help
-fi
-
 # Make sure default datadir does not exist and is never read by creating a dummy file
 if [ "$CI_OS_NAME" == "macos" ]; then
   echo > "${HOME}/Library/Application Support/Bitcoin"
@@ -129,7 +123,7 @@ BASE_BUILD_DIR=${BASE_BUILD_DIR:-$BASE_SCRATCH_DIR/build-$HOST}
 
 BITCOIN_CONFIG_ALL="$BITCOIN_CONFIG_ALL -DCMAKE_INSTALL_PREFIX=$BASE_OUTDIR -Werror=dev"
 
-if [[ "${RUN_TIDY}" == "true" ]]; then
+if [[ "${RUN_IWYU}" == true || "${RUN_TIDY}" == true ]]; then
   BITCOIN_CONFIG_ALL="$BITCOIN_CONFIG_ALL -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 fi
 
@@ -141,11 +135,15 @@ cmake -S "$BASE_ROOT_DIR" -B "$BASE_BUILD_DIR" "${CMAKE_ARGS[@]}" || (
   false
 )
 
+if [[ "${GOAL}" != all && "${GOAL}" != codegen ]]; then
+  GOAL="all ${GOAL}"
+fi
+
 # shellcheck disable=SC2086
-cmake --build "${BASE_BUILD_DIR}" "$MAKEJOBS" --target all $GOAL || (
+cmake --build "${BASE_BUILD_DIR}" "$MAKEJOBS" --target $GOAL || (
   echo "Build failure. Verbose build follows."
   # shellcheck disable=SC2086
-  cmake --build "${BASE_BUILD_DIR}" -j1 --target all $GOAL --verbose
+  cmake --build "${BASE_BUILD_DIR}" -j1 --target $GOAL --verbose
   false
 )
 
@@ -186,7 +184,7 @@ if [ "$RUN_FUNCTIONAL_TESTS" = "true" ]; then
   eval "TEST_RUNNER_EXTRA=($TEST_RUNNER_EXTRA)"
   LD_LIBRARY_PATH="${DEPENDS_DIR}/${HOST}/lib" \
   "${BASE_BUILD_DIR}/test/functional/test_runner.py" \
-    --ci "${MAKEJOBS}" \
+    "${MAKEJOBS}" \
     --tmpdirprefix "${BASE_SCRATCH_DIR}/test_runner/" \
     --ansi \
     --combinedlogslen=99999999 \
@@ -213,9 +211,11 @@ if [ "${RUN_TIDY}" = "true" ]; then
     echo "^^^ ⚠️ Failure generated from clang-tidy"
     false
   fi
+fi
 
+if [[ "${RUN_IWYU}" == true ]]; then
   # TODO: Consider enforcing IWYU across the entire codebase.
-  FILES_WITH_ENFORCED_IWYU="/src/(crypto|index)/.*\\.cpp"
+  FILES_WITH_ENFORCED_IWYU="/src/((crypto|index|kernel)/.*\\.cpp|node/blockstorage.cpp|node/utxo_snapshot.cpp|core_io.cpp|signet.cpp)"
   jq --arg patterns "$FILES_WITH_ENFORCED_IWYU" 'map(select(.file | test($patterns)))' "${BASE_BUILD_DIR}/compile_commands.json" > "${BASE_BUILD_DIR}/compile_commands_iwyu_errors.json"
   jq --arg patterns "$FILES_WITH_ENFORCED_IWYU" 'map(select(.file | test($patterns) | not))' "${BASE_BUILD_DIR}/compile_commands.json" > "${BASE_BUILD_DIR}/compile_commands_iwyu_warnings.json"
 
@@ -229,6 +229,7 @@ if [ "${RUN_TIDY}" = "true" ]; then
              -Xiwyu --max_line_length=160 \
              2>&1 | tee /tmp/iwyu_ci.out
     python3 "/include-what-you-use/fix_includes.py" --nosafe_headers < /tmp/iwyu_ci.out
+    git diff -U0 | ./contrib/devtools/clang-format-diff.py -binary="clang-format-${TIDY_LLVM_V}" -p1 -i -v
   }
 
   run_iwyu "compile_commands_iwyu_errors.json"

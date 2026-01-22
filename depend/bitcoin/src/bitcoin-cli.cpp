@@ -452,6 +452,7 @@ private:
         if (conn_type == "block-relay-only") return "block";
         if (conn_type == "manual" || conn_type == "feeler") return conn_type;
         if (conn_type == "addr-fetch") return "addr";
+        if (conn_type == "private-broadcast") return "priv";
         return "";
     }
     std::string FormatServices(const UniValue& services)
@@ -703,6 +704,7 @@ public:
         "           \"manual\" - peer we manually added using RPC addnode or the -addnode/-connect config options\n"
         "           \"feeler\" - short-lived connection for testing addresses\n"
         "           \"addr\"   - address fetch; short-lived connection for requesting addresses\n"
+        "           \"priv\"   - private broadcast; short-lived connection for broadcasting our transactions\n"
         "  net      Network the peer connected through (\"ipv4\", \"ipv6\", \"onion\", \"i2p\", \"cjdns\", or \"npr\" (not publicly routable))\n"
         "  serv     Services offered by the peer\n"
         "           \"n\" - NETWORK: peer can serve the full block chain\n"
@@ -899,8 +901,7 @@ static UniValue CallRPC(BaseRequestHandler* rh, const std::string& strMethod, co
             throw CConnectionFailed("uri-encode failed");
         }
     }
-    int r = evhttp_make_request(evcon.get(), req.get(), EVHTTP_REQ_POST, endpoint.c_str());
-    req.release(); // ownership moved to evcon in above call
+    int r = evhttp_make_request(evcon.get(), req.release(), EVHTTP_REQ_POST, endpoint.c_str());
     if (r != 0) {
         throw CConnectionFailed("send http request failed");
     }
@@ -1129,7 +1130,7 @@ static void ParseGetInfoResult(UniValue& result)
         const std::string proxy = network["proxy"].getValStr();
         if (proxy.empty()) continue;
         // Add proxy to ordered_proxy if has not been processed
-        if (proxy_networks.find(proxy) == proxy_networks.end()) ordered_proxies.push_back(proxy);
+        if (!proxy_networks.contains(proxy)) ordered_proxies.push_back(proxy);
 
         proxy_networks[proxy].push_back(network["name"].getValStr());
     }

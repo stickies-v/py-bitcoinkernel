@@ -89,7 +89,7 @@ void initialize_chain()
         auto& chainman{*setup->m_node.chainman};
         for (const auto& block : chain) {
             BlockValidationState dummy;
-            bool processed{chainman.ProcessNewBlockHeaders({{block->GetBlockHeader()}}, true, dummy)};
+            bool processed{chainman.ProcessNewBlockHeaders({{*block}}, true, dummy)};
             Assert(processed);
             const auto* index{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block->GetHash()))};
             Assert(index);
@@ -110,7 +110,7 @@ void utxo_snapshot_fuzz(FuzzBufferType buffer)
 
     const auto snapshot_path = gArgs.GetDataDirNet() / "fuzzed_snapshot.dat";
 
-    Assert(!chainman.SnapshotBlockhash());
+    Assert(!chainman.ActiveChainstate().m_from_snapshot_blockhash);
 
     {
         AutoFile outfile{fsbridge::fopen(snapshot_path, "wb")};
@@ -171,7 +171,7 @@ void utxo_snapshot_fuzz(FuzzBufferType buffer)
         if constexpr (!INVALID) {
             for (const auto& block : *g_chain) {
                 BlockValidationState dummy;
-                bool processed{chainman.ProcessNewBlockHeaders({{block->GetBlockHeader()}}, true, dummy)};
+                bool processed{chainman.ProcessNewBlockHeaders({{*block}}, true, dummy)};
                 Assert(processed);
                 const auto* index{WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block->GetHash()))};
                 Assert(index);
@@ -183,15 +183,13 @@ void utxo_snapshot_fuzz(FuzzBufferType buffer)
     if (ActivateFuzzedSnapshot()) {
         LOCK(::cs_main);
         Assert(!chainman.ActiveChainstate().m_from_snapshot_blockhash->IsNull());
-        Assert(*chainman.ActiveChainstate().m_from_snapshot_blockhash ==
-               *chainman.SnapshotBlockhash());
         const auto& coinscache{chainman.ActiveChainstate().CoinsTip()};
         for (const auto& block : *g_chain) {
             Assert(coinscache.HaveCoin(COutPoint{block->vtx.at(0)->GetHash(), 0}));
             const auto* index{chainman.m_blockman.LookupBlockIndex(block->GetHash())};
             Assert(index);
             Assert(index->nTx == 0);
-            if (index->nHeight == chainman.GetSnapshotBaseHeight()) {
+            if (index->nHeight == chainman.ActiveChainstate().SnapshotBase()->nHeight) {
                 auto params{chainman.GetParams().AssumeutxoForHeight(index->nHeight)};
                 Assert(params.has_value());
                 Assert(params.value().m_chain_tx_count == index->m_chain_tx_count);
@@ -202,7 +200,6 @@ void utxo_snapshot_fuzz(FuzzBufferType buffer)
         Assert(g_chain->size() == coinscache.GetCacheSize());
         dirty_chainman = true;
     } else {
-        Assert(!chainman.SnapshotBlockhash());
         Assert(!chainman.ActiveChainstate().m_from_snapshot_blockhash);
     }
     // Snapshot should refuse to load a second time regardless of validity

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2022 The Bitcoin Core developers
+// Copyright (c) 2017-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -102,10 +102,9 @@ bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
     chain.resize(length);
     for (auto& block : chain) {
         block = std::make_shared<CBlock>(CreateBlock(pindex, no_txns, coinbase_script_pub_key));
-        CBlockHeader header = block->GetBlockHeader();
 
         BlockValidationState state;
-        if (!Assert(m_node.chainman)->ProcessNewBlockHeaders({{header}}, true, state, &pindex)) {
+        if (!Assert(m_node.chainman)->ProcessNewBlockHeaders({{*block}}, true, state, &pindex)) {
             return false;
         }
     }

@@ -32,7 +32,7 @@ set(CLIENT_VERSION_MINOR 99)
 set(CLIENT_VERSION_BUILD 0)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false")
-set(COPYRIGHT_YEAR "2025")
+set(COPYRIGHT_YEAR "2026")
 
 # During the enabling of the CXX and CXXOBJ languages, we modify
 # CMake's compiler/linker invocation strings by appending the content
@@ -105,7 +105,7 @@ option(BUILD_UTIL "Build bitcoin-util executable." ${BUILD_TESTS})
 
 option(BUILD_UTIL_CHAINSTATE "Build experimental bitcoin-chainstate executable." OFF)
 option(BUILD_KERNEL_LIB "Build experimental bitcoinkernel library." ${BUILD_UTIL_CHAINSTATE})
-option(BUILD_KERNEL_TEST "Build tests for the experimental bitcoinkernel library." ${BUILD_KERNEL_LIB})
+cmake_dependent_option(BUILD_KERNEL_TEST "Build tests for the experimental bitcoinkernel library." ON "BUILD_KERNEL_LIB" OFF)
 
 option(ENABLE_WALLET "Enable wallet." ON)
 if(ENABLE_WALLET)
@@ -463,6 +463,8 @@ else()
   try_append_cxx_flags("-Wself-assign" TARGET warn_interface SKIP_LINK)
   try_append_cxx_flags("-Wbidi-chars=any" TARGET warn_interface SKIP_LINK)
   try_append_cxx_flags("-Wundef" TARGET warn_interface SKIP_LINK)
+  try_append_cxx_flags("-Wleading-whitespace=spaces" TARGET warn_interface SKIP_LINK)
+  try_append_cxx_flags("-Wtrailing-whitespace=any" TARGET warn_interface SKIP_LINK)
 
   # Some compilers (gcc) ignore unknown -Wno-* options, but warn about all
   # unknown options if any other warning is produced. Test the -Wfoo case, and
@@ -493,8 +495,8 @@ try_append_cxx_flags("-fmacro-prefix-map=A=B" TARGET core_interface SKIP_LINK
   IF_CHECK_PASSED "-fmacro-prefix-map=${PROJECT_SOURCE_DIR}/src=."
 )
 
-# Currently all versions of gcc are subject to a class of bugs, see the
-# gccbug_90348 test case (only reproduces on GCC 11 and earlier) and
+# GCC versions 13.2 (and earlier) are subject to a class of bugs, see
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90348 and the meta bug
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111843. To work around that, set
 # -fstack-reuse=none for all gcc builds. (Only gcc understands this flag).
 try_append_cxx_flags("-fstack-reuse=none" TARGET core_interface)
@@ -621,18 +623,6 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
   set(CMAKE_SKIP_TEST_ALL_DEPENDENCY FALSE)
 endif()
 
-# TODO: The `CMAKE_SKIP_BUILD_RPATH` variable setting can be deleted
-#       in the future after reordering Guix script commands to
-#       perform binary checks after the installation step.
-# Relevant discussions:
-# - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
-# - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
-# NetBSD always requires runtime paths to be set for executables.
-if(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-else()
-  set(CMAKE_SKIP_BUILD_RPATH TRUE)
-endif()
 add_subdirectory(test)
 add_subdirectory(doc)
 
@@ -640,7 +630,6 @@ add_subdirectory(src)
 
 include(Maintenance)
 setup_split_debug_script()
-add_maintenance_targets()
 add_windows_deploy_target()
 add_macos_deploy_target()
 
