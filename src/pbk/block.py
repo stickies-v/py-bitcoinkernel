@@ -126,7 +126,7 @@ class BlockTreeEntry(KernelOpaquePtr):
             True if both are BlockTreeEntry instances with equal height and hash.
         """
         if isinstance(other, BlockTreeEntry):
-            return self.height == other.height and self.block_hash == other.block_hash
+            return bool(k.btck_block_tree_entry_equals(self, other))
         return False
 
     def __hash__(self) -> int:
