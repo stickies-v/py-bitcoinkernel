@@ -43,7 +43,7 @@ add_custom_target(generate_build_info
   COMMENT "Generating bitcoin-build-info.h"
   VERBATIM
 )
-add_library(bitcoin_clientversion STATIC EXCLUDE_FROM_ALL
+add_library(bitcoin_clientversion STATIC
   clientversion.cpp
 )
 target_link_libraries(bitcoin_clientversion
@@ -106,8 +106,7 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   common/system.cpp
   common/url.cpp
   compressor.cpp
-  core_read.cpp
-  core_write.cpp
+  core_io.cpp
   deploymentinfo.cpp
   external_signer.cpp
   init/common.cpp
@@ -244,6 +243,7 @@ add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
   policy/rbf.cpp
   policy/settings.cpp
   policy/truc_policy.cpp
+  private_broadcast.cpp
   rest.cpp
   rpc/blockchain.cpp
   rpc/external_signer.cpp
@@ -325,22 +325,6 @@ if(ENABLE_IPC AND BUILD_DAEMON)
   install_binary_component(bitcoin-node INTERNAL)
 endif()
 
-if(ENABLE_IPC AND BUILD_TESTS)
-    # bitcoin_ipc_test library target is defined here in src/CMakeLists.txt
-    # instead of src/test/CMakeLists.txt so capnp files in src/test/ are able to
-    # reference capnp files in src/ipc/capnp/ by relative path. The Cap'n Proto
-    # compiler only allows importing by relative path when the importing and
-    # imported files are underneath the same compilation source prefix, so the
-    # source prefix must be src/, not src/test/
-    add_library(bitcoin_ipc_test STATIC EXCLUDE_FROM_ALL
-      test/ipc_test.cpp
-    )
-    target_capnp_sources(bitcoin_ipc_test ${PROJECT_SOURCE_DIR}
-      test/ipc_test.capnp
-    )
-    add_dependencies(bitcoin_ipc_test bitcoin_ipc_headers)
-endif()
-
 
 add_library(bitcoin_cli STATIC EXCLUDE_FROM_ALL
   compat/stdin.cpp
@@ -412,15 +396,6 @@ if(BUILD_KERNEL_LIB)
       bitcoin-chainstate.cpp
     )
     add_windows_application_manifest(bitcoin-chainstate)
-    # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
-    #       in the future after reordering Guix script commands to
-    #       perform binary checks after the installation step.
-    # Relevant discussions:
-    # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
-    # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
-    set_target_properties(bitcoin-chainstate PROPERTIES
-      SKIP_BUILD_RPATH OFF
-    )
     target_link_libraries(bitcoin-chainstate
       PRIVATE
         core_interface

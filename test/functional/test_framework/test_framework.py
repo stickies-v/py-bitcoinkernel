@@ -258,6 +258,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.log.debug('Setting up network thread')
         self.network_thread = NetworkThread()
         self.network_thread.start()
+        self.wait_until(lambda: self.network_thread.network_event_loop.is_running())
 
         if self.options.usecli:
             if not self.supports_cli:
@@ -751,7 +752,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.log = logging.getLogger('TestFramework')
         self.log.setLevel(logging.DEBUG)
         # Create file handler to log all messages
-        fh = logging.FileHandler(self.options.tmpdir + '/test_framework.log', encoding='utf-8')
+        fh = logging.FileHandler(self.options.tmpdir + '/test_framework.log')
         fh.setLevel(logging.DEBUG)
         # Create console handler to log messages to stderr. By default this logs only error messages, but can be configured with --loglevel.
         ch = logging.StreamHandler(sys.stdout)
@@ -942,6 +943,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if not self.is_bitcoin_chainstate_compiled():
             raise SkipTest("bitcoin-chainstate has not been compiled")
 
+    def skip_if_no_bitcoin_bench(self):
+        """Skip the running test if bench_bitcoin has not been compiled."""
+        if not self.is_bench_compiled():
+            raise SkipTest("bench_bitcoin has not been compiled")
+
     def skip_if_no_cli(self):
         """Skip the running test if bitcoin-cli has not been compiled."""
         if not self.is_cli_compiled():
@@ -974,6 +980,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Skip the running test if Valgrind is being used."""
         if self.options.valgrind:
             raise SkipTest("This test is not compatible with Valgrind.")
+
+    def is_bench_compiled(self):
+        """Checks whether bench_bitcoin was compiled."""
+        return self.config["components"].getboolean("BUILD_BENCH")
 
     def is_cli_compiled(self):
         """Checks whether bitcoin-cli was compiled."""

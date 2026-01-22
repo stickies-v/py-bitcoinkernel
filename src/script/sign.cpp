@@ -87,8 +87,6 @@ std::optional<uint256> MutableTransactionSignatureCreator::ComputeSchnorrSignatu
 
 bool MutableTransactionSignatureCreator::CreateSchnorrSig(const SigningProvider& provider, std::vector<unsigned char>& sig, const XOnlyPubKey& pubkey, const uint256* leaf_hash, const uint256* merkle_root, SigVersion sigversion) const
 {
-    assert(sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT);
-
     CKey key;
     if (!provider.GetKeyByXOnly(pubkey, key)) return false;
 
@@ -342,7 +340,7 @@ static bool SignMuSig2(const BaseSignatureCreator& creator, SignatureData& sigda
                 sigdata.musig2_partial_sigs[pub_key_leaf_hash].emplace(part_pk, partial_sig);
             }
         }
-        // If there are any partial signatures, exit early
+        // If there are any partial signatures, continue with next aggregate pubkey
         auto partial_sigs_it = sigdata.musig2_partial_sigs.find(pub_key_leaf_hash);
         if (partial_sigs_it != sigdata.musig2_partial_sigs.end() && !partial_sigs_it->second.empty()) {
             continue;
@@ -890,7 +888,7 @@ SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nI
             for (unsigned int i = last_success_key; i < num_pubkeys; ++i) {
                 const valtype& pubkey = solutions[i+1];
                 // We either have a signature for this pubkey, or we have found a signature and it is valid
-                if (data.signatures.count(CPubKey(pubkey).GetID()) || extractor_checker.CheckECDSASignature(sig, pubkey, next_script, sigversion)) {
+                if (data.signatures.contains(CPubKey(pubkey).GetID()) || extractor_checker.CheckECDSASignature(sig, pubkey, next_script, sigversion)) {
                     last_success_key = i + 1;
                     break;
                 }

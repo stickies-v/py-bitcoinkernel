@@ -34,7 +34,6 @@ add_executable(test_bitcoin
   coinscachepair_tests.cpp
   coinstatsindex_tests.cpp
   common_url_tests.cpp
-  compilerbug_tests.cpp
   compress_tests.cpp
   crypto_tests.cpp
   cuckoocache_tests.cpp
@@ -77,6 +76,7 @@ add_executable(test_bitcoin
   pool_tests.cpp
   pow_tests.cpp
   prevector_tests.cpp
+  private_broadcast_tests.cpp
   raii_event_tests.cpp
   random_tests.cpp
   rbf_tests.cpp
@@ -120,6 +120,7 @@ add_executable(test_bitcoin
   txvalidationcache_tests.cpp
   uint256_tests.cpp
   util_check_tests.cpp
+  util_expected_tests.cpp
   util_string_tests.cpp
   util_tests.cpp
   util_threadnames_tests.cpp
@@ -168,20 +169,7 @@ if(ENABLE_WALLET)
 endif()
 
 if(ENABLE_IPC)
-  target_link_libraries(bitcoin_ipc_test
-    PRIVATE
-      core_interface
-      univalue
-      Boost::headers
-  )
-
-  target_sources(test_bitcoin
-    PRIVATE
-      ipc_tests.cpp
-  )
-  target_link_libraries(test_bitcoin bitcoin_ipc_test bitcoin_ipc)
-
-  configure_file(.clang-tidy.in .clang-tidy USE_SOURCE_PERMISSIONS COPYONLY)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/src/ipc/test ipc)
 endif()
 
 function(add_boost_test source_file)

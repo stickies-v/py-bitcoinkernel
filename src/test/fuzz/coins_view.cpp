@@ -74,10 +74,10 @@ void TestCoinsView(FuzzedDataProvider& fuzzed_data_provider, CCoinsView& backend
                 }
             },
             [&] {
-                (void)coins_view_cache.Flush();
+                coins_view_cache.Flush(/*will_reuse_cache=*/fuzzed_data_provider.ConsumeBool());
             },
             [&] {
-                (void)coins_view_cache.Sync();
+                coins_view_cache.Sync();
             },
             [&] {
                 uint256 best_block{ConsumeUInt256(fuzzed_data_provider)};
@@ -283,7 +283,7 @@ void TestCoinsView(FuzzedDataProvider& fuzzed_data_provider, CCoinsView& backend
                 const auto flags = script_verify_flags::from_int(fuzzed_data_provider.ConsumeIntegral<script_verify_flags::value_type>());
                 if (!transaction.vin.empty() && (flags & SCRIPT_VERIFY_WITNESS) != 0 && (flags & SCRIPT_VERIFY_P2SH) == 0) {
                     // Avoid:
-                    // script/interpreter.cpp:1705: size_t CountWitnessSigOps(const CScript &, const CScript &, const CScriptWitness *, unsigned int): Assertion `(flags & SCRIPT_VERIFY_P2SH) != 0' failed.
+                    // script/interpreter.cpp:1705: size_t CountWitnessSigOps(const CScript &, const CScript &, const CScriptWitness &, unsigned int): Assertion `(flags & SCRIPT_VERIFY_P2SH) != 0' failed.
                     return;
                 }
                 (void)GetTransactionSigOpCost(transaction, coins_view_cache, flags);

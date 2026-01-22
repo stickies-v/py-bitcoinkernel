@@ -405,26 +405,19 @@ bool isObscured(QWidget *w)
 
 void bringToFront(QWidget* w)
 {
-    if (w) {
-        if (QGuiApplication::platformName() == "wayland") {
-            auto flags = w->windowFlags();
-            w->setWindowFlags(flags|Qt::WindowStaysOnTopHint);
-            w->show();
-            w->setWindowFlags(flags);
-            w->show();
-        } else {
 #ifdef Q_OS_MACOS
-            ForceActivation();
+    ForceActivation();
 #endif
-            // activateWindow() (sometimes) helps with keyboard focus on Windows
-            if (w->isMinimized()) {
-                w->showNormal();
-            } else {
-                w->show();
-            }
-            w->activateWindow();
-            w->raise();
+
+    if (w) {
+        // activateWindow() (sometimes) helps with keyboard focus on Windows
+        if (w->isMinimized()) {
+            w->showNormal();
+        } else {
+            w->show();
         }
+        w->activateWindow();
+        w->raise();
     }
 }
 
@@ -729,6 +722,8 @@ QString ConnectionTypeToQString(ConnectionType conn_type, bool prepend_direction
     case ConnectionType::FEELER: return prefix + QObject::tr("Feeler");
     //: Short-lived peer connection type that solicits known addresses from a peer.
     case ConnectionType::ADDR_FETCH: return prefix + QObject::tr("Address Fetch");
+    //: Short-lived peer connection type that is used for broadcasting privacy-sensitive data.
+    case ConnectionType::PRIVATE_BROADCAST: return prefix + QObject::tr("Private Broadcast");
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }

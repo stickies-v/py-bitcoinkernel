@@ -791,6 +791,8 @@ protected:
     const std::vector<std::unique_ptr<PubkeyProvider>> m_pubkey_args;
     //! The string name of the descriptor function.
     const std::string m_name;
+    //! Warnings (not including subdescriptors).
+    std::vector<std::string> m_warnings;
 
     //! The sub-descriptor arguments (empty for everything but SH and WSH).
     //! In doc/descriptors.m this is referred to as SCRIPT expressions sh(SCRIPT)
@@ -990,6 +992,16 @@ public:
     }
 
     virtual std::unique_ptr<DescriptorImpl> Clone() const = 0;
+
+    // NOLINTNEXTLINE(misc-no-recursion)
+    std::vector<std::string> Warnings() const override {
+        std::vector<std::string> all = m_warnings;
+        for (const auto& sub : m_subdescriptor_args) {
+            auto sub_w = sub->Warnings();
+            all.insert(all.end(), sub_w.begin(), sub_w.end());
+        }
+        return all;
+    }
 };
 
 /** A parsed addr(A) descriptor. */
@@ -1483,20 +1495,33 @@ class StringMaker {
     const SigningProvider* m_arg;
     //! Keys contained in the Miniscript (a reference to DescriptorImpl::m_pubkey_args).
     const std::vector<std::unique_ptr<PubkeyProvider>>& m_pubkeys;
-    //! Whether to serialize keys as private or public.
-    bool m_private;
+    //! StringType to serialize keys
+    const DescriptorImpl::StringType m_type;
+    const DescriptorCache* m_cache;
 
 public:
-    StringMaker(const SigningProvider* arg LIFETIMEBOUND, const std::vector<std::unique_ptr<PubkeyProvider>>& pubkeys LIFETIMEBOUND, bool priv)
-        : m_arg(arg), m_pubkeys(pubkeys), m_private(priv) {}
+    StringMaker(const SigningProvider* arg LIFETIMEBOUND,
+                const std::vector<std::unique_ptr<PubkeyProvider>>& pubkeys LIFETIMEBOUND,
+                DescriptorImpl::StringType type,
+                const DescriptorCache* cache LIFETIMEBOUND)
+        : m_arg(arg), m_pubkeys(pubkeys), m_type(type), m_cache(cache) {}
 
     std::optional<std::string> ToString(uint32_t key) const
     {
         std::string ret;
-        if (m_private) {
-            if (!m_pubkeys[key]->ToPrivateString(*m_arg, ret)) return {};
-        } else {
+        switch (m_type) {
+        case DescriptorImpl::StringType::PUBLIC:
             ret = m_pubkeys[key]->ToString();
+            break;
+        case DescriptorImpl::StringType::PRIVATE:
+            if (!m_pubkeys[key]->ToPrivateString(*m_arg, ret)) return {};
+            break;
+        case DescriptorImpl::StringType::NORMALIZED:
+            if (!m_pubkeys[key]->ToNormalizedString(*m_arg, ret, m_cache)) return {};
+            break;
+        case DescriptorImpl::StringType::COMPAT:
+            ret = m_pubkeys[key]->ToString(PubkeyProvider::StringType::COMPAT);
+            break;
         }
         return ret;
     }
@@ -1524,12 +1549,29 @@ protected:
 
 public:
     MiniscriptDescriptor(std::vector<std::unique_ptr<PubkeyProvider>> providers, miniscript::NodeRef<uint32_t> node)
-        : DescriptorImpl(std::move(providers), "?"), m_node(std::move(node)) {}
+        : DescriptorImpl(std::move(providers), "?"), m_node(std::move(node))
+    {
+        // Traverse miniscript tree for unsafe use of older()
+        miniscript::ForEachNode(*m_node, [&](const miniscript::Node<uint32_t>& node) {
+            if (node.fragment == miniscript::Fragment::OLDER) {
+                const uint32_t raw = node.k;
+                const uint32_t value_part = raw & ~CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG;
+                if (value_part > CTxIn::SEQUENCE_LOCKTIME_MASK) {
+                    const bool is_time_based = (raw & CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG) != 0;
+                    if (is_time_based) {
+                        m_warnings.push_back(strprintf("time-based relative locktime: older(%u) > (65535 * 512) seconds is unsafe", raw));
+                    } else {
+                        m_warnings.push_back(strprintf("height-based relative locktime: older(%u) > 65535 blocks is unsafe", raw));
+                    }
+                }
+            }
+        });
+    }
 
     bool ToStringHelper(const SigningProvider* arg, std::string& out, const StringType type,
                         const DescriptorCache* cache = nullptr) const override
     {
-        if (const auto res = m_node->ToString(StringMaker(arg, m_pubkey_args, type == StringType::PRIVATE))) {
+        if (const auto res = m_node->ToString(StringMaker(arg, m_pubkey_args, type, cache))) {
             out = *res;
             return true;
         }
@@ -2730,12 +2772,13 @@ bool CheckChecksum(std::span<const char>& sp, bool require_checksum, std::string
     return true;
 }
 
-std::vector<std::unique_ptr<Descriptor>> Parse(std::span<const char> descriptor, FlatSigningProvider& out, std::string& error, bool require_checksum)
+std::vector<std::unique_ptr<Descriptor>> Parse(std::string_view descriptor, FlatSigningProvider& out, std::string& error, bool require_checksum)
 {
-    if (!CheckChecksum(descriptor, require_checksum, error)) return {};
+    std::span<const char> sp{descriptor};
+    if (!CheckChecksum(sp, require_checksum, error)) return {};
     uint32_t key_exp_index = 0;
-    auto ret = ParseScript(key_exp_index, descriptor, ParseScriptContext::TOP, out, error);
-    if (descriptor.empty() && !ret.empty()) {
+    auto ret = ParseScript(key_exp_index, sp, ParseScriptContext::TOP, out, error);
+    if (sp.empty() && !ret.empty()) {
         std::vector<std::unique_ptr<Descriptor>> descs;
         descs.reserve(ret.size());
         for (auto& r : ret) {
