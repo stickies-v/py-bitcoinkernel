@@ -1,3 +1,16 @@
+// Copyright (c) 2022-present The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+//
+// The bitcoin-chainstate executable serves to surface the dependencies required
+// by a program wishing to use Bitcoin Core's consensus engine as it is right
+// now.
+//
+// DEVELOPER NOTE: Since this is a "demo-only", experimental, etc. executable,
+//                 it may diverge from Bitcoin Core's coding style.
+//
+// It is part of the libbitcoinkernel project.
+
 #include <kernel/bitcoinkernel_wrapper.h>
 
 #include <cassert>
@@ -131,16 +144,18 @@ public:
 int main(int argc, char* argv[])
 {
     // SETUP: Argument parsing and handling
-    if (argc != 2) {
+    const bool has_regtest_flag{argc == 3 && std::string(argv[1]) == "-regtest"};
+    if (argc < 2 || argc > 3 || (argc == 3 && !has_regtest_flag)) {
         std::cerr
-            << "Usage: " << argv[0] << " DATADIR" << std::endl
+            << "Usage: " << argv[0] << " [-regtest] DATADIR" << std::endl
             << "Display DATADIR information, and process hex-encoded blocks on standard input." << std::endl
+            << "Uses mainnet parameters by default, regtest with -regtest flag" << std::endl
             << std::endl
             << "IMPORTANT: THIS EXECUTABLE IS EXPERIMENTAL, FOR TESTING ONLY, AND EXPECTED TO" << std::endl
             << "           BREAK IN FUTURE VERSIONS. DO NOT USE ON YOUR ACTUAL DATADIR." << std::endl;
         return 1;
     }
-    std::filesystem::path abs_datadir{std::filesystem::absolute(argv[1])};
+    std::filesystem::path abs_datadir{std::filesystem::absolute(argv[argc-1])};
     std::filesystem::create_directories(abs_datadir);
 
     btck_LoggingOptions logging_options = {
@@ -156,7 +171,7 @@ int main(int argc, char* argv[])
     Logger logger{std::make_unique<KernelLog>()};
 
     ContextOptions options{};
-    ChainParams params{ChainType::MAINNET};
+    ChainParams params{has_regtest_flag ? ChainType::REGTEST : ChainType::MAINNET};
     options.SetChainParams(params);
 
     options.SetNotifications(std::make_shared<TestKernelNotifications>());

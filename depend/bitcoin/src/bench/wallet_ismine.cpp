@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The Bitcoin Core developers
+// Copyright (c) 2022-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -66,6 +66,6 @@ static void WalletIsMine(benchmark::Bench& bench, int num_combo = 0)
 
 static void WalletIsMineDescriptors(benchmark::Bench& bench) { WalletIsMine(bench); }
 static void WalletIsMineMigratedDescriptors(benchmark::Bench& bench) { WalletIsMine(bench, /*num_combo=*/2000); }
-BENCHMARK(WalletIsMineDescriptors, benchmark::PriorityLevel::LOW);
-BENCHMARK(WalletIsMineMigratedDescriptors, benchmark::PriorityLevel::LOW);
+BENCHMARK(WalletIsMineDescriptors);
+BENCHMARK(WalletIsMineMigratedDescriptors);
 } // namespace wallet

@@ -2,10 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bitcoin-build-config.h> // IWYU pragma: keep
-
 #include <chain.h>
-#include <clientversion.h>
 #include <common/args.h>
 #include <common/messages.h>
 #include <common/types.h>
@@ -74,7 +71,7 @@ void RPCTypeCheckObj(const UniValue& o,
     {
         for (const std::string& k : o.getKeys())
         {
-            if (typesExpected.count(k) == 0)
+            if (!typesExpected.contains(k))
             {
                 std::string err = strprintf("Unexpected key %s", k);
                 throw JSONRPCError(RPC_TYPE_ERROR, err);
@@ -678,10 +675,8 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
                 mismatch.size() == 1 ? mismatch[0].write(4) :
                 mismatch.write(4)};
             throw std::runtime_error{
-                strprintf("Internal bug detected: RPC call \"%s\" returned incorrect type:\n%s\n%s %s\nPlease report this issue here: %s\n",
-                          m_name, explain,
-                          CLIENT_NAME, FormatFullVersion(),
-                          CLIENT_BUGREPORT)};
+                STR_INTERNAL_BUG(strprintf("RPC call \"%s\" returned incorrect type:\n%s", m_name, explain)),
+            };
         }
     }
     return ret;
@@ -1177,7 +1172,7 @@ UniValue RPCResult::MatchesType(const UniValue& result) const
         std::map<std::string, UniValue> result_obj;
         result.getObjMap(result_obj);
         for (const auto& result_entry : result_obj) {
-            if (doc_keys.find(result_entry.first) == doc_keys.end()) {
+            if (!doc_keys.contains(result_entry.first)) {
                 errors.pushKV(result_entry.first, "key returned that was not in doc");
             }
         }

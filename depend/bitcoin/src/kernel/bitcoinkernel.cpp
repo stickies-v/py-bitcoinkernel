@@ -8,13 +8,12 @@
 
 #include <chain.h>
 #include <coins.h>
-#include <consensus/amount.h>
 #include <consensus/validation.h>
+#include <dbwrapper.h>
 #include <kernel/caches.h>
 #include <kernel/chainparams.h>
 #include <kernel/checks.h>
 #include <kernel/context.h>
-#include <kernel/cs_main.h>
 #include <kernel/notifications_interface.h>
 #include <kernel/warning.h>
 #include <logging.h>
@@ -27,9 +26,9 @@
 #include <serialize.h>
 #include <streams.h>
 #include <sync.h>
-#include <tinyformat.h>
 #include <uint256.h>
 #include <undo.h>
+#include <util/check.h>
 #include <util/fs.h>
 #include <util/result.h>
 #include <util/signalinterrupt.h>
@@ -38,19 +37,21 @@
 #include <validation.h>
 #include <validationinterface.h>
 
-#include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <exception>
 #include <functional>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
+using kernel::ChainstateRole;
 using util::ImmediateTaskRunner;
 
 // Define G_TRANSLATION_FUN symbol in libbitcoinkernel library so users of the
@@ -359,7 +360,7 @@ protected:
         }
     }
 
-    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override
+    void BlockConnected(const ChainstateRole& role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override
     {
         if (m_cbs.block_connected) {
             m_cbs.block_connected(m_cbs.user_data,
@@ -494,9 +495,13 @@ struct btck_BlockHash : Handle<btck_BlockHash, uint256> {};
 struct btck_TransactionInput : Handle<btck_TransactionInput, CTxIn> {};
 struct btck_TransactionOutPoint: Handle<btck_TransactionOutPoint, COutPoint> {};
 struct btck_Txid: Handle<btck_Txid, Txid> {};
+struct btck_PrecomputedTransactionData : Handle<btck_PrecomputedTransactionData, PrecomputedTransactionData> {};
 
 btck_Transaction* btck_transaction_create(const void* raw_transaction, size_t raw_transaction_len)
 {
+    if (raw_transaction == nullptr && raw_transaction_len != 0) {
+        return nullptr;
+    }
     try {
         DataStream stream{std::span{reinterpret_cast<const std::byte*>(raw_transaction), raw_transaction_len}};
         return btck_Transaction::create(std::make_shared<const CTransaction>(deserialize, TX_WITH_WITNESS, stream));
@@ -556,6 +561,9 @@ void btck_transaction_destroy(btck_Transaction* transaction)
 
 btck_ScriptPubkey* btck_script_pubkey_create(const void* script_pubkey, size_t script_pubkey_len)
 {
+    if (script_pubkey == nullptr && script_pubkey_len != 0) {
+        return nullptr;
+    }
     auto data = std::span{reinterpret_cast<const uint8_t*>(script_pubkey), script_pubkey_len};
     return btck_ScriptPubkey::create(data.begin(), data.end());
 }
@@ -601,10 +609,46 @@ void btck_transaction_output_destroy(btck_TransactionOutput* output)
     delete output;
 }
 
+btck_PrecomputedTransactionData* btck_precomputed_transaction_data_create(
+    const btck_Transaction* tx_to,
+    const btck_TransactionOutput** spent_outputs_, size_t spent_outputs_len)
+{
+    try {
+        const CTransaction& tx{*btck_Transaction::get(tx_to)};
+        auto txdata{btck_PrecomputedTransactionData::create()};
+        if (spent_outputs_ != nullptr && spent_outputs_len > 0) {
+            assert(spent_outputs_len == tx.vin.size());
+            std::vector<CTxOut> spent_outputs;
+            spent_outputs.reserve(spent_outputs_len);
+            for (size_t i = 0; i < spent_outputs_len; i++) {
+                const CTxOut& tx_out{btck_TransactionOutput::get(spent_outputs_[i])};
+                spent_outputs.push_back(tx_out);
+            }
+            btck_PrecomputedTransactionData::get(txdata).Init(tx, std::move(spent_outputs));
+        } else {
+            btck_PrecomputedTransactionData::get(txdata).Init(tx, {});
+        }
+
+        return txdata;
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+btck_PrecomputedTransactionData* btck_precomputed_transaction_data_copy(const btck_PrecomputedTransactionData* precomputed_txdata)
+{
+    return btck_PrecomputedTransactionData::copy(precomputed_txdata);
+}
+
+void btck_precomputed_transaction_data_destroy(btck_PrecomputedTransactionData* precomputed_txdata)
+{
+    delete precomputed_txdata;
+}
+
 int btck_script_pubkey_verify(const btck_ScriptPubkey* script_pubkey,
                               const int64_t amount,
                               const btck_Transaction* tx_to,
-                              const btck_TransactionOutput** spent_outputs_, size_t spent_outputs_len,
+                              const btck_PrecomputedTransactionData* precomputed_txdata,
                               const unsigned int input_index,
                               const btck_ScriptVerificationFlags flags,
                               btck_ScriptVerifyStatus* status)
@@ -617,30 +661,17 @@ int btck_script_pubkey_verify(const btck_ScriptPubkey* script_pubkey,
         return 0;
     }
 
-    if (flags & btck_ScriptVerificationFlags_TAPROOT && spent_outputs_ == nullptr) {
+    const CTransaction& tx{*btck_Transaction::get(tx_to)};
+    assert(input_index < tx.vin.size());
+
+    const PrecomputedTransactionData& txdata{precomputed_txdata ? btck_PrecomputedTransactionData::get(precomputed_txdata) : PrecomputedTransactionData(tx)};
+
+    if (flags & btck_ScriptVerificationFlags_TAPROOT && txdata.m_spent_outputs.empty()) {
         if (status) *status = btck_ScriptVerifyStatus_ERROR_SPENT_OUTPUTS_REQUIRED;
         return 0;
     }
 
     if (status) *status = btck_ScriptVerifyStatus_OK;
-
-    const CTransaction& tx{*btck_Transaction::get(tx_to)};
-    std::vector<CTxOut> spent_outputs;
-    if (spent_outputs_ != nullptr) {
-        assert(spent_outputs_len == tx.vin.size());
-        spent_outputs.reserve(spent_outputs_len);
-        for (size_t i = 0; i < spent_outputs_len; i++) {
-            const CTxOut& tx_out{btck_TransactionOutput::get(spent_outputs_[i])};
-            spent_outputs.push_back(tx_out);
-        }
-    }
-
-    assert(input_index < tx.vin.size());
-    PrecomputedTransactionData txdata{tx};
-
-    if (spent_outputs_ != nullptr && flags & btck_ScriptVerificationFlags_TAPROOT) {
-        txdata.Init(tx, std::move(spent_outputs));
-    }
 
     bool result = VerifyScript(tx.vin[input_index].scriptSig,
                                btck_ScriptPubkey::get(script_pubkey),
@@ -890,6 +921,10 @@ btck_BlockValidationResult btck_block_validation_state_get_block_validation_resu
 
 btck_ChainstateManagerOptions* btck_chainstate_manager_options_create(const btck_Context* context, const char* data_dir, size_t data_dir_len, const char* blocks_dir, size_t blocks_dir_len)
 {
+    if (data_dir == nullptr || data_dir_len == 0 || blocks_dir == nullptr || blocks_dir_len == 0) {
+        LogError("Failed to create chainstate manager options: dir must be non-null and non-empty");
+        return nullptr;
+    }
     try {
         fs::path abs_data_dir{fs::absolute(fs::PathFromString({data_dir, data_dir_len}))};
         fs::create_directories(abs_data_dir);
@@ -971,13 +1006,9 @@ btck_ChainstateManager* btck_chainstate_manager_create(
             LogError("Failed to verify loaded chain state from your datadir: %s", chainstate_err.original);
             return nullptr;
         }
-
-        for (Chainstate* chainstate : WITH_LOCK(chainman->GetMutex(), return chainman->GetAll())) {
-            BlockValidationState state;
-            if (!chainstate->ActivateBestChain(state, nullptr)) {
-                LogError("Failed to connect best block: %s", state.ToString());
-                return nullptr;
-            }
+        if (auto result = chainman->ActivateBestChains(); !result) {
+            LogError("%s", util::ErrorString(result).original);
+            return nullptr;
         }
     } catch (const std::exception& e) {
         LogError("Failed to load chainstate: %s", e.what());
@@ -1002,7 +1033,7 @@ void btck_chainstate_manager_destroy(btck_ChainstateManager* chainman)
 {
     {
         LOCK(btck_ChainstateManager::get(chainman).m_chainman->GetMutex());
-        for (Chainstate* chainstate : btck_ChainstateManager::get(chainman).m_chainman->GetAll()) {
+        for (const auto& chainstate : btck_ChainstateManager::get(chainman).m_chainman->m_chainstates) {
             if (chainstate->CanFlushToDisk()) {
                 chainstate->ForceFlushStateToDisk();
                 chainstate->ResetCoinsViews();
@@ -1033,6 +1064,9 @@ int btck_chainstate_manager_import_blocks(btck_ChainstateManager* chainman, cons
 
 btck_Block* btck_block_create(const void* raw_block, size_t raw_block_length)
 {
+    if (raw_block == nullptr && raw_block_length != 0) {
+        return nullptr;
+    }
     auto block{std::make_shared<CBlock>()};
 
     DataStream stream{std::span{reinterpret_cast<const std::byte*>(raw_block), raw_block_length}};
@@ -1102,6 +1136,11 @@ int32_t btck_block_tree_entry_get_height(const btck_BlockTreeEntry* entry)
 const btck_BlockHash* btck_block_tree_entry_get_block_hash(const btck_BlockTreeEntry* entry)
 {
     return btck_BlockHash::ref(btck_BlockTreeEntry::get(entry).phashBlock);
+}
+
+int btck_block_tree_entry_equals(const btck_BlockTreeEntry* entry1, const btck_BlockTreeEntry* entry2)
+{
+    return &btck_BlockTreeEntry::get(entry1) == &btck_BlockTreeEntry::get(entry2);
 }
 
 btck_BlockHash* btck_block_hash_create(const unsigned char block_hash[32])
@@ -1230,22 +1269,10 @@ const btck_Chain* btck_chainstate_manager_get_active_chain(const btck_Chainstate
     return btck_Chain::ref(&WITH_LOCK(btck_ChainstateManager::get(chainman).m_chainman->GetMutex(), return btck_ChainstateManager::get(chainman).m_chainman->ActiveChain()));
 }
 
-const btck_BlockTreeEntry* btck_chain_get_tip(const btck_Chain* chain)
-{
-    LOCK(::cs_main);
-    return btck_BlockTreeEntry::ref(btck_Chain::get(chain).Tip());
-}
-
 int btck_chain_get_height(const btck_Chain* chain)
 {
     LOCK(::cs_main);
     return btck_Chain::get(chain).Height();
-}
-
-const btck_BlockTreeEntry* btck_chain_get_genesis(const btck_Chain* chain)
-{
-    LOCK(::cs_main);
-    return btck_BlockTreeEntry::ref(btck_Chain::get(chain).Genesis());
 }
 
 const btck_BlockTreeEntry* btck_chain_get_by_height(const btck_Chain* chain, int height)

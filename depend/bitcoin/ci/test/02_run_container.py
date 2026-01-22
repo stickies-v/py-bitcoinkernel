@@ -26,7 +26,6 @@ def main():
         ["bash", "-c", "grep export ./ci/test/00_setup_env*.sh"],
         stdout=subprocess.PIPE,
         text=True,
-        encoding="utf8",
     ).stdout.splitlines()
     settings = set(l.split("=")[0].split("export ")[1] for l in settings)
     # Add "hidden" settings, which are never exported, manually. Otherwise,
@@ -42,13 +41,32 @@ def main():
         u=os.environ["USER"],
         c=os.environ["CONTAINER_NAME"],
     )
-    with open(env_file, "w", encoding="utf8") as file:
+    with open(env_file, "w") as file:
         for k, v in os.environ.items():
             if k in settings:
                 file.write(f"{k}={v}\n")
     run(["cat", env_file])
 
-    if not os.getenv("DANGER_RUN_CI_ON_HOST"):
+    if os.getenv("DANGER_RUN_CI_ON_HOST"):
+        print("Running on host system without docker wrapper")
+        print("Create missing folders")
+        for create_dir in [
+                os.environ["CCACHE_DIR"],
+                os.environ["PREVIOUS_RELEASES_DIR"],
+        ]:
+            Path(create_dir).mkdir(parents=True, exist_ok=True)
+
+        # Modify PATH to prepend the retry script, needed for CI_RETRY_EXE
+        os.environ["PATH"] = f"{os.environ['BASE_ROOT_DIR']}/ci/retry:{os.environ['PATH']}"
+        # GNU getopt is required for the CI_RETRY_EXE script
+        if os.getenv("CI_OS_NAME") == "macos":
+            prefix = run(
+                ["brew", "--prefix", "gnu-getopt"],
+                stdout=subprocess.PIPE,
+                text=True,
+            ).stdout.strip()
+            os.environ["IN_GETOPT_BIN"] = f"{prefix}/bin/getopt"
+    else:
         CI_IMAGE_LABEL = "bitcoin-ci-test"
 
         # Use buildx unconditionally
@@ -143,18 +161,31 @@ def main():
             stdout=subprocess.PIPE,
             text=True,
         ).stdout.strip()
-        os.environ["CI_CONTAINER_ID"] = container_id
 
-    # GNU getopt is required for the CI_RETRY_EXE script
-    if os.getenv("CI_OS_NAME") == "macos":
-        prefix = run(
-            ["brew", "--prefix", "gnu-getopt"],
-            stdout=subprocess.PIPE,
-            text=True,
-        ).stdout.strip()
-        os.environ["IN_GETOPT_BIN"] = f"{prefix}/bin/getopt"
+    def ci_exec(cmd_inner, **kwargs):
+        if os.getenv("DANGER_RUN_CI_ON_HOST"):
+            prefix = []
+        else:
+            prefix = ["docker", "exec", container_id]
 
-    run(["./ci/test/02_run_container.sh"])  # run the remainder
+        return run([*prefix, *cmd_inner], **kwargs)
+
+    # Normalize all folders to BASE_ROOT_DIR
+    ci_exec([
+        "rsync",
+        "--recursive",
+        "--perms",
+        "--stats",
+        "--human-readable",
+        f"{os.environ['BASE_READ_ONLY_DIR']}/",
+        f"{os.environ['BASE_ROOT_DIR']}",
+    ])
+    ci_exec([f"{os.environ['BASE_ROOT_DIR']}/ci/test/01_base_install.sh"])
+    ci_exec([f"{os.environ['BASE_ROOT_DIR']}/ci/test/03_test_script.sh"])
+
+    if not os.getenv("DANGER_RUN_CI_ON_HOST"):
+        print("Stop and remove CI container by ID")
+        run(["docker", "container", "kill", container_id])
 
 
 if __name__ == "__main__":

@@ -92,6 +92,7 @@ static ScriptErrorDesc script_errors[]={
     {SCRIPT_ERR_WITNESS_MALLEATED_P2SH, "WITNESS_MALLEATED_P2SH"},
     {SCRIPT_ERR_WITNESS_UNEXPECTED, "WITNESS_UNEXPECTED"},
     {SCRIPT_ERR_WITNESS_PUBKEYTYPE, "WITNESS_PUBKEYTYPE"},
+    {SCRIPT_ERR_TAPSCRIPT_EMPTY_PUBKEY, "TAPSCRIPT_EMPTY_PUBKEY"},
     {SCRIPT_ERR_OP_CODESEPARATOR, "OP_CODESEPARATOR"},
     {SCRIPT_ERR_SIG_FINDANDDELETE, "SIG_FINDANDDELETE"},
 };
@@ -891,7 +892,7 @@ BOOST_AUTO_TEST_CASE(script_build)
 #ifdef UPDATE_JSON_TESTS
         strGen += str + ",\n";
 #else
-        if (tests_set.count(str) == 0) {
+        if (!tests_set.contains(str)) {
             BOOST_CHECK_MESSAGE(false, "Missing auto script_valid test: " + test.GetComment());
         }
 #endif

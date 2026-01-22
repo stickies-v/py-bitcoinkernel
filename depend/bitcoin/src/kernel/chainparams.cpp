@@ -9,6 +9,7 @@
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
 #include <consensus/params.h>
+#include <crypto/hex_base.h>
 #include <hash.h>
 #include <kernel/messagestartchars.h>
 #include <logging.h>
@@ -21,10 +22,14 @@
 #include <util/strencodings.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <type_traits>
+#include <iterator>
+#include <map>
+#include <span>
+#include <utility>
 
 using namespace util::hex_literals;
 
@@ -147,7 +152,6 @@ public:
         // release ASAP to avoid it where possible.
         vSeeds.emplace_back("seed.bitcoin.sipa.be."); // Pieter Wuille, only supports x1, x5, x9, and xd
         vSeeds.emplace_back("dnsseed.bluematt.me."); // Matt Corallo, only supports x9
-        vSeeds.emplace_back("dnsseed.bitcoin.dashjr-list-of-p2p-nodes.us."); // Luke Dashjr
         vSeeds.emplace_back("seed.bitcoin.jonasschnelli.ch."); // Jonas Schnelli, only supports x1, x5, x9, and xd
         vSeeds.emplace_back("seed.btc.petertodd.net."); // Peter Todd, only supports x1, x5, x9, and xd
         vSeeds.emplace_back("seed.bitcoin.sprovoost.nl."); // Sjors Provoost
@@ -639,7 +643,7 @@ public:
                 .blockhash = consteval_ctor(uint256{"385901ccbd69dff6bbd00065d01fb8a9e464dede7cfe0372443884f9b1dcf6b9"}),
             },
             {
-                // For use by test/functional/feature_assumeutxo.py
+                // For use by test/functional/feature_assumeutxo.py and test/functional/tool_bitcoin_chainstate.py
                 .height = 299,
                 .hash_serialized = AssumeutxoHash{uint256{"d2b051ff5e8eef46520350776f4100dd710a63447a8e01d917e92e79751a63e2"}},
                 .m_chain_tx_count = 334,

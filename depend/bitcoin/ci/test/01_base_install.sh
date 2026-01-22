@@ -79,8 +79,9 @@ if [[ -n "${USE_INSTRUMENTED_LIBCPP}" ]]; then
   rm -rf /llvm-project
 fi
 
-if [[ "${RUN_TIDY}" == "true" ]]; then
+if [[ "${RUN_IWYU}" == true ]]; then
   ${CI_RETRY_EXE} git clone --depth=1 https://github.com/include-what-you-use/include-what-you-use -b clang_"${TIDY_LLVM_V}" /include-what-you-use
+  (cd /include-what-you-use && patch -p1 < /ci_container_base/ci/test/01_iwyu.patch)
   cmake -B /iwyu-build/ -G 'Unix Makefiles' -DCMAKE_PREFIX_PATH=/usr/lib/llvm-"${TIDY_LLVM_V}" -S /include-what-you-use
   make -C /iwyu-build/ install "$MAKEJOBS"
 fi
@@ -90,7 +91,7 @@ mkdir -p "${DEPENDS_DIR}/SDKs" "${DEPENDS_DIR}/sdk-sources"
 OSX_SDK_BASENAME="Xcode-${XCODE_VERSION}-${XCODE_BUILD_ID}-extracted-SDK-with-libcxx-headers"
 
 if [ -n "$XCODE_VERSION" ] && [ ! -d "${DEPENDS_DIR}/SDKs/${OSX_SDK_BASENAME}" ]; then
-  OSX_SDK_FILENAME="${OSX_SDK_BASENAME}.tar.gz"
+  OSX_SDK_FILENAME="${OSX_SDK_BASENAME}.tar"
   OSX_SDK_PATH="${DEPENDS_DIR}/sdk-sources/${OSX_SDK_FILENAME}"
   if [ ! -f "$OSX_SDK_PATH" ]; then
     ${CI_RETRY_EXE} curl --location --fail "${SDK_URL}/${OSX_SDK_FILENAME}" -o "$OSX_SDK_PATH"

@@ -68,7 +68,8 @@ protected:
            bool f_memory = false, bool f_wipe = false, bool f_obfuscate = false);
 
         /// Read block locator of the chain that the index is in sync with.
-        bool ReadBestBlock(CBlockLocator& locator) const;
+        /// Note, the returned locator will be empty if no record exists.
+        CBlockLocator ReadBestBlock() const;
 
         /// Write block locator of the chain that the index is in sync with.
         void WriteBestBlock(CDBBatch& batch, const CBlockLocator& locator);
@@ -117,9 +118,9 @@ protected:
     Chainstate* m_chainstate{nullptr};
     const std::string m_name;
 
-    void BlockConnected(ChainstateRole role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
+    void BlockConnected(const kernel::ChainstateRole& role, const std::shared_ptr<const CBlock>& block, const CBlockIndex* pindex) override;
 
-    void ChainStateFlushed(ChainstateRole role, const CBlockLocator& locator) override;
+    void ChainStateFlushed(const kernel::ChainstateRole& role, const CBlockLocator& locator) override;
 
     /// Return custom notification options for index.
     [[nodiscard]] virtual interfaces::Chain::NotifyOptions CustomOptions() { return {}; }

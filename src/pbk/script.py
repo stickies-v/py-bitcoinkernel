@@ -80,6 +80,38 @@ class ScriptVerifyException(KernelException):
         self.status = status
 
 
+class PrecomputedTransactionData(KernelOpaquePtr):
+    """Reusable structure holding precomputed transaction data for verifying multiple inputs of
+    the same transaction.
+
+    This avoids recomputing transaction hashes for each input during script verification.
+    Required when verifying taproot inputs.
+    """
+
+    _create_fn = k.btck_precomputed_transaction_data_create
+    _destroy_fn = k.btck_precomputed_transaction_data_destroy
+
+    def __init__(
+        self, tx_to: "Transaction", spent_outputs: list["TransactionOutput"] | None
+    ):
+        """Create precomputed transaction data for script verification.
+
+        Args:
+            tx_to: The transaction to precompute data for.
+            spent_outputs: The outputs spent by the transaction. Required for taproot
+                verification, can be None for non-taproot verification.
+        """
+        spent_outputs_array = (
+            (ctypes.POINTER(k.btck_TransactionOutput) * len(spent_outputs))(
+                *[output._as_parameter_ for output in spent_outputs]
+            )
+            if spent_outputs
+            else None
+        )
+        spent_outputs_len = len(spent_outputs) if spent_outputs else 0
+        super().__init__(tx_to, spent_outputs_array, spent_outputs_len)
+
+
 class ScriptPubkey(KernelOpaquePtr):
     """A Bitcoin script defining spending conditions for an output."""
 
@@ -124,9 +156,9 @@ class ScriptPubkey(KernelOpaquePtr):
         self,
         amount: int,
         tx_to: "Transaction",
-        spent_outputs: list["TransactionOutput"] | None,
+        precomputed_txdata: PrecomputedTransactionData | None,
         input_index: int,
-        flags: int,
+        flags: ScriptVerificationFlags,
     ) -> bool:
         """Verify that a transaction input correctly spends this script pubkey.
 
@@ -139,7 +171,7 @@ class ScriptPubkey(KernelOpaquePtr):
             amount: The value of the output being spent, in satoshis. Required
                 when VERIFY_WITNESS flag is set.
             tx_to: The transaction that is attempting to spend the output.
-            spent_outputs: All outputs being spent by the transaction. Required
+            precomputed_txdata: Precomputed data for tx_to with the spent outputs. Required
                 when VERIFY_TAPROOT flag is set, otherwise can be None.
             input_index: The zero-based index of the input in `tx_to` that is
                 spending the script pubkey.
@@ -153,23 +185,14 @@ class ScriptPubkey(KernelOpaquePtr):
             ScriptVerifyException: If script verification fails. The exception
                 contains a status code indicating the specific failure reason.
         """
-        spent_outputs_array = (
-            (ctypes.POINTER(k.btck_TransactionOutput) * len(spent_outputs))(
-                *[output._as_parameter_ for output in spent_outputs]
-            )
-            if spent_outputs
-            else None
-        )
-        spent_outputs_len = len(spent_outputs) if spent_outputs else 0
         k_status = k.btck_ScriptVerifyStatus(ScriptVerifyStatus.OK)
         success = k.btck_script_pubkey_verify(
             self,
             amount,
             tx_to,
-            spent_outputs_array,
-            spent_outputs_len,
+            precomputed_txdata,
             ctypes.c_uint32(input_index),
-            ctypes.c_uint32(flags),
+            flags,
             k_status,
         )
 
