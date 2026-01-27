@@ -44,11 +44,14 @@ class BlockValidationState(KernelOpaquePtr):
     Contains information about whether validation was successful and, if not,
     which specific validation step failed. This state is provided to validation
     interface callbacks to communicate detailed validation results.
-
-    Note:
-        BlockValidationState instances cannot be directly constructed. They are
-        obtained from validation interface callbacks.
     """
+
+    _create_fn = k.btck_block_validation_state_create
+    _destroy_fn = k.btck_block_validation_state_destroy
+
+    def __init__(self):
+        """Create a block validation state."""
+        super().__init__()
 
     @property
     def validation_mode(self) -> ValidationMode:
@@ -57,7 +60,7 @@ class BlockValidationState(KernelOpaquePtr):
         Returns:
             Whether the block is valid, invalid, or encountered an error.
         """
-        return k.btck_block_validation_state_get_validation_mode(self)
+        return ValidationMode(k.btck_block_validation_state_get_validation_mode(self))
 
     @property
     def block_validation_result(self) -> BlockValidationResult:
@@ -66,7 +69,9 @@ class BlockValidationState(KernelOpaquePtr):
         Returns:
             The granular reason why validation failed, or UNSET if valid.
         """
-        return k.btck_block_validation_state_get_block_validation_result(self)
+        return BlockValidationResult(
+            k.btck_block_validation_state_get_block_validation_result(self)
+        )
 
 
 class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
