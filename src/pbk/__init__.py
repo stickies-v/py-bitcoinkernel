@@ -1,6 +1,7 @@
 from pbk.block import (
     Block,
     BlockHash,
+    BlockHeader,
     BlockTreeEntry,
     BlockSpentOutputs,
     TransactionSequence,
@@ -47,7 +48,11 @@ from pbk.transaction import (
     TransactionSpentOutputs,
     Txid,
 )
-from pbk.util.exc import KernelException, ProcessBlockException
+from pbk.util.exc import (
+    KernelException,
+    ProcessBlockException,
+    ProcessBlockHeaderException,
+)
 from pbk.validation import (
     BlockValidationResult,
     BlockValidationState,
@@ -57,6 +62,7 @@ from pbk.validation import (
 
 __all__ = [
     "BlockHash",
+    "BlockHeader",
     "BlockSpentOutputsMap",
     "BlockTreeEntryMap",
     "BlockTreeEntry",
@@ -82,6 +88,7 @@ __all__ = [
     "LoggingConnection",
     "LoggingOptions",
     "ProcessBlockException",
+    "ProcessBlockHeaderException",
     "ScriptPubkey",
     "ScriptVerificationFlags",
     "ScriptVerifyException",

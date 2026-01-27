@@ -15,3 +15,16 @@ class ProcessBlockException(KernelException):
         """
         self.code = code
         super().__init__(f"Block processing failed with error code {code}")
+
+
+class ProcessBlockHeaderException(KernelException):
+    """Raised when ChainstateManager fails to process a block header."""
+
+    def __init__(self, code: int):
+        """Create a block header processing exception.
+
+        Args:
+            code: The error code returned by the C API.
+        """
+        self.code = code
+        super().__init__(f"Block header processing failed with error code {code}")

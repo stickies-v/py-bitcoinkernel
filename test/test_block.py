@@ -20,6 +20,7 @@ def test_block_tree_entry(chainman_regtest: pbk.ChainstateManager):
     assert block_0 != block_1
     assert isinstance(block_0, pbk.BlockTreeEntry)
     assert block_1.previous == block_0
+    assert block_1.block_header.block_hash == block_1.block_hash
 
     # Comparisons are only valid with other BlockTreeEntry objects
     assert block_0 != 0
@@ -54,12 +55,44 @@ def test_block_hash(chainman_regtest: pbk.ChainstateManager):
     assert hash_recreated == hash_zero
 
 
+def test_block_header():
+    header_hex = "00c06a24d2ff376fa4cab6d28ac75ea4a38a675ac1cafa668cb601000000000000000000755926c6aa5c931b0b054c370746824f8935b35bd27172f1a36c07749b5cd60b9aa77869a1fc01171794522b"
+    header = pbk.BlockHeader(bytes.fromhex(header_hex))
+
+    assert (
+        str(header.block_hash)
+        == "00000000000000000000b1a3614f5b43589011f52dcf2c67c9e66554823ed233"
+    )
+    assert (
+        str(header.prev_hash)
+        == "00000000000000000001b68c66facac15a678aa3a45ec78ad2b6caa46f37ffd2"
+    )
+    assert header.timestamp.timestamp() == 1769514906
+    assert header.bits == 386006177
+    assert header.version == 610975744
+    assert header.nonce == 726832151
+
+    assert (
+        repr(header)
+        == "<Block header hash=00000000000000000000b1a3614f5b43589011f52dcf2c67c9e66554823ed233>"
+    )
+
+    # Test invalid input lengths
+    with pytest.raises(ValueError):
+        pbk.BlockHeader(b"\x00" * 79)
+    with pytest.raises(ValueError):
+        pbk.BlockHeader(b"\x00" * 81)
+    with pytest.raises(ValueError):
+        pbk.BlockHeader(b"")
+
+
 def test_block():
     block = pbk.Block(GENESIS_BLOCK_BYTES)
     assert bytes(block.block_hash) == GENESIS_BLOCK_HASH_BYTES
     assert bytes(block) == GENESIS_BLOCK_BYTES
 
     assert len(block.transactions) == 1
+    assert block.block_header.block_hash == block.block_hash
 
     # Test __repr__
     assert repr(block) == f"<Block hash={GENESIS_BLOCK_HASH_HEX} txs=1>"

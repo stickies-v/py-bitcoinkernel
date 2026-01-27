@@ -2,6 +2,8 @@
 
 ::: pbk.BlockHash
 
+::: pbk.BlockHeader
+
 ::: pbk.BlockTreeEntry
 
 ::: pbk.TransactionSequence

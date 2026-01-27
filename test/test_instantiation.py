@@ -16,7 +16,6 @@ def test_non_instantiable_classes_raise_type_error():
         (pbk.TransactionOutPoint, "TransactionOutPoint"),
         (pbk.TransactionInput, "TransactionInput"),
         (pbk.TransactionSpentOutputs, "TransactionSpentOutputs"),
-        (pbk.BlockValidationState, "BlockValidationState"),
     ]
 
     for cls, name in non_instantiable_classes:

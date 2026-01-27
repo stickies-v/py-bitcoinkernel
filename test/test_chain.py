@@ -50,6 +50,7 @@ def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     genesis = chain.block_tree_entries[0]
 
     assert chain_man.block_tree_entries[genesis.block_hash] == genesis
+    assert chain_man.best_entry == chain_man.get_active_chain().block_tree_entries[-1]
     assert chain_man.import_blocks([]) == 0  # TODO: implement actual test
 
     assert genesis.block_hash in chain_man.block_tree_entries
@@ -76,6 +77,18 @@ def test_process_block(temp_dir: Path):
 
     with pytest.raises(ProcessBlockException):
         chain_man.process_block(corrupted_block)
+
+
+def test_process_block_header(temp_dir: Path):
+    chain_man = pbk.load_chainman(temp_dir, pbk.ChainType.MAINNET)
+    header_hex = "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299"  # block height 1
+    header = pbk.BlockHeader(bytes.fromhex(header_hex))
+
+    assert chain_man.best_entry.height == 0
+    result = chain_man.process_block_header(header)
+    assert result.block_validation_result == pbk.BlockValidationResult.UNSET
+    assert result.validation_mode == pbk.ValidationMode.VALID
+    assert chain_man.best_entry.height == 1
 
 
 def test_chain(chainman_regtest: pbk.ChainstateManager):

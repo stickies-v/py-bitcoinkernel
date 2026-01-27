@@ -250,6 +250,10 @@ class struct_btck_Txid(Structure):
     pass
 
 btck_Txid = struct_btck_Txid
+class struct_btck_BlockHeader(Structure):
+    pass
+
+btck_BlockHeader = struct_btck_BlockHeader
 btck_SynchronizationState = ctypes.c_ubyte
 btck_Warning = ctypes.c_ubyte
 btck_LogCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
@@ -571,6 +575,12 @@ try:
     btck_block_tree_entry_get_previous.argtypes = [ctypes.POINTER(struct_btck_BlockTreeEntry)]
 except AttributeError:
     pass
+try:
+    btck_block_tree_entry_get_block_header = BITCOINKERNEL_LIB.btck_block_tree_entry_get_block_header
+    btck_block_tree_entry_get_block_header.restype = ctypes.POINTER(struct_btck_BlockHeader)
+    btck_block_tree_entry_get_block_header.argtypes = [ctypes.POINTER(struct_btck_BlockTreeEntry)]
+except AttributeError:
+    pass
 int32_t = ctypes.c_int32
 try:
     btck_block_tree_entry_get_height = BITCOINKERNEL_LIB.btck_block_tree_entry_get_height
@@ -630,6 +640,18 @@ try:
     btck_chainstate_manager_create = BITCOINKERNEL_LIB.btck_chainstate_manager_create
     btck_chainstate_manager_create.restype = ctypes.POINTER(struct_btck_ChainstateManager)
     btck_chainstate_manager_create.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions)]
+except AttributeError:
+    pass
+try:
+    btck_chainstate_manager_get_best_entry = BITCOINKERNEL_LIB.btck_chainstate_manager_get_best_entry
+    btck_chainstate_manager_get_best_entry.restype = ctypes.POINTER(struct_btck_BlockTreeEntry)
+    btck_chainstate_manager_get_best_entry.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager)]
+except AttributeError:
+    pass
+try:
+    btck_chainstate_manager_process_block_header = BITCOINKERNEL_LIB.btck_chainstate_manager_process_block_header
+    btck_chainstate_manager_process_block_header.restype = ctypes.c_int32
+    btck_chainstate_manager_process_block_header.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(struct_btck_BlockHeader), ctypes.POINTER(struct_btck_BlockValidationState)]
 except AttributeError:
     pass
 try:
@@ -693,6 +715,12 @@ try:
 except AttributeError:
     pass
 try:
+    btck_block_get_header = BITCOINKERNEL_LIB.btck_block_get_header
+    btck_block_get_header.restype = ctypes.POINTER(struct_btck_BlockHeader)
+    btck_block_get_header.argtypes = [ctypes.POINTER(struct_btck_Block)]
+except AttributeError:
+    pass
+try:
     btck_block_get_hash = BITCOINKERNEL_LIB.btck_block_get_hash
     btck_block_get_hash.restype = ctypes.POINTER(struct_btck_BlockHash)
     btck_block_get_hash.argtypes = [ctypes.POINTER(struct_btck_Block)]
@@ -711,6 +739,12 @@ try:
 except AttributeError:
     pass
 try:
+    btck_block_validation_state_create = BITCOINKERNEL_LIB.btck_block_validation_state_create
+    btck_block_validation_state_create.restype = ctypes.POINTER(struct_btck_BlockValidationState)
+    btck_block_validation_state_create.argtypes = []
+except AttributeError:
+    pass
+try:
     btck_block_validation_state_get_validation_mode = BITCOINKERNEL_LIB.btck_block_validation_state_get_validation_mode
     btck_block_validation_state_get_validation_mode.restype = btck_ValidationMode
     btck_block_validation_state_get_validation_mode.argtypes = [ctypes.POINTER(struct_btck_BlockValidationState)]
@@ -720,6 +754,18 @@ try:
     btck_block_validation_state_get_block_validation_result = BITCOINKERNEL_LIB.btck_block_validation_state_get_block_validation_result
     btck_block_validation_state_get_block_validation_result.restype = btck_BlockValidationResult
     btck_block_validation_state_get_block_validation_result.argtypes = [ctypes.POINTER(struct_btck_BlockValidationState)]
+except AttributeError:
+    pass
+try:
+    btck_block_validation_state_copy = BITCOINKERNEL_LIB.btck_block_validation_state_copy
+    btck_block_validation_state_copy.restype = ctypes.POINTER(struct_btck_BlockValidationState)
+    btck_block_validation_state_copy.argtypes = [ctypes.POINTER(struct_btck_BlockValidationState)]
+except AttributeError:
+    pass
+try:
+    btck_block_validation_state_destroy = BITCOINKERNEL_LIB.btck_block_validation_state_destroy
+    btck_block_validation_state_destroy.restype = None
+    btck_block_validation_state_destroy.argtypes = [ctypes.POINTER(struct_btck_BlockValidationState)]
 except AttributeError:
     pass
 try:
@@ -921,25 +967,79 @@ try:
     btck_block_hash_destroy.argtypes = [ctypes.POINTER(struct_btck_BlockHash)]
 except AttributeError:
     pass
+try:
+    btck_block_header_create = BITCOINKERNEL_LIB.btck_block_header_create
+    btck_block_header_create.restype = ctypes.POINTER(struct_btck_BlockHeader)
+    btck_block_header_create.argtypes = [ctypes.POINTER(None), size_t]
+except AttributeError:
+    pass
+try:
+    btck_block_header_copy = BITCOINKERNEL_LIB.btck_block_header_copy
+    btck_block_header_copy.restype = ctypes.POINTER(struct_btck_BlockHeader)
+    btck_block_header_copy.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
+try:
+    btck_block_header_get_hash = BITCOINKERNEL_LIB.btck_block_header_get_hash
+    btck_block_header_get_hash.restype = ctypes.POINTER(struct_btck_BlockHash)
+    btck_block_header_get_hash.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
+try:
+    btck_block_header_get_prev_hash = BITCOINKERNEL_LIB.btck_block_header_get_prev_hash
+    btck_block_header_get_prev_hash.restype = ctypes.POINTER(struct_btck_BlockHash)
+    btck_block_header_get_prev_hash.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
+try:
+    btck_block_header_get_timestamp = BITCOINKERNEL_LIB.btck_block_header_get_timestamp
+    btck_block_header_get_timestamp.restype = uint32_t
+    btck_block_header_get_timestamp.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
+try:
+    btck_block_header_get_bits = BITCOINKERNEL_LIB.btck_block_header_get_bits
+    btck_block_header_get_bits.restype = uint32_t
+    btck_block_header_get_bits.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
+try:
+    btck_block_header_get_version = BITCOINKERNEL_LIB.btck_block_header_get_version
+    btck_block_header_get_version.restype = int32_t
+    btck_block_header_get_version.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
+try:
+    btck_block_header_get_nonce = BITCOINKERNEL_LIB.btck_block_header_get_nonce
+    btck_block_header_get_nonce.restype = uint32_t
+    btck_block_header_get_nonce.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
+try:
+    btck_block_header_destroy = BITCOINKERNEL_LIB.btck_block_header_destroy
+    btck_block_header_destroy.restype = None
+    btck_block_header_destroy.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
+except AttributeError:
+    pass
 __all__ = \
-    ['btck_Block', 'btck_BlockHash', 'btck_BlockSpentOutputs',
-    'btck_BlockTreeEntry', 'btck_BlockValidationResult',
-    'btck_BlockValidationState', 'btck_Chain', 'btck_ChainParameters',
-    'btck_ChainType', 'btck_ChainstateManager',
-    'btck_ChainstateManagerOptions', 'btck_Coin', 'btck_Context',
-    'btck_ContextOptions', 'btck_DestroyCallback', 'btck_LogCallback',
-    'btck_LogCategory', 'btck_LogLevel', 'btck_LoggingConnection',
-    'btck_LoggingOptions', 'btck_NotificationInterfaceCallbacks',
-    'btck_NotifyBlockTip', 'btck_NotifyFatalError',
-    'btck_NotifyFlushError', 'btck_NotifyHeaderTip',
-    'btck_NotifyProgress', 'btck_NotifyWarningSet',
-    'btck_NotifyWarningUnset', 'btck_PrecomputedTransactionData',
-    'btck_ScriptPubkey', 'btck_ScriptVerificationFlags',
-    'btck_ScriptVerifyStatus', 'btck_SynchronizationState',
-    'btck_Transaction', 'btck_TransactionInput',
-    'btck_TransactionOutPoint', 'btck_TransactionOutput',
-    'btck_TransactionSpentOutputs', 'btck_Txid',
-    'btck_ValidationInterfaceBlockChecked',
+    ['btck_Block', 'btck_BlockHash', 'btck_BlockHeader',
+    'btck_BlockSpentOutputs', 'btck_BlockTreeEntry',
+    'btck_BlockValidationResult', 'btck_BlockValidationState',
+    'btck_Chain', 'btck_ChainParameters', 'btck_ChainType',
+    'btck_ChainstateManager', 'btck_ChainstateManagerOptions',
+    'btck_Coin', 'btck_Context', 'btck_ContextOptions',
+    'btck_DestroyCallback', 'btck_LogCallback', 'btck_LogCategory',
+    'btck_LogLevel', 'btck_LoggingConnection', 'btck_LoggingOptions',
+    'btck_NotificationInterfaceCallbacks', 'btck_NotifyBlockTip',
+    'btck_NotifyFatalError', 'btck_NotifyFlushError',
+    'btck_NotifyHeaderTip', 'btck_NotifyProgress',
+    'btck_NotifyWarningSet', 'btck_NotifyWarningUnset',
+    'btck_PrecomputedTransactionData', 'btck_ScriptPubkey',
+    'btck_ScriptVerificationFlags', 'btck_ScriptVerifyStatus',
+    'btck_SynchronizationState', 'btck_Transaction',
+    'btck_TransactionInput', 'btck_TransactionOutPoint',
+    'btck_TransactionOutput', 'btck_TransactionSpentOutputs',
+    'btck_Txid', 'btck_ValidationInterfaceBlockChecked',
     'btck_ValidationInterfaceBlockConnected',
     'btck_ValidationInterfaceBlockDisconnected',
     'btck_ValidationInterfaceCallbacks',
@@ -947,18 +1047,27 @@ __all__ = \
     'btck_Warning', 'btck_WriteBytes', 'btck_block_copy',
     'btck_block_count_transactions', 'btck_block_create',
     'btck_block_destroy', 'btck_block_get_hash',
-    'btck_block_get_transaction_at', 'btck_block_hash_copy',
-    'btck_block_hash_create', 'btck_block_hash_destroy',
-    'btck_block_hash_equals', 'btck_block_hash_to_bytes',
-    'btck_block_read', 'btck_block_spent_outputs_copy',
-    'btck_block_spent_outputs_count',
+    'btck_block_get_header', 'btck_block_get_transaction_at',
+    'btck_block_hash_copy', 'btck_block_hash_create',
+    'btck_block_hash_destroy', 'btck_block_hash_equals',
+    'btck_block_hash_to_bytes', 'btck_block_header_copy',
+    'btck_block_header_create', 'btck_block_header_destroy',
+    'btck_block_header_get_bits', 'btck_block_header_get_hash',
+    'btck_block_header_get_nonce', 'btck_block_header_get_prev_hash',
+    'btck_block_header_get_timestamp',
+    'btck_block_header_get_version', 'btck_block_read',
+    'btck_block_spent_outputs_copy', 'btck_block_spent_outputs_count',
     'btck_block_spent_outputs_destroy',
     'btck_block_spent_outputs_get_transaction_spent_outputs_at',
     'btck_block_spent_outputs_read', 'btck_block_to_bytes',
     'btck_block_tree_entry_equals',
     'btck_block_tree_entry_get_block_hash',
+    'btck_block_tree_entry_get_block_header',
     'btck_block_tree_entry_get_height',
     'btck_block_tree_entry_get_previous',
+    'btck_block_validation_state_copy',
+    'btck_block_validation_state_create',
+    'btck_block_validation_state_destroy',
     'btck_block_validation_state_get_block_validation_result',
     'btck_block_validation_state_get_validation_mode',
     'btck_chain_contains', 'btck_chain_get_by_height',
@@ -967,6 +1076,7 @@ __all__ = \
     'btck_chainstate_manager_create',
     'btck_chainstate_manager_destroy',
     'btck_chainstate_manager_get_active_chain',
+    'btck_chainstate_manager_get_best_entry',
     'btck_chainstate_manager_get_block_tree_entry_by_hash',
     'btck_chainstate_manager_import_blocks',
     'btck_chainstate_manager_options_create',
@@ -976,6 +1086,7 @@ __all__ = \
     'btck_chainstate_manager_options_update_block_tree_db_in_memory',
     'btck_chainstate_manager_options_update_chainstate_db_in_memory',
     'btck_chainstate_manager_process_block',
+    'btck_chainstate_manager_process_block_header',
     'btck_coin_confirmation_height', 'btck_coin_copy',
     'btck_coin_destroy', 'btck_coin_get_output',
     'btck_coin_is_coinbase', 'btck_context_copy',
@@ -1016,10 +1127,10 @@ __all__ = \
     'btck_transaction_to_bytes', 'btck_txid_copy',
     'btck_txid_destroy', 'btck_txid_equals', 'btck_txid_to_bytes',
     'int32_t', 'int64_t', 'size_t', 'struct_btck_Block',
-    'struct_btck_BlockHash', 'struct_btck_BlockSpentOutputs',
-    'struct_btck_BlockTreeEntry', 'struct_btck_BlockValidationState',
-    'struct_btck_Chain', 'struct_btck_ChainParameters',
-    'struct_btck_ChainstateManager',
+    'struct_btck_BlockHash', 'struct_btck_BlockHeader',
+    'struct_btck_BlockSpentOutputs', 'struct_btck_BlockTreeEntry',
+    'struct_btck_BlockValidationState', 'struct_btck_Chain',
+    'struct_btck_ChainParameters', 'struct_btck_ChainstateManager',
     'struct_btck_ChainstateManagerOptions', 'struct_btck_Coin',
     'struct_btck_Context', 'struct_btck_ContextOptions',
     'struct_btck_LoggingConnection', 'struct_btck_LoggingOptions',
