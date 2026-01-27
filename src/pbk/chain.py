@@ -256,6 +256,20 @@ class BlockTreeEntryMap(MapBase):
     by the chainstate manager.
     """
 
+    def __contains__(self, key: BlockHash) -> bool:
+        """Check if a block hash exists in the block index.
+
+        Args:
+            key: The block hash to look up.
+
+        Returns:
+            True if the block hash exists in the block index, False otherwise.
+        """
+        entry = k.btck_chainstate_manager_get_block_tree_entry_by_hash(
+            self._chainman, key
+        )
+        return bool(entry)
+
     def __getitem__(self, key: BlockHash) -> BlockTreeEntry:
         """Retrieve a block tree entry by its block hash.
 
@@ -282,6 +296,17 @@ class BlockMap(MapBase):
     This map reads blocks from disk using block tree entries as keys.
     """
 
+    def __contains__(self, key: BlockTreeEntry) -> bool:
+        """Check if a block can be read from disk.
+
+        Args:
+            key: The block tree entry identifying which block to check.
+
+        Returns:
+            True if the block can be read from disk, False otherwise.
+        """
+        return bool(k.btck_block_read(self._chainman, key))
+
     def __getitem__(self, key: BlockTreeEntry) -> Block:
         """Read a block from disk using its block tree entry.
 
@@ -305,6 +330,21 @@ class BlockSpentOutputsMap(MapBase):
 
     This map reads spent output data (also known as undo data) from disk.
     """
+
+    def __contains__(self, key: BlockTreeEntry) -> bool:
+        """Check if block spent outputs can be read from disk.
+
+        Args:
+            key: The block tree entry identifying which block's spent outputs
+                to check.
+
+        Returns:
+            True if the spent outputs can be read from disk, False otherwise.
+            Always returns False for the genesis block.
+        """
+        if key.height == 0:
+            return False
+        return bool(k.btck_block_spent_outputs_read(self._chainman, key))
 
     def __getitem__(self, key: BlockTreeEntry) -> BlockSpentOutputs:
         """Read block spent outputs from disk using a block tree entry.
