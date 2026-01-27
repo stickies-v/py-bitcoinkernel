@@ -20,6 +20,7 @@ def test_block_tree_entry(chainman_regtest: pbk.ChainstateManager):
     assert block_0 != block_1
     assert isinstance(block_0, pbk.BlockTreeEntry)
     assert block_1.previous == block_0
+    assert block_1.block_header.block_hash == block_1.block_hash
 
     # Comparisons are only valid with other BlockTreeEntry objects
     assert block_0 != 0
@@ -91,6 +92,7 @@ def test_block():
     assert bytes(block) == GENESIS_BLOCK_BYTES
 
     assert len(block.transactions) == 1
+    assert block.block_header.block_hash == block.block_hash
 
     # Test __repr__
     assert repr(block) == f"<Block hash={GENESIS_BLOCK_HASH_HEX} txs=1>"

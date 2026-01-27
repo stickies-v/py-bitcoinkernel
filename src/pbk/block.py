@@ -117,6 +117,11 @@ class BlockTreeEntry(KernelOpaquePtr):
         """
         return BlockTreeEntry._from_view(k.btck_block_tree_entry_get_previous(self))
 
+    @property
+    def block_header(self) -> "BlockHeader":
+        """The header of the block this entry represents."""
+        return BlockHeader._from_handle(k.btck_block_tree_entry_get_block_header(self))
+
     def __eq__(self, other: object) -> bool:
         """Check equality with another block tree entry.
 
@@ -259,6 +264,15 @@ class Block(KernelOpaquePtr):
             The block hash.
         """
         return BlockHash._from_handle(k.btck_block_get_hash(self))
+
+    @property
+    def block_header(self) -> BlockHeader:
+        """The header of this block.
+
+        Returns:
+            The block header.
+        """
+        return BlockHeader._from_handle(k.btck_block_get_header(self))
 
     def __bytes__(self) -> bytes:
         """Serialize the block to bytes.
