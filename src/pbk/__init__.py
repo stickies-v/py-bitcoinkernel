@@ -48,7 +48,11 @@ from pbk.transaction import (
     TransactionSpentOutputs,
     Txid,
 )
-from pbk.util.exc import KernelException, ProcessBlockException
+from pbk.util.exc import (
+    KernelException,
+    ProcessBlockException,
+    ProcessBlockHeaderException,
+)
 from pbk.validation import (
     BlockValidationResult,
     BlockValidationState,
@@ -84,6 +88,7 @@ __all__ = [
     "LoggingConnection",
     "LoggingOptions",
     "ProcessBlockException",
+    "ProcessBlockHeaderException",
     "ScriptPubkey",
     "ScriptVerificationFlags",
     "ScriptVerifyException",

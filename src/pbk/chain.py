@@ -6,11 +6,12 @@ from pathlib import Path
 import pbk.capi.bindings as k
 from pbk.block import Block, BlockHash, BlockTreeEntry, BlockSpentOutputs
 from pbk.capi import KernelOpaquePtr
-from pbk.util.exc import ProcessBlockException
+from pbk.util.exc import ProcessBlockException, ProcessBlockHeaderException
 from pbk.util.sequence import LazySequence
+from pbk.validation import BlockValidationState
 
 if typing.TYPE_CHECKING:
-    from pbk import BlockHash, Context
+    from pbk import BlockHash, BlockHeader, Context
 
 
 # TODO: add enum auto-generation or testing to ensure it remains in
@@ -459,6 +460,32 @@ class ChainstateManager(KernelOpaquePtr):
             A map that reads spent output data using block tree entries as keys.
         """
         return BlockSpentOutputsMap(self)
+
+    @property
+    def best_entry(self) -> BlockTreeEntry:
+        """The BlockTreeEntry whose associated BlockHeader has the most known
+        cumulative proof of work."""
+        return BlockTreeEntry._from_view(k.btck_chainstate_manager_get_best_entry(self))
+
+    def process_block_header(self, header: "BlockHeader") -> "BlockValidationState":
+        """
+        Processes and validates the provided block header.
+
+        Args:
+            header: block header to be processed
+
+        Returns:
+            The result of the block header validation
+
+        Raises:
+            ProcessBlockHeaderException: If processing the block header failed. Duplicate block headers do not throw.
+        """
+        state = BlockValidationState()
+        result = k.btck_chainstate_manager_process_block_header(self, header, state)
+        if result != 0:
+            raise ProcessBlockHeaderException(result)
+
+        return state
 
     def __repr__(self) -> str:
         """Return a string representation of the chainstate manager."""
