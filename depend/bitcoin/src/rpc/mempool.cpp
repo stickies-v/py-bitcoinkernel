@@ -1031,7 +1031,7 @@ static UniValue OrphanToJSON(const node::TxOrphanage::OrphanInfo& orphan)
     UniValue o(UniValue::VOBJ);
     o.pushKV("txid", orphan.tx->GetHash().ToString());
     o.pushKV("wtxid", orphan.tx->GetWitnessHash().ToString());
-    o.pushKV("bytes", orphan.tx->GetTotalSize());
+    o.pushKV("bytes", orphan.tx->ComputeTotalSize());
     o.pushKV("vsize", GetVirtualTransactionSize(*orphan.tx));
     o.pushKV("weight", GetTransactionWeight(*orphan.tx));
     UniValue from(UniValue::VARR);
@@ -1084,7 +1084,7 @@ static RPCHelpMan getorphantxs()
             PeerManager& peerman = EnsurePeerman(node);
             std::vector<node::TxOrphanage::OrphanInfo> orphanage = peerman.GetOrphanTransactions();
 
-            int verbosity{ParseVerbosity(request.params[0], /*default_verbosity=*/0, /*allow_bool*/false)};
+            int verbosity{ParseVerbosity(request.params[0], /*default_verbosity=*/0, /*allow_bool=*/false)};
 
             UniValue ret(UniValue::VARR);
 
