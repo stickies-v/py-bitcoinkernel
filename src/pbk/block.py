@@ -1,4 +1,5 @@
 import ctypes
+import datetime
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
@@ -172,6 +173,63 @@ class TransactionSequence(LazySequence[Transaction]):
         return Transaction._from_view(
             k.btck_block_get_transaction_at(self._block, index), self._block
         )
+
+
+class BlockHeader(KernelOpaquePtr):
+    """A deserialized Bitcoin block header."""
+
+    _create_fn = k.btck_block_header_create
+    _destroy_fn = k.btck_block_header_destroy
+
+    def __init__(self, raw_header: bytes):
+        """Create a block header from serialized data.
+
+        Args:
+            raw_header: The serialized block header data in consensus format. Must be 80 bytes.
+
+        Raises:
+            RuntimeError: If parsing the block header data fails (propagated from base class)
+        """
+        if len(raw_header) != 80:
+            raise ValueError(
+                f"raw_header argument must be bytes of length 80, got {len(raw_header)}"
+            )
+        super().__init__((ctypes.c_ubyte * 80).from_buffer_copy(raw_header), 80)
+
+    @property
+    def block_hash(self) -> BlockHash:
+        """The block hash."""
+        return BlockHash._from_handle(k.btck_block_header_get_hash(self))
+
+    @property
+    def prev_hash(self) -> BlockHash:
+        """The previous block hash."""
+        return BlockHash._from_view(k.btck_block_header_get_prev_hash(self))
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """The timestamp."""
+        epoch = k.btck_block_header_get_timestamp(self)
+        return datetime.datetime.fromtimestamp(epoch, datetime.timezone.utc)
+
+    @property
+    def bits(self) -> int:
+        """The nBits difficulty target."""
+        return k.btck_block_header_get_bits(self)
+
+    @property
+    def version(self) -> int:
+        """The version."""
+        return k.btck_block_header_get_version(self)
+
+    @property
+    def nonce(self) -> int:
+        """The nonce."""
+        return k.btck_block_header_get_nonce(self)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the block header."""
+        return f"<Block header hash={str(self.block_hash)}>"
 
 
 class Block(KernelOpaquePtr):
