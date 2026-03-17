@@ -69,3 +69,7 @@ docs = [
 docs-test = [
     "interrogate",
 ]
+bindings = [
+    "ctypeslib2",
+    "clang==21.*",
+]
