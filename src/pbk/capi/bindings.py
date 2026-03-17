@@ -6,26 +6,9 @@
 # LONGDOUBLE_SIZE is: 8
 #
 import ctypes
-import site
-from importlib import resources
-from pathlib import Path
 
+from pbk.capi.library import BITCOINKERNEL_LIB
 
-def _find_bitcoinkernel_lib():
-    resources_paths = [resources.files("pbk")]
-    # Adding site packages makes this work in editable mode with scikit-build-core
-    site_packages_paths = [Path(p) / "pbk" for p in site.getsitepackages()]
-    for pkg_path in [*resources_paths, *site_packages_paths]:
-        matches = list((pkg_path / "_libs").glob('*bitcoinkernel*'))
-        if len(matches) == 1:
-            return str(matches[0])
-        if matches:
-            raise RuntimeError(f"Found multiple libbitcoinkernel candidates: {matches}")
-    raise RuntimeError(
-        "Could not find libbitcoinkernel. Please re-run `pip install`."
-    )
-
-BITCOINKERNEL_LIB = ctypes.CDLL(_find_bitcoinkernel_lib())
 
 class AsDictMixin:
     @classmethod
@@ -160,11 +143,6 @@ def char_pointer_cast(string, encoding='utf-8'):
     string = ctypes.c_char_p(string)
     return ctypes.cast(string, ctypes.POINTER(ctypes.c_char))
 
-
-
-class FunctionFactoryStub:
-    def __getattr__(self, _):
-      return ctypes.CFUNCTYPE(lambda y:y)
 
 class struct_btck_Transaction(Structure):
     pass
