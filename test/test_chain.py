@@ -5,12 +5,12 @@ import pytest
 from pbk.util.exc import ProcessBlockException
 
 
-def test_chain_type():
+def test_chain_type() -> None:
     for chain_type in pbk.ChainType:
         pbk.ChainParameters(chain_type)
 
 
-def test_chainstate_manager_options(temp_dir: Path):
+def test_chainstate_manager_options(temp_dir: Path) -> None:
     opts = pbk.ContextOptions()
     context = pbk.Context(opts)
 
@@ -44,7 +44,7 @@ def test_chainstate_manager_options(temp_dir: Path):
     pbk.ChainstateManager(chain_man_opts)
 
 
-def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
+def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager) -> None:
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
     genesis = chain.block_tree_entries[0]
@@ -57,7 +57,7 @@ def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager):
     assert pbk.BlockHash(bytes(32)) not in chain_man.block_tree_entries
 
 
-def test_process_block(temp_dir: Path):
+def test_process_block(temp_dir: Path) -> None:
     chain_man = pbk.load_chainman(temp_dir, pbk.ChainType.REGTEST)
 
     blocks_path = Path(__file__).parent / "data" / "regtest" / "blocks.txt"
@@ -79,7 +79,7 @@ def test_process_block(temp_dir: Path):
         chain_man.process_block(corrupted_block)
 
 
-def test_process_block_header(temp_dir: Path):
+def test_process_block_header(temp_dir: Path) -> None:
     chain_man = pbk.load_chainman(temp_dir, pbk.ChainType.MAINNET)
     header_hex = "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299"  # block height 1
     header = pbk.BlockHeader(bytes.fromhex(header_hex))
@@ -91,7 +91,7 @@ def test_process_block_header(temp_dir: Path):
     assert chain_man.best_entry.height == 1
 
 
-def test_chain(chainman_regtest: pbk.ChainstateManager):
+def test_chain(chainman_regtest: pbk.ChainstateManager) -> None:
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
 
@@ -113,7 +113,7 @@ def test_chain(chainman_regtest: pbk.ChainstateManager):
     assert repr(chain_man).endswith(">")
 
 
-def test_read_block(chainman_regtest: pbk.ChainstateManager):
+def test_read_block(chainman_regtest: pbk.ChainstateManager) -> None:
     chain_man = chainman_regtest
     chain = chain_man.get_active_chain()
     genesis = chain.block_tree_entries[0]

@@ -8,7 +8,7 @@ from pbk.util.type import UserData
 
 def _py_callback(
     c_bytes_ptr: ctypes.c_void_p, size: int, byte_writer_ptr: ctypes.c_void_p
-):
+) -> int:
     """C callback that receives serialized bytes and appends them to a ByteWriter buffer."""
     byte_writer: typing.Optional["ByteWriter"] = None
     try:

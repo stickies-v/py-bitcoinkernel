@@ -1,4 +1,5 @@
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,7 @@ import pbk
 
 
 @pytest.fixture
-def temp_dir():
+def temp_dir() -> Generator[Path]:
     dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     try:
         yield Path(dir.name)
@@ -16,7 +17,7 @@ def temp_dir():
 
 
 @pytest.fixture
-def chainman_regtest(temp_dir):
+def chainman_regtest(temp_dir: Path) -> pbk.ChainstateManager:
     chain_man = pbk.load_chainman(temp_dir, pbk.ChainType.REGTEST)
 
     with (Path(__file__).parent / "data" / "regtest" / "blocks.txt").open("r") as file:

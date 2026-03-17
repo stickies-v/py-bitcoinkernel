@@ -1,4 +1,5 @@
 import ctypes
+import typing
 
 import pbk.capi.bindings as k
 import pbk.util.callbacks
@@ -7,7 +8,7 @@ import pbk.util.callbacks
 class NotificationInterfaceCallbacks(k.btck_NotificationInterfaceCallbacks):
     """Callbacks for receiving kernel notification events."""
 
-    def __init__(self, user_data=None, **callbacks):
+    def __init__(self, user_data: typing.Any = None, **callbacks: typing.Any):
         """Create notification interface callbacks.
 
         Args:

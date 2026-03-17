@@ -1,5 +1,19 @@
+from __future__ import annotations
+
 import ctypes
+import sys
+import types
 import typing
+
+if typing.TYPE_CHECKING:
+    from typing_extensions import Self
+elif sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    # Runtime placeholder so `typing.get_type_hints()` can resolve `Self`
+    # in annotations on Python 3.10. Static type checkers use the
+    # TYPE_CHECKING branch above.
+    Self = typing.TypeVar("Self")
 
 
 class KernelOpaquePtr:
@@ -35,7 +49,7 @@ class KernelOpaquePtr:
         None  # If None, cannot be destroyed. Should only be used for view-only classes.
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: typing.Any, **kwargs: typing.Any):
         """Initialize a new kernel object by calling the underlying C constructor.
 
         The arguments are passed through to the subclass's `_create_fn`. The created
@@ -62,7 +76,7 @@ class KernelOpaquePtr:
         self._owns_ptr = True
 
     @classmethod
-    def _from_handle(cls, ptr):
+    def _from_handle(cls, ptr: ctypes.c_void_p) -> Self:
         """Construct from an owned C pointer.
 
         This factory method wraps a C pointer that is owned by the returned Python
@@ -81,7 +95,9 @@ class KernelOpaquePtr:
         return cls._from_ptr(ptr, owns_ptr=True)
 
     @classmethod
-    def _from_view(cls, ptr, parent=None):
+    def _from_view(
+        cls, ptr: ctypes.c_void_p, parent: KernelOpaquePtr | None = None
+    ) -> Self:
         """Construct from an unowned view of a C pointer.
 
         This factory method wraps a C pointer that is NOT owned by the returned
@@ -105,7 +121,12 @@ class KernelOpaquePtr:
         return cls._from_ptr(ptr, owns_ptr=False, parent=parent)
 
     @classmethod
-    def _from_ptr(cls, ptr: ctypes.c_void_p, owns_ptr: bool = True, parent=None):
+    def _from_ptr(
+        cls,
+        ptr: ctypes.c_void_p,
+        owns_ptr: bool = True,
+        parent: KernelOpaquePtr | None = None,
+    ) -> Self:
         """Wrap a C pointer with configurable ownership semantics.
 
         This is the low-level factory method used by `_from_handle` and `_from_view`.
@@ -163,7 +184,7 @@ class KernelOpaquePtr:
             self._destroy_fn(self)
             self._as_parameter_ = None
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         """Enter the context manager.
 
         Enables using this object with the `with` statement for automatic
@@ -174,7 +195,12 @@ class KernelOpaquePtr:
         """
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: types.TracebackType | None,
+    ):
         """Exit the context manager and clean up resources.
 
         This is called when exiting a `with` block. It delegates to `__del__`

@@ -103,9 +103,9 @@ class LoggingOptions(k.btck_LoggingOptions):
         self.always_print_category_levels = always_print_category_levels
 
     @property
-    def _as_parameter_(self):
+    def _as_parameter_(self) -> ctypes.c_void_p:
         """Return the ctypes reference for passing to C functions."""
-        return ctypes.byref(self)
+        return ctypes.byref(self)  # ty: ignore[invalid-return-type]
 
 
 def is_valid_log_callback(fn: typing.Any) -> bool:
@@ -225,7 +225,7 @@ class LoggingConnection(KernelOpaquePtr):
         super().__init__(self._cb, user_data, k.btck_DestroyCallback())
 
     @staticmethod
-    def _wrap_log_fn(fn: Callable[[str], None]):
+    def _wrap_log_fn(fn: Callable[[str], None]) -> k.btck_LogCallback:  # ty: ignore[invalid-type-form]
         """Wrap a Python callback for use with the C logging API.
 
         Args:
@@ -235,7 +235,7 @@ class LoggingConnection(KernelOpaquePtr):
             A C-compatible callback function.
         """
 
-        def wrapped(user_data: None, message: bytes, message_len: int):
+        def wrapped(user_data: None, message: bytes, message_len: int) -> None:
             """C callback wrapper that decodes the message and calls the Python function."""
             return fn(ctypes.string_at(message, message_len).decode("utf-8"))
 

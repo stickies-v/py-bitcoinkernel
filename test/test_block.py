@@ -10,7 +10,7 @@ GENESIS_BLOCK_HASH_HEX = (
 )
 
 
-def test_block_tree_entry(chainman_regtest: pbk.ChainstateManager):
+def test_block_tree_entry(chainman_regtest: pbk.ChainstateManager) -> None:
     chain = chainman_regtest.get_active_chain()
 
     block_0 = chain.block_tree_entries[0]
@@ -29,7 +29,7 @@ def test_block_tree_entry(chainman_regtest: pbk.ChainstateManager):
     assert repr(block_0) == f"<BlockTreeEntry height=0 hash={GENESIS_BLOCK_HASH_HEX}>"
 
 
-def test_block_hash(chainman_regtest: pbk.ChainstateManager):
+def test_block_hash(chainman_regtest: pbk.ChainstateManager) -> None:
     hash_zero = pbk.BlockHash(b"0" * 32)
 
     assert hash_zero == hash_zero
@@ -55,7 +55,7 @@ def test_block_hash(chainman_regtest: pbk.ChainstateManager):
     assert hash_recreated == hash_zero
 
 
-def test_block_header():
+def test_block_header() -> None:
     header_hex = "00c06a24d2ff376fa4cab6d28ac75ea4a38a675ac1cafa668cb601000000000000000000755926c6aa5c931b0b054c370746824f8935b35bd27172f1a36c07749b5cd60b9aa77869a1fc01171794522b"
     header = pbk.BlockHeader(bytes.fromhex(header_hex))
 
@@ -86,7 +86,7 @@ def test_block_header():
         pbk.BlockHeader(b"")
 
 
-def test_block():
+def test_block() -> None:
     block = pbk.Block(GENESIS_BLOCK_BYTES)
     assert bytes(block.block_hash) == GENESIS_BLOCK_HASH_BYTES
     assert bytes(block) == GENESIS_BLOCK_BYTES
@@ -98,7 +98,7 @@ def test_block():
     assert repr(block) == f"<Block hash={GENESIS_BLOCK_HASH_HEX} txs=1>"
 
 
-def test_block_undo(chainman_regtest: pbk.ChainstateManager):
+def test_block_undo(chainman_regtest: pbk.ChainstateManager) -> None:
     chain_man = chainman_regtest
     idx = chain_man.get_active_chain().block_tree_entries[202]
     undo = chain_man.block_spent_outputs[idx]
