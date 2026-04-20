@@ -81,11 +81,21 @@ class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
     Callbacks are invoked synchronously during validation and will block further
     validation execution until they complete, so they should execute quickly.
 
+    All callbacks are optional; only those passed as keyword arguments are
+    registered, and any unspecified event is silently ignored.
+
     Available callbacks:
       - `block_checked`: Called when a block has been fully validated with results
       - `pow_valid_block`: Called when a block extends the header chain with valid PoW
       - `block_connected`: Called when a valid block is connected to the best chain
       - `block_disconnected`: Called when a block is disconnected during a reorg
+
+    Example:
+        Register only `block_disconnected`:
+
+        >>> cbs = ValidationInterfaceCallbacks(
+        ...     block_disconnected=lambda user_data, block, entry: print("disconnected")
+        ... )
     """
 
     def __init__(
@@ -97,8 +107,12 @@ class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
 
         Args:
             user_data: Optional user-defined data passed to all callbacks.
-            **callbacks: Callback functions for validation events. The key is the name of the callback,
-                         the value the callback function.
+            **callbacks: Callback functions for validation events, keyed by callback name
+                         (e.g. ``block_disconnected=my_fn``). All are optional; omitted
+                         callbacks are left unset.
+
+        Raises:
+            ValueError: If an unknown callback name is passed.
         """
         super().__init__()
         pbk.util.callbacks._initialize_callbacks(self, user_data, **callbacks)
