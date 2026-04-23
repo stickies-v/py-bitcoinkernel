@@ -12,6 +12,19 @@ def test_chain_types() -> None:
         assert context is not None
 
 
+def test_make_context_with_validation_callbacks() -> None:
+    cbs = pbk.ValidationInterfaceCallbacks(
+        block_disconnected=lambda user_data, block, entry: None
+    )
+    context = pbk.make_context(validation_callbacks=cbs)
+    assert context is not None
+
+
+def test_make_context_without_validation_callbacks() -> None:
+    context = pbk.make_context()
+    assert context is not None
+
+
 def _build_chainman_with_inline_callback(
     temp_dir: Path, callback: Callable[..., None]
 ) -> pbk.ChainstateManager:
