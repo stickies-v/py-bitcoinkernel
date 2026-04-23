@@ -23,6 +23,8 @@ class ContextOptions(KernelOpaquePtr):
     def __init__(self):
         """Create context options."""
         super().__init__()
+        self._notifications: NotificationInterfaceCallbacks | None = None
+        self._validation_callbacks: ValidationInterfaceCallbacks | None = None
 
     def set_chainparams(self, chain_parameters: "ChainParameters") -> None:
         """Sets the chain parameters for the context options.
@@ -41,6 +43,7 @@ class ContextOptions(KernelOpaquePtr):
             notifications: Notification callbacks to set.
         """
         k.btck_context_options_set_notifications(self, notifications)
+        self._notifications = notifications
 
     def set_validation_interface(
         self, interface_callbacks: "ValidationInterfaceCallbacks"
@@ -51,6 +54,7 @@ class ContextOptions(KernelOpaquePtr):
             interface_callbacks: Validation callbacks to set.
         """
         k.btck_context_options_set_validation_interface(self, interface_callbacks)
+        self._validation_callbacks = interface_callbacks
 
 
 class Context(KernelOpaquePtr):
@@ -68,6 +72,8 @@ class Context(KernelOpaquePtr):
             options: Context options to use.
         """
         super().__init__(options)
+        self._notifications = options._notifications
+        self._validation_callbacks = options._validation_callbacks
 
     def interrupt(self) -> int:
         """Interrupt long-running validation functions. Useful for operations like reindexing,

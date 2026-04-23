@@ -86,6 +86,7 @@ class ChainstateManagerOptions(KernelOpaquePtr):
             blocksdir_bytes,
             len(blocksdir_bytes),
         )
+        self._context = context
 
     def set_wipe_dbs(self, wipe_block_tree_db: bool, wipe_chainstate_db: bool) -> int:
         """Configure the wiping of the block tree database and the chainstate database.
@@ -411,6 +412,9 @@ class ChainstateManager(KernelOpaquePtr):
                 databases, or other errors (propagated from base class).
         """
         super().__init__(chain_man_opts)
+        # Kernel stores raw function pointers into ctypes trampolines owned
+        # by callback objects reachable only through the Python Context.
+        self._context = chain_man_opts._context
 
     @property
     def block_tree_entries(self) -> BlockTreeEntryMap:
