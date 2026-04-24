@@ -1,5 +1,5 @@
 import ctypes
-import typing
+from collections.abc import Callable
 
 from pbk.capi.base import KernelOpaquePtr
 import pbk.capi.bindings as k
@@ -8,9 +8,9 @@ from pbk.util.type import UserData
 
 def _py_callback(
     c_bytes_ptr: ctypes.c_void_p, size: int, byte_writer_ptr: ctypes.c_void_p
-):
+) -> int:
     """C callback that receives serialized bytes and appends them to a ByteWriter buffer."""
-    byte_writer: typing.Optional["ByteWriter"] = None
+    byte_writer: "ByteWriter | None" = None
     try:
         byte_writer = UserData.from_void_ptr(byte_writer_ptr)
         assert byte_writer
@@ -31,7 +31,7 @@ class ByteWriter:
         self.buffer = bytearray()
         self.exception = None
 
-    def write(self, to_bytes_func: typing.Callable, obj: KernelOpaquePtr) -> bytes:
+    def write(self, to_bytes_func: Callable, obj: KernelOpaquePtr) -> bytes:
         """Serialize a kernel object to bytes using the provided C function."""
         self.buffer.clear()
         self.exception = None

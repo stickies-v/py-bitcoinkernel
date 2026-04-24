@@ -4,7 +4,7 @@ import pbk.util.sequence as seq
 
 
 class MockOwner:
-    def __init__(self, count):
+    def __init__(self, count: int):
         self.count = count
         self.count_calls = 0
         self.get_calls = []
@@ -26,14 +26,14 @@ class SimpleSequence(seq.LazySequence[str]):
 
 
 class TestLazySequence:
-    def test_length(self):
+    def test_length(self) -> None:
         owner = MockOwner(3)
         seq_obj = SimpleSequence(owner)
 
         assert len(seq_obj) == 3
         assert owner.count_calls == 1
 
-    def test_positive_indexing(self):
+    def test_positive_indexing(self) -> None:
         owner = MockOwner(3)
         seq_obj = SimpleSequence(owner)
 
@@ -41,7 +41,7 @@ class TestLazySequence:
         assert seq_obj[2] == "item_2"
         assert owner.get_calls == [0, 2]
 
-    def test_negative_indexing(self):
+    def test_negative_indexing(self) -> None:
         owner = MockOwner(3)
         seq_obj = SimpleSequence(owner)
 
@@ -49,7 +49,7 @@ class TestLazySequence:
         assert seq_obj[-3] == "item_0"
         assert owner.get_calls == [2, 0]
 
-    def test_slicing(self):
+    def test_slicing(self) -> None:
         owner = MockOwner(4)
         seq_obj = SimpleSequence(owner)
 
@@ -57,7 +57,7 @@ class TestLazySequence:
         assert result == ["item_1", "item_2"]
         assert owner.get_calls == [1, 2]
 
-    def test_index_out_of_bounds(self):
+    def test_index_out_of_bounds(self) -> None:
         owner = MockOwner(2)
         seq_obj = SimpleSequence(owner)
 

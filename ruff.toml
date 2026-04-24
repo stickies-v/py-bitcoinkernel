@@ -2,3 +2,10 @@ exclude = [
     "depend",
     "bindings.py",
 ]
+
+[lint]
+extend-select = ["ANN"]
+ignore = [
+    "ANN204",  # return type for dunder methods is self-evident
+    "ANN401",  # Any is needed for generic base classes, dunder methods, and void pointer wrappers
+]

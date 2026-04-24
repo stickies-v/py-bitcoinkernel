@@ -27,3 +27,15 @@ installation instructions in [Testing](#testing), and then just append
 ```sh
 pytest --cov
 ```
+
+## Linting and Type Checking
+
+Code style is enforced with [`ruff`](https://docs.astral.sh/ruff/) and
+types are checked with [`ty`](https://docs.astral.sh/ty/). Both are
+run in CI and can be run locally:
+
+```sh
+ruff check .
+ruff format --check .
+uv run --extra type ty check
+```

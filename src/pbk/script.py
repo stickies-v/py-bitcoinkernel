@@ -1,6 +1,6 @@
 import ctypes
 import typing
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
 
 # TODO: add enum auto-generation or testing to ensure it remains in
 # sync with bitcoinkernel.h
-class ScriptVerificationFlags(IntEnum):
+class ScriptVerificationFlags(IntFlag):
     """Script verification flags that may be composed with each other.
 
     These flags control which validation rules are enforced during script

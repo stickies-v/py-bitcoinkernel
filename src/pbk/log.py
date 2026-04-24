@@ -4,7 +4,7 @@ import logging
 import re
 import threading
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from enum import IntEnum
@@ -103,9 +103,9 @@ class LoggingOptions(k.btck_LoggingOptions):
         self.always_print_category_levels = always_print_category_levels
 
     @property
-    def _as_parameter_(self):
+    def _as_parameter_(self) -> ctypes.c_void_p:
         """Return the ctypes reference for passing to C functions."""
-        return ctypes.byref(self)
+        return ctypes.byref(self)  # ty: ignore[invalid-return-type]
 
 
 def is_valid_log_callback(fn: typing.Any) -> bool:
@@ -202,7 +202,7 @@ class LoggingConnection(KernelOpaquePtr):
     _create_fn = k.btck_logging_connection_create
     _destroy_fn = k.btck_logging_connection_destroy
 
-    def __init__(self, cb: typing.Callable[[str], None], user_data: UserData = None):
+    def __init__(self, cb: Callable[[str], None], user_data: UserData | None = None):
         """Create a logging connection with a callback.
 
         Args:
@@ -223,7 +223,7 @@ class LoggingConnection(KernelOpaquePtr):
         super().__init__(self._cb, user_data, k.btck_DestroyCallback())
 
     @staticmethod
-    def _wrap_log_fn(fn: Callable[[str], None]):
+    def _wrap_log_fn(fn: Callable[[str], None]) -> k.btck_LogCallback:  # ty: ignore[invalid-type-form]
         """Wrap a Python callback for use with the C logging API.
 
         Args:
@@ -233,7 +233,7 @@ class LoggingConnection(KernelOpaquePtr):
             A C-compatible callback function.
         """
 
-        def wrapped(user_data: None, message: bytes, message_len: int):
+        def wrapped(user_data: None, message: bytes, message_len: int) -> None:
             """C callback wrapper that decodes the message and calls the Python function."""
             return fn(ctypes.string_at(message, message_len).decode("utf-8"))
 
@@ -260,7 +260,7 @@ class KernelLogViewer:
     def __init__(
         self,
         name: str = "bitcoinkernel",
-        categories: typing.List[LogCategory] | None = None,
+        categories: list[LogCategory] | None = None,
     ):
         """Create a log viewer that forwards kernel logs to Python logging.
 
@@ -298,7 +298,7 @@ class KernelLogViewer:
         return self._logger
 
     @contextmanager
-    def temporary_categories(self, categories: typing.List[LogCategory]) -> None:
+    def temporary_categories(self, categories: list[LogCategory]) -> Iterator[None]:
         """Context manager to temporarily enable log categories.
 
         Enables the specified categories for the duration of the context,
@@ -343,7 +343,7 @@ class KernelLogViewer:
         return conn
 
     @staticmethod
-    def _create_log_callback(logger: logging.Logger) -> typing.Callable[[str], None]:
+    def _create_log_callback(logger: logging.Logger) -> Callable[[str], None]:
         """Create a callback that parses kernel logs and forwards to Python logger.
 
         Args:

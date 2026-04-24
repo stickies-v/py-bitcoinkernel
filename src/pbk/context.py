@@ -24,7 +24,7 @@ class ContextOptions(KernelOpaquePtr):
         """Create context options."""
         super().__init__()
 
-    def set_chainparams(self, chain_parameters: "ChainParameters"):
+    def set_chainparams(self, chain_parameters: "ChainParameters") -> None:
         """Sets the chain parameters for the context options.
 
         Args:
@@ -32,7 +32,9 @@ class ContextOptions(KernelOpaquePtr):
         """
         k.btck_context_options_set_chainparams(self, chain_parameters)
 
-    def set_notifications(self, notifications: "NotificationInterfaceCallbacks"):
+    def set_notifications(
+        self, notifications: "NotificationInterfaceCallbacks"
+    ) -> None:
         """Sets the kernel notifications for the context options.
 
         Args:
@@ -42,7 +44,7 @@ class ContextOptions(KernelOpaquePtr):
 
     def set_validation_interface(
         self, interface_callbacks: "ValidationInterfaceCallbacks"
-    ):
+    ) -> None:
         """Sets the validation interface callbacks for the context options.
 
         Args:

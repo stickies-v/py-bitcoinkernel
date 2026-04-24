@@ -14,11 +14,11 @@ def _test_verify_script(
         tx_to,
         None,
         input_index,
-        pbk.ScriptVerificationFlags.ALL - pbk.ScriptVerificationFlags.TAPROOT,
+        pbk.ScriptVerificationFlags.ALL & ~pbk.ScriptVerificationFlags.TAPROOT,
     )
 
 
-def test_valid_scripts():
+def test_valid_scripts() -> None:
     # a random old-style transaction from the blockchain
     assert _test_verify_script(
         "76a9144bfbaf6afb76cc5771bc6404810d1cc041a6933988ac",
@@ -43,7 +43,7 @@ def test_valid_scripts():
     )
 
 
-def test_invalid_scripts():
+def test_invalid_scripts() -> None:
     # a random old-style transaction from the blockchain - WITH WRONG SIGNATURE for the address
     assert not _test_verify_script(
         "76a9144bfbaf6afb76cc5771bc6404810d1cc041a6933988ff",

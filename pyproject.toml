@@ -69,7 +69,19 @@ docs = [
 docs-test = [
     "interrogate",
 ]
+type = [
+    # TODO: relax to an unpinned or minimum version once ty reaches a
+    # stable 1.0 release. Until then, patch releases frequently include
+    # breaking changes to diagnostics and suppression behaviour.
+    "ty==0.0.32",
+]
 bindings = [
     "ctypeslib2",
     "clang==21.*",
+]
+
+[tool.ty.src]
+exclude = [
+    "depend",
+    "src/pbk/capi/bindings.py",
 ]

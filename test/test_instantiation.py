@@ -4,7 +4,7 @@ import pytest
 import pbk
 
 
-def test_non_instantiable_classes_raise_type_error():
+def test_non_instantiable_classes_raise_type_error() -> None:
     """Non-instantiable classes should raise TypeError with a clear message."""
     # Only test publicly exported types
     non_instantiable_classes = [
@@ -26,7 +26,7 @@ def test_non_instantiable_classes_raise_type_error():
             cls()
 
 
-def test_instantiable_classes_work():
+def test_instantiable_classes_work() -> None:
     """Instantiable classes should not raise TypeError when instantiated."""
     # Test just that they don't raise TypeError - we don't need to keep the objects
     # Some may fail for other reasons (invalid data), but that's okay for this test

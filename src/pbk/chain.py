@@ -107,7 +107,7 @@ class ChainstateManagerOptions(KernelOpaquePtr):
             self, wipe_block_tree_db, wipe_chainstate_db
         )
 
-    def set_worker_threads_num(self, worker_threads: int):
+    def set_worker_threads_num(self, worker_threads: int) -> None:
         """Set the number of worker threads for parallel validation.
 
         Args:
@@ -117,7 +117,7 @@ class ChainstateManagerOptions(KernelOpaquePtr):
         """
         k.btck_chainstate_manager_options_set_worker_threads_num(self, worker_threads)
 
-    def update_block_tree_db_in_memory(self, block_tree_db_in_memory: bool):
+    def update_block_tree_db_in_memory(self, block_tree_db_in_memory: bool) -> None:
         """Configure whether to use an in-memory block tree database.
 
         When enabled, the block tree database is stored in memory instead
@@ -131,7 +131,7 @@ class ChainstateManagerOptions(KernelOpaquePtr):
             self, int(block_tree_db_in_memory)
         )
 
-    def update_chainstate_db_in_memory(self, chainstate_db_in_memory: bool):
+    def update_chainstate_db_in_memory(self, chainstate_db_in_memory: bool) -> None:
         """Configure whether to use an in-memory chainstate database.
 
         When enabled, the UTXO set and chainstate are stored in memory
@@ -177,7 +177,7 @@ class BlockTreeEntrySequence(LazySequence[BlockTreeEntry]):
         """Get the block tree entry at the given height."""
         return BlockTreeEntry._from_view(k.btck_chain_get_by_height(self._chain, index))
 
-    def __contains__(self, other: typing.Any):
+    def __contains__(self, other: typing.Any) -> bool:
         """Return True if `other` exists in the sequence."""
         if not isinstance(other, BlockTreeEntry):
             return False
@@ -433,7 +433,7 @@ class ChainstateManager(KernelOpaquePtr):
         """
         return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self))
 
-    def import_blocks(self, paths: typing.List[Path]) -> bool:
+    def import_blocks(self, paths: list[Path]) -> bool:
         """Import blocks from block files.
 
         Args:

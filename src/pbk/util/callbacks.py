@@ -1,10 +1,14 @@
+import typing
+
 import pbk.capi.bindings as k
 import pbk.util.type
 
 
 def _initialize_callbacks(
-    interface_callbacks: k.Structure, user_data=None, **callbacks
-):
+    interface_callbacks: k.Structure,
+    user_data: typing.Any = None,
+    **callbacks: typing.Any,
+) -> None:
     """
     Internal helper to wrap `user_data` and `callbacks` into ctypes,
     preventing garbage collection issues.
@@ -26,7 +30,7 @@ def _initialize_callbacks(
         cb_func = callbacks.pop(field_name)
         if cb_func is not None:
             # Wrap the Python function into a C function pointer
-            c_callback = field_type(cb_func)  # type: ignore
+            c_callback = field_type(cb_func)
             setattr(interface_callbacks, field_name, c_callback)
             # Keep reference to prevent garbage collection
             interface_callbacks._callbacks[field_name] = c_callback

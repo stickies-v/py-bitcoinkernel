@@ -1,15 +1,16 @@
 import logging
 from datetime import datetime
 
+import pytest
 import pbk
 import pbk.log
 
 
-def dummy_fn(msg):
+def dummy_fn(msg: str) -> None:
     pass
 
 
-def test_is_valid_log_callback():
+def test_is_valid_log_callback() -> None:
     assert pbk.log.is_valid_log_callback(lambda msg: print(msg))
     assert pbk.log.is_valid_log_callback(dummy_fn)
 
@@ -17,7 +18,7 @@ def test_is_valid_log_callback():
     assert not pbk.log.is_valid_log_callback(lambda msg, dummy: print(msg))
 
 
-def test_level_category():
+def test_level_category() -> None:
     pbk.set_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.DEBUG)
     pbk.set_log_level_category(pbk.LogCategory.ALL, pbk.LogLevel.INFO)
     pbk.set_log_level_category(
@@ -36,7 +37,7 @@ def test_level_category():
     )  # Same operation twice should succeed
 
 
-def test_kernel_log_viewer(caplog):
+def test_kernel_log_viewer(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG)
     logger = pbk.KernelLogViewer(name="test_logger", categories=[])
     assert logger.getLogger() == logging.getLogger("test_logger")
