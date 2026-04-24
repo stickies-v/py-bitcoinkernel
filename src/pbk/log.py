@@ -202,9 +202,7 @@ class LoggingConnection(KernelOpaquePtr):
     _create_fn = k.btck_logging_connection_create
     _destroy_fn = k.btck_logging_connection_destroy
 
-    def __init__(
-        self, cb: typing.Callable[[str], None], user_data: UserData | None = None
-    ):
+    def __init__(self, cb: Callable[[str], None], user_data: UserData | None = None):
         """Create a logging connection with a callback.
 
         Args:
@@ -262,7 +260,7 @@ class KernelLogViewer:
     def __init__(
         self,
         name: str = "bitcoinkernel",
-        categories: typing.List[LogCategory] | None = None,
+        categories: list[LogCategory] | None = None,
     ):
         """Create a log viewer that forwards kernel logs to Python logging.
 
@@ -300,9 +298,7 @@ class KernelLogViewer:
         return self._logger
 
     @contextmanager
-    def temporary_categories(
-        self, categories: typing.List[LogCategory]
-    ) -> Iterator[None]:
+    def temporary_categories(self, categories: list[LogCategory]) -> Iterator[None]:
         """Context manager to temporarily enable log categories.
 
         Enables the specified categories for the duration of the context,
@@ -347,7 +343,7 @@ class KernelLogViewer:
         return conn
 
     @staticmethod
-    def _create_log_callback(logger: logging.Logger) -> typing.Callable[[str], None]:
+    def _create_log_callback(logger: logging.Logger) -> Callable[[str], None]:
         """Create a callback that parses kernel logs and forwards to Python logger.
 
         Args:

@@ -4,6 +4,7 @@ import ctypes
 import sys
 import types
 import typing
+from collections.abc import Callable
 
 if typing.TYPE_CHECKING:
     from typing_extensions import Self
@@ -44,8 +45,8 @@ class KernelOpaquePtr:
     _parent = (
         None  # Parent object that must be kept alive for the lifetime of this object
     )
-    _create_fn: typing.Callable | None = None  # If None, cannot be created directly
-    _destroy_fn: typing.Callable | None = (
+    _create_fn: Callable | None = None  # If None, cannot be created directly
+    _destroy_fn: Callable | None = (
         None  # If None, cannot be destroyed. Should only be used for view-only classes.
     )
 

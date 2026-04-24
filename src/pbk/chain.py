@@ -433,7 +433,7 @@ class ChainstateManager(KernelOpaquePtr):
         """
         return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self))
 
-    def import_blocks(self, paths: typing.List[Path]) -> bool:
+    def import_blocks(self, paths: list[Path]) -> bool:
         """Import blocks from block files.
 
         Args:

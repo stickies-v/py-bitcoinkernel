@@ -52,11 +52,11 @@ class LazySequence(collections.abc.Sequence, typing.Generic[T], abc.ABC):
         ...
 
     @typing.overload
-    def __getitem__(self, index: slice) -> "typing.Sequence[T]":
+    def __getitem__(self, index: slice) -> collections.abc.Sequence[T]:
         """Get items at slice indices."""
         ...
 
-    def __getitem__(self, index: int | slice) -> "T | typing.Sequence[T]":
+    def __getitem__(self, index: int | slice) -> T | collections.abc.Sequence[T]:
         """Get item(s) at index. Supports negative indexing and slicing."""
         if isinstance(index, slice):
             return [self[i] for i in range(*index.indices(len(self)))]
