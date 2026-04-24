@@ -431,7 +431,7 @@ class ChainstateManager(KernelOpaquePtr):
         Returns:
             The active chain view.
         """
-        return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self))
+        return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self), self)
 
     def import_blocks(self, paths: list[Path]) -> bool:
         """Import blocks from block files.
