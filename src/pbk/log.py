@@ -4,7 +4,7 @@ import logging
 import re
 import threading
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from enum import IntEnum
@@ -202,7 +202,9 @@ class LoggingConnection(KernelOpaquePtr):
     _create_fn = k.btck_logging_connection_create
     _destroy_fn = k.btck_logging_connection_destroy
 
-    def __init__(self, cb: typing.Callable[[str], None], user_data: UserData = None):
+    def __init__(
+        self, cb: typing.Callable[[str], None], user_data: UserData | None = None
+    ):
         """Create a logging connection with a callback.
 
         Args:
@@ -298,7 +300,9 @@ class KernelLogViewer:
         return self._logger
 
     @contextmanager
-    def temporary_categories(self, categories: typing.List[LogCategory]) -> None:
+    def temporary_categories(
+        self, categories: typing.List[LogCategory]
+    ) -> Iterator[None]:
         """Context manager to temporarily enable log categories.
 
         Enables the specified categories for the duration of the context,

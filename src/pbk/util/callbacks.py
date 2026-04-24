@@ -26,7 +26,7 @@ def _initialize_callbacks(
         cb_func = callbacks.pop(field_name)
         if cb_func is not None:
             # Wrap the Python function into a C function pointer
-            c_callback = field_type(cb_func)  # type: ignore
+            c_callback = field_type(cb_func)
             setattr(interface_callbacks, field_name, c_callback)
             # Keep reference to prevent garbage collection
             interface_callbacks._callbacks[field_name] = c_callback

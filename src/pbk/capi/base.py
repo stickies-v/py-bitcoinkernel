@@ -161,7 +161,7 @@ class KernelOpaquePtr:
                     "https://github.com/stickies-v/py-bitcoinkernel/issues."
                 )
             self._destroy_fn(self)
-            self._as_parameter_ = None  # type: ignore
+            self._as_parameter_ = None
 
     def __enter__(self):
         """Enter the context manager.
