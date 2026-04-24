@@ -22,6 +22,18 @@ jobs:
             platform: musllinux
             cmake_args: '-DBITCOIN_TARGET=x86_64-linux-gnu'
 
+          - os: ubuntu-24.04-arm
+            container: quay.io/pypa/manylinux_2_28_aarch64
+            arch: aarch64
+            platform: manylinux
+            cmake_args: '-DBITCOIN_TARGET=aarch64-linux-gnu'
+
+          - os: ubuntu-24.04-arm
+            container: quay.io/pypa/musllinux_1_2_aarch64
+            arch: aarch64
+            platform: musllinux
+            cmake_args: '-DBITCOIN_TARGET=aarch64-linux-gnu'
+
           # Windows build
           - os: ubuntu-24.04
             arch: AMD64
@@ -102,6 +114,12 @@ jobs:
           - platform: 'musllinux'
             arch: 'x86_64'
             os: 'ubuntu-latest'
+          - platform: 'manylinux'
+            arch: 'aarch64'
+            os: 'ubuntu-24.04-arm'
+          - platform: 'musllinux'
+            arch: 'aarch64'
+            os: 'ubuntu-24.04-arm'
     runs-on: ${{ matrix.platform_config.os }}
     env:
       PLATFORM_TAG: ${{ matrix.platform_config.platform }}_${{ matrix.platform_config.arch }}
@@ -124,6 +142,8 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: 13.0
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           CIBW_MUSLLINUX_X86_64_IMAGE: "musllinux_1_2"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
+          CIBW_MUSLLINUX_AARCH64_IMAGE: "musllinux_1_2"
 
       - name: Upload Wheels
         uses: actions/upload-artifact@v4
