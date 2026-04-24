@@ -34,6 +34,7 @@ fail-under=100
 testpaths = ["test"]
 addopts = ["--doctest-modules", "--doctest-continue-on-failure"]
 doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
+filterwarnings = ["error"]
 
 [tool.coverage.report]
 exclude_also = [
