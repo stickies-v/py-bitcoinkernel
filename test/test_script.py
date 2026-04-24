@@ -14,7 +14,7 @@ def _test_verify_script(
         tx_to,
         None,
         input_index,
-        pbk.ScriptVerificationFlags.ALL - pbk.ScriptVerificationFlags.TAPROOT,
+        pbk.ScriptVerificationFlags.ALL & ~pbk.ScriptVerificationFlags.TAPROOT,
     )
 
 
