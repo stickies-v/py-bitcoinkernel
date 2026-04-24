@@ -115,7 +115,9 @@ class BlockTreeEntry(KernelOpaquePtr):
         Raises:
             RuntimeError: If the C constructor fails (propagated from base class).
         """
-        return BlockTreeEntry._from_view(k.btck_block_tree_entry_get_previous(self))
+        return BlockTreeEntry._from_view(
+            k.btck_block_tree_entry_get_previous(self), self._parent
+        )
 
     @property
     def block_header(self) -> "BlockHeader":
@@ -209,7 +211,7 @@ class BlockHeader(KernelOpaquePtr):
     @property
     def prev_hash(self) -> BlockHash:
         """The previous block hash."""
-        return BlockHash._from_view(k.btck_block_header_get_prev_hash(self))
+        return BlockHash._from_view(k.btck_block_header_get_prev_hash(self), self)
 
     @property
     def timestamp(self) -> datetime.datetime:
