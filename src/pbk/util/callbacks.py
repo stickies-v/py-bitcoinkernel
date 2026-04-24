@@ -22,21 +22,22 @@ def _initialize_callbacks(
     # Keep references to the C function pointers to prevent garbage collection
     interface_callbacks._callbacks = {}
 
+    reserved = {"user_data", "user_data_destroy"}
+    valid_fields = {name for name, _ in interface_callbacks._fields_} - reserved  # type: ignore
+    unknown_callbacks = set(callbacks) - valid_fields
+    if unknown_callbacks:
+        raise ValueError(f"Callbacks {unknown_callbacks} are not recognized")
+
     # Iterate over the fields in the struct
     for field_name, field_type in interface_callbacks._fields_:  # type: ignore
-        if field_name in ["user_data", "user_data_destroy"]:
+        if field_name in reserved:
             continue
 
-        cb_func = callbacks.pop(field_name)
-        if cb_func is not None:
-            # Wrap the Python function into a C function pointer
-            c_callback = field_type(cb_func)
-            setattr(interface_callbacks, field_name, c_callback)
-            # Keep reference to prevent garbage collection
-            interface_callbacks._callbacks[field_name] = c_callback
-        else:
-            setattr(interface_callbacks.field_name, None)  # type: ignore
-
-    unused_callbacks = callbacks.keys()
-    if unused_callbacks:
-        raise ValueError(f"Callbacks {unused_callbacks} are not recognized")
+        cb_func = callbacks.get(field_name)
+        if cb_func is None:
+            continue
+        # Wrap the Python function into a C function pointer
+        c_callback = field_type(cb_func)
+        setattr(interface_callbacks, field_name, c_callback)
+        # Keep reference to prevent garbage collection
+        interface_callbacks._callbacks[field_name] = c_callback

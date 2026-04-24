@@ -6,14 +6,22 @@ import pbk.util.callbacks
 
 
 class NotificationInterfaceCallbacks(k.btck_NotificationInterfaceCallbacks):
-    """Callbacks for receiving kernel notification events."""
+    """Callbacks for receiving kernel notification events.
+
+    All callbacks are optional; only those passed as keyword arguments are
+    registered, and any unspecified event is silently ignored.
+    """
 
     def __init__(self, user_data: typing.Any = None, **callbacks: typing.Any):
         """Create notification interface callbacks.
 
         Args:
             user_data: Optional user-defined data passed to all callbacks.
-            **callbacks: Callback functions for notification events.
+            **callbacks: Callback functions for notification events, keyed by callback name.
+                         All are optional; omitted callbacks are left unset.
+
+        Raises:
+            ValueError: If an unknown callback name is passed.
         """
         super().__init__()
         pbk.util.callbacks._initialize_callbacks(self, user_data, **callbacks)
