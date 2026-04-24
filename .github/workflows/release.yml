@@ -28,12 +28,6 @@ jobs:
             platform: manylinux
             cmake_args: '-DBITCOIN_TARGET=aarch64-linux-gnu'
 
-          - os: ubuntu-24.04-arm
-            container: quay.io/pypa/musllinux_1_2_aarch64
-            arch: aarch64
-            platform: musllinux
-            cmake_args: '-DBITCOIN_TARGET=aarch64-linux-gnu'
-
           # Windows build
           - os: ubuntu-24.04
             arch: AMD64
@@ -115,9 +109,6 @@ jobs:
             arch: 'x86_64'
             os: 'ubuntu-latest'
           - platform: 'manylinux'
-            arch: 'aarch64'
-            os: 'ubuntu-24.04-arm'
-          - platform: 'musllinux'
             arch: 'aarch64'
             os: 'ubuntu-24.04-arm'
     runs-on: ${{ matrix.platform_config.os }}
