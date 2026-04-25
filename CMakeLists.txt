@@ -30,8 +30,8 @@ else()
             SOURCE_DIR "${DEPENDS_DIR}"
             CONFIGURE_COMMAND ""
             BUILD_COMMAND make -C "${DEPENDS_DIR}"
-                NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1 
-                NO_LIBEVENT=1 NO_SQLITE=1 NO_BDB=1 
+                NO_QT=1 NO_QR=1 NO_ZMQ=1 NO_WALLET=1 NO_USDT=1
+                NO_LIBEVENT=1 NO_IPC=1
                 HOST=${BITCOIN_TARGET} -j${CMAKE_BUILD_PARALLEL_LEVEL}
             BUILD_IN_SOURCE 1
             INSTALL_COMMAND ""
