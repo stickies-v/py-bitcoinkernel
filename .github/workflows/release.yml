@@ -28,6 +28,10 @@ jobs:
             arch: aarch64
             platform: manylinux
             cmake_args: '-DBITCOIN_TARGET=aarch64-linux-gnu'
+            deps_cmd: |
+              for tool in gcc g++ ar nm ranlib strip objcopy objdump; do
+                ln -s "$(command -v $tool)" "/usr/local/bin/aarch64-linux-gnu-$tool"
+              done
 
           # Windows build
           - os: ubuntu-24.04
