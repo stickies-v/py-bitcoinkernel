@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
-from pbk.util.type import UserData
 
 
 # bitcoinkernel's logging setters require external synchronization
@@ -202,13 +201,12 @@ class LoggingConnection(KernelOpaquePtr):
     _create_fn = k.btck_logging_connection_create
     _destroy_fn = k.btck_logging_connection_destroy
 
-    def __init__(self, cb: Callable[[str], None], user_data: UserData | None = None):
+    def __init__(self, cb: Callable[[str], None]):
         """Create a logging connection with a callback.
 
         Args:
             cb: Callback function that accepts a single string parameter
                 (the log message) and returns None.
-            user_data: Optional user data to associate with the connection.
 
         Raises:
             TypeError: If the callback doesn't have the correct signature.
@@ -219,8 +217,7 @@ class LoggingConnection(KernelOpaquePtr):
                 "Log callback must be a callable with 1 string parameter and no return value."
             )
         self._cb = self._wrap_log_fn(cb)  # ensure lifetime
-        self._user_data = user_data
-        super().__init__(self._cb, user_data, k.btck_DestroyCallback())
+        super().__init__(self._cb, ctypes.c_void_p(), k.btck_DestroyCallback())
 
     @staticmethod
     def _wrap_log_fn(fn: Callable[[str], None]) -> k.btck_LogCallback:  # ty: ignore[invalid-type-form]
@@ -233,7 +230,7 @@ class LoggingConnection(KernelOpaquePtr):
             A C-compatible callback function.
         """
 
-        def wrapped(user_data: None, message: bytes, message_len: int) -> None:
+        def wrapped(_user_data: None, message: bytes, message_len: int) -> None:
             """C callback wrapper that decodes the message and calls the Python function."""
             return fn(ctypes.string_at(message, message_len).decode("utf-8"))
 

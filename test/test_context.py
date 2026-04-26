@@ -13,9 +13,7 @@ def test_chain_types() -> None:
 
 
 def test_make_context_with_validation_callbacks() -> None:
-    cbs = pbk.ValidationInterfaceCallbacks(
-        block_disconnected=lambda user_data, block, entry: None
-    )
+    cbs = pbk.ValidationInterfaceCallbacks(block_disconnected=lambda block, entry: None)
     context = pbk.make_context(validation_callbacks=cbs)
     assert context is not None
 
@@ -49,7 +47,7 @@ def test_chainman_keeps_validation_callbacks_alive(temp_dir: Path) -> None:
     call_count = [0]
     cm = _build_chainman_with_inline_callback(
         temp_dir,
-        lambda u, b, e: call_count.__setitem__(0, call_count[0] + 1),
+        lambda b, e: call_count.__setitem__(0, call_count[0] + 1),
     )
     blocks_file = Path(__file__).parent / "data" / "regtest" / "blocks.txt"
     with blocks_file.open() as f:
