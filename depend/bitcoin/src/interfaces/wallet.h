@@ -40,6 +40,7 @@ namespace node {
 enum class TransactionError;
 } // namespace node
 namespace wallet {
+struct CreatedTransactionResult;
 class CCoinControl;
 class CWallet;
 enum class AddressPurpose;
@@ -142,11 +143,10 @@ public:
     virtual void listLockedCoins(std::vector<COutPoint>& outputs) = 0;
 
     //! Create transaction.
-    virtual util::Result<CTransactionRef> createTransaction(const std::vector<wallet::CRecipient>& recipients,
+    virtual util::Result<wallet::CreatedTransactionResult> createTransaction(const std::vector<wallet::CRecipient>& recipients,
         const wallet::CCoinControl& coin_control,
         bool sign,
-        int& change_pos,
-        CAmount& fee) = 0;
+        std::optional<unsigned int> change_pos) = 0;
 
     //! Commit transaction.
     virtual void commitTransaction(CTransactionRef tx,
@@ -369,11 +369,14 @@ struct WalletBalances
     CAmount balance = 0;
     CAmount unconfirmed_balance = 0;
     CAmount immature_balance = 0;
+    CAmount used_balance = 0;
+    CAmount nonmempool_balance = 0;
 
     bool balanceChanged(const WalletBalances& prev) const
     {
         return balance != prev.balance || unconfirmed_balance != prev.unconfirmed_balance ||
-               immature_balance != prev.immature_balance;
+               immature_balance != prev.immature_balance ||
+               used_balance != prev.used_balance || nonmempool_balance != prev.nonmempool_balance;
     }
 };
 

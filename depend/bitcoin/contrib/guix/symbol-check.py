@@ -202,7 +202,7 @@ def check_exported_symbols(binary) -> bool:
         if not symbol.exported:
             continue
         name = symbol.name
-        if binary.header.machine_type == lief.ELF.ARCH.RISCV or name in IGNORE_EXPORTS:
+        if name in IGNORE_EXPORTS:
             continue
         print(f'{filename}: export of symbol {name} not allowed!')
         ok = False
@@ -241,7 +241,7 @@ def check_MACHO_sdk(binary) -> bool:
     return False
 
 def check_MACHO_lld(binary) -> bool:
-    if binary.build_version.tools[0].version == [19, 1, 4]:
+    if binary.build_version.tools[0].version == [19, 1, 7]:
         return True
     return False
 
