@@ -116,6 +116,11 @@ class TransactionInput(KernelOpaquePtr):
             k.btck_transaction_input_get_out_point(self), self
         )
 
+    @property
+    def sequence(self) -> int:
+        """The nSequence value of this input."""
+        return k.btck_transaction_input_get_sequence(self)
+
     def __repr__(self) -> str:
         """Return a string representation of the transaction input."""
         return f"<TransactionInput {self.out_point!r}>"
@@ -287,6 +292,11 @@ class Transaction(KernelOpaquePtr):
             The txid of this transaction.
         """
         return Txid._from_view(k.btck_transaction_get_txid(self), self)
+
+    @property
+    def locktime(self) -> int:
+        """The nLockTime value of this transaction."""
+        return k.btck_transaction_get_locktime(self)
 
     def __bytes__(self) -> bytes:
         """Serialize the transaction to bytes.
