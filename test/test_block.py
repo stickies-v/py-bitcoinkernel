@@ -72,6 +72,8 @@ def test_block_header() -> None:
     assert header.version == 610975744
     assert header.nonce == 726832151
 
+    assert bytes(header) == bytes.fromhex(header_hex)
+
     assert (
         repr(header)
         == "<Block header hash=00000000000000000000b1a3614f5b43589011f52dcf2c67c9e66554823ed233>"

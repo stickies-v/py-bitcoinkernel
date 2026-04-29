@@ -240,6 +240,23 @@ class BlockHeader(KernelOpaquePtr):
         """The nonce."""
         return k.btck_block_header_get_nonce(self)
 
+    def __bytes__(self) -> bytes:
+        """Serialize the block header to bytes.
+
+        Returns:
+            The 80-byte serialized block header in consensus format.
+
+        Raises:
+            RuntimeError: If serialization fails.
+        """
+        output = (ctypes.c_ubyte * 80)()
+        ret = k.btck_block_header_to_bytes(self, output)
+        if ret != 0:
+            raise RuntimeError(
+                f"Block header serialization failed with return code {ret}"
+            )
+        return bytes(output)
+
     def __repr__(self) -> str:
         """Return a string representation of the block header."""
         return f"<Block header hash={str(self.block_hash)}>"
