@@ -1,5 +1,6 @@
 from pbk.block import (
     Block,
+    BlockCheckFlags,
     BlockHash,
     BlockHeader,
     BlockTreeEntry,
@@ -69,6 +70,7 @@ __all__ = [
     "BlockTreeEntry",
     "BlockTreeEntrySequence",
     "Block",
+    "BlockCheckFlags",
     "BlockMap",
     "BlockSpentOutputs",
     "BlockValidationResult",

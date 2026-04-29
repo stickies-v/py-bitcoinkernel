@@ -98,6 +98,37 @@ def test_block() -> None:
     assert repr(block) == f"<Block hash={GENESIS_BLOCK_HASH_HEX} txs=1>"
 
 
+def test_block_check() -> None:
+    block = pbk.Block(GENESIS_BLOCK_BYTES)
+    consensus_params = pbk.ChainParameters(pbk.ChainType.REGTEST).consensus_params
+
+    # Default flags is ALL.
+    state = block.check(consensus_params)
+    assert state.validation_mode == pbk.ValidationMode.VALID
+
+    assert pbk.BlockCheckFlags.ALL == (
+        pbk.BlockCheckFlags.POW | pbk.BlockCheckFlags.MERKLE
+    )
+
+
+def test_block_check_invalid_merkle() -> None:
+    # Mutate the merkle root in the serialized block. With merkle
+    # checking enabled the block must fail; with it disabled the block
+    # passes the (remaining) checks. This proves the `flags` argument
+    # actually toggles checks, beyond just being accepted by the C call.
+    consensus_params = pbk.ChainParameters(pbk.ChainType.REGTEST).consensus_params
+    raw = bytearray(GENESIS_BLOCK_BYTES)
+    raw[36] ^= 0xFF  # flip a byte in the merkle root field (bytes 36..68)
+    bad_block = pbk.Block(bytes(raw))
+
+    state = bad_block.check(consensus_params, pbk.BlockCheckFlags.MERKLE)
+    assert state.validation_mode == pbk.ValidationMode.INVALID
+    assert state.block_validation_result == pbk.BlockValidationResult.MUTATED
+
+    state = bad_block.check(consensus_params, pbk.BlockCheckFlags.BASE)
+    assert state.validation_mode == pbk.ValidationMode.VALID
+
+
 def test_block_undo(chainman_regtest: pbk.ChainstateManager) -> None:
     chain_man = chainman_regtest
     idx = chain_man.get_active_chain().block_tree_entries[202]

@@ -1,11 +1,17 @@
 import ctypes
 import datetime
+import typing
+from enum import IntFlag
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 from pbk.transaction import Transaction, TransactionSpentOutputs
 from pbk.util.sequence import LazySequence
 from pbk.writer import ByteWriter
+
+if typing.TYPE_CHECKING:
+    from pbk.chain import ConsensusParams
+    from pbk.validation import BlockValidationState
 
 
 class BlockHash(KernelOpaquePtr):
@@ -239,6 +245,19 @@ class BlockHeader(KernelOpaquePtr):
         return f"<Block header hash={str(self.block_hash)}>"
 
 
+class BlockCheckFlags(IntFlag):
+    """Bitflags controlling optional context-free block checks.
+
+    These flags toggle the optional checks performed by [Block.check][pbk.Block.check].
+    Multiple flags can be combined using bitwise OR operations.
+    """
+
+    BASE = 0  #: Run only the base context-free block checks
+    POW = 1 << 0  #: Run CheckProofOfWork via CheckBlockHeader
+    MERKLE = 1 << 1  #: Verify the merkle root and detect mutation
+    ALL = POW | MERKLE  #: Enable all optional context-free block checks
+
+
 class Block(KernelOpaquePtr):
     """A deserialized Bitcoin block."""
 
@@ -300,6 +319,34 @@ class Block(KernelOpaquePtr):
             A lazy sequence of transactions, including the coinbase.
         """
         return TransactionSequence(self)
+
+    def check(
+        self,
+        consensus_params: "ConsensusParams",
+        flags: BlockCheckFlags = BlockCheckFlags.ALL,
+    ) -> "BlockValidationState":
+        """Perform context-free validation checks on this block.
+
+        Checks size limits, coinbase structure, per-transaction validity and
+        sigop limits using the supplied consensus params. Proof-of-work and
+        merkle-root checks are optional and toggled via `flags`. Does not
+        include script, timestamp, ordering or other context-dependent checks.
+
+        Args:
+            consensus_params: The consensus parameters to validate against.
+            flags: Bitmask controlling the optional POW and merkle-root checks.
+                Defaults to `BlockCheckFlags.ALL`.
+
+        Returns:
+            The resulting validation state. Inspect `validation_mode` to
+            determine whether the block passed.
+        """
+        from pbk.validation import BlockValidationState
+
+        state = BlockValidationState()
+        ret = k.btck_block_check(self, consensus_params, flags, state)
+        assert (ret == 1) == (state.validation_mode == ValidationMode.VALID)
+        return state
 
     def __repr__(self) -> str:
         """Return a string representation of the block."""
