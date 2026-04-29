@@ -26,6 +26,10 @@ class ChainType(IntEnum):
     REGTEST = 4  #: Regression test network
 
 
+class ConsensusParams(KernelOpaquePtr):
+    """View of the consensus parameters of a chain."""
+
+
 class ChainParameters(KernelOpaquePtr):
     """Chain parameters describing properties of a Bitcoin network.
 
@@ -47,6 +51,13 @@ class ChainParameters(KernelOpaquePtr):
             RuntimeError: If the C constructor fails (propagated from base class).
         """
         super().__init__(chain_type)
+
+    @property
+    def consensus_params(self) -> ConsensusParams:
+        """The consensus parameters for this chain."""
+        return ConsensusParams._from_view(
+            k.btck_chain_parameters_get_consensus_params(self), self
+        )
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):

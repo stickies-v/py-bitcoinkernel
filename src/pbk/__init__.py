@@ -17,6 +17,7 @@ from pbk.chain import (
     ChainstateManager,
     ChainstateManagerOptions,
     ChainType,
+    ConsensusParams,
 )
 from pbk.context import Context, ContextOptions
 from pbk.log import (
@@ -78,6 +79,7 @@ __all__ = [
     "ChainstateManagerOptions",
     "ChainType",
     "Coin",
+    "ConsensusParams",
     "CoinSequence",
     "Context",
     "ContextOptions",
