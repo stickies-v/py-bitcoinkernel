@@ -5,8 +5,11 @@ from pbk.block import (
     BlockHeader,
     BlockTreeEntry,
     BlockSpentOutputs,
+    BlockValidationResult,
+    BlockValidationState,
     TransactionSequence,
     TransactionSpentOutputsSequence,
+    ValidationMode,
 )
 from pbk.chain import (
     BlockMap,
@@ -55,12 +58,7 @@ from pbk.util.exc import (
     ProcessBlockException,
     ProcessBlockHeaderException,
 )
-from pbk.validation import (
-    BlockValidationResult,
-    BlockValidationState,
-    ValidationMode,
-    ValidationInterfaceCallbacks,
-)
+from pbk.validation import ValidationInterfaceCallbacks
 
 __all__ = [
     "BlockHash",
