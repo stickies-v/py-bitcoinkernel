@@ -130,6 +130,29 @@ class BlockTreeEntry(KernelOpaquePtr):
         """The header of the block this entry represents."""
         return BlockHeader._from_handle(k.btck_block_tree_entry_get_block_header(self))
 
+    def get_ancestor(self, height: int) -> "BlockTreeEntry":
+        """Get the ancestor of this block tree entry at the given height.
+
+        Args:
+            height: The height of the requested ancestor. Must be between
+                0 and this entry's height (inclusive).
+
+        Returns:
+            The block tree entry at the given height on the chain leading
+            to this entry.
+
+        Raises:
+            ValueError: If `height` is negative or greater than this
+                entry's height.
+        """
+        if height < 0 or height > self.height:
+            raise ValueError(
+                f"height {height} out of range for entry at height {self.height}"
+            )
+        return BlockTreeEntry._from_view(
+            k.btck_block_tree_entry_get_ancestor(self, height), self._parent
+        )
+
     def __eq__(self, other: object) -> bool:
         """Check equality with another block tree entry.
 
