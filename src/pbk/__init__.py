@@ -1,11 +1,15 @@
 from pbk.block import (
     Block,
+    BlockCheckFlags,
     BlockHash,
     BlockHeader,
     BlockTreeEntry,
     BlockSpentOutputs,
+    BlockValidationResult,
+    BlockValidationState,
     TransactionSequence,
     TransactionSpentOutputsSequence,
+    ValidationMode,
 )
 from pbk.chain import (
     BlockMap,
@@ -17,6 +21,7 @@ from pbk.chain import (
     ChainstateManager,
     ChainstateManagerOptions,
     ChainType,
+    ConsensusParams,
 )
 from pbk.context import Context, ContextOptions
 from pbk.log import (
@@ -53,12 +58,7 @@ from pbk.util.exc import (
     ProcessBlockException,
     ProcessBlockHeaderException,
 )
-from pbk.validation import (
-    BlockValidationResult,
-    BlockValidationState,
-    ValidationMode,
-    ValidationInterfaceCallbacks,
-)
+from pbk.validation import ValidationInterfaceCallbacks
 
 __all__ = [
     "BlockHash",
@@ -68,6 +68,7 @@ __all__ = [
     "BlockTreeEntry",
     "BlockTreeEntrySequence",
     "Block",
+    "BlockCheckFlags",
     "BlockMap",
     "BlockSpentOutputs",
     "BlockValidationResult",
@@ -78,6 +79,7 @@ __all__ = [
     "ChainstateManagerOptions",
     "ChainType",
     "Coin",
+    "ConsensusParams",
     "CoinSequence",
     "Context",
     "ContextOptions",

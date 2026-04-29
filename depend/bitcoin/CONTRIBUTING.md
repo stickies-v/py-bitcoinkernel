@@ -146,7 +146,7 @@ about Git.
 ### Creating the Pull Request
 
 The title of the pull request should be prefixed by the component or area that
-the pull request affects. Valid areas as:
+the pull request affects. Valid areas are:
 
   - `consensus` for changes to consensus critical code
   - `doc` for changes to the documentation
@@ -184,7 +184,7 @@ subsequent comment to the PR.
 ### Translation changes
 
 Note that translations should not be submitted as pull requests. Please see
-[Translation Process](https://github.com/bitcoin/bitcoin/blob/master/doc/translation_process.md)
+[Translation Process](/doc/translation_process.md)
 for more information on helping with translations.
 
 ### Work in Progress Changes and Requests for Comments

@@ -10,6 +10,12 @@ def test_chain_type() -> None:
         pbk.ChainParameters(chain_type)
 
 
+def test_consensus_params() -> None:
+    for chain_type in pbk.ChainType:
+        params = pbk.ChainParameters(chain_type).consensus_params
+        assert isinstance(params, pbk.ConsensusParams)
+
+
 def test_chainstate_manager_options(temp_dir: Path) -> None:
     opts = pbk.ContextOptions()
     context = pbk.Context(opts)

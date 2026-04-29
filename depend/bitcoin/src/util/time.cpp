@@ -5,7 +5,6 @@
 
 #include <util/time.h>
 
-#include <compat/compat.h>
 #include <tinyformat.h>
 #include <util/check.h>
 #include <util/strencodings.h>
@@ -13,10 +12,17 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <compare>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
+
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <sys/time.h>
+#endif
 
 static constexpr std::array<std::string_view, 7> weekdays{"Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"}; // 1970-01-01 was a Thursday.
 static constexpr std::array<std::string_view, 12> months{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
@@ -26,6 +32,8 @@ void UninterruptibleSleep(const std::chrono::microseconds& n) { std::this_thread
 static std::atomic<std::chrono::seconds> g_mock_time{}; //!< For testing
 std::atomic<bool> g_used_system_time{false};
 static std::atomic<MockableSteadyClock::mock_time_point::duration> g_mock_steady_time{}; //!< For testing
+
+static_assert(NodeClock::epoch.time_since_epoch().count() == 0);
 
 NodeClock::time_point NodeClock::now() noexcept
 {

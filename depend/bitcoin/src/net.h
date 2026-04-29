@@ -192,11 +192,11 @@ class CNodeStats
 {
 public:
     NodeId nodeid;
-    std::chrono::seconds m_last_send;
-    std::chrono::seconds m_last_recv;
+    NodeClock::time_point m_last_send;
+    NodeClock::time_point m_last_recv;
     std::chrono::seconds m_last_tx_time;
     std::chrono::seconds m_last_block_time;
-    std::chrono::seconds m_connected;
+    NodeClock::time_point m_connected;
     std::string m_addr_name;
     int nVersion;
     std::string cleanSubVer;
@@ -205,14 +205,13 @@ public:
     bool m_bip152_highbandwidth_to;
     // Peer requested high bandwidth connection
     bool m_bip152_highbandwidth_from;
-    int m_starting_height;
     uint64_t nSendBytes;
     mapMsgTypeSize mapSendBytesPerMsgType;
     uint64_t nRecvBytes;
     mapMsgTypeSize mapRecvBytesPerMsgType;
     NetPermissionFlags m_permission_flags;
-    std::chrono::microseconds m_last_ping_time;
-    std::chrono::microseconds m_min_ping_time;
+    NodeClock::duration m_last_ping_time;
+    NodeClock::duration m_min_ping_time;
     // Our address, as reported by the peer
     std::string addrLocal;
     // Address of this peer
@@ -238,7 +237,8 @@ class CNetMessage
 {
 public:
     DataStream m_recv;                   //!< received message data
-    std::chrono::microseconds m_time{0}; //!< time of message receipt
+    /// time of message receipt
+    NodeClock::time_point m_time{NodeClock::epoch};
     uint32_t m_message_size{0};          //!< size of the payload
     uint32_t m_raw_message_size{0};      //!< used wire size of the message (including header/checksum)
     std::string m_type;
@@ -292,7 +292,7 @@ public:
      * If reject_message=true is returned the message itself is invalid, but (other than false
      * returned by ReceivedBytes) the transport is not in an inconsistent state.
      */
-    virtual CNetMessage GetReceivedMessage(std::chrono::microseconds time, bool& reject_message) = 0;
+    virtual CNetMessage GetReceivedMessage(NodeClock::time_point time, bool& reject_message) = 0;
 
     // 2. Sending side functions, for converting messages into bytes to be sent over the wire.
 
@@ -444,7 +444,7 @@ public:
         return ret >= 0;
     }
 
-    CNetMessage GetReceivedMessage(std::chrono::microseconds time, bool& reject_message) override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);
+    CNetMessage GetReceivedMessage(NodeClock::time_point time, bool& reject_message) override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);
 
     bool SetMessageToSend(CSerializedNetMsg& msg) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_send_mutex);
     BytesToSend GetBytesToSend(bool have_next_message) const noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_send_mutex);
@@ -653,7 +653,7 @@ public:
     // Receive side functions.
     bool ReceivedMessageComplete() const noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);
     bool ReceivedBytes(std::span<const uint8_t>& msg_bytes) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex, !m_send_mutex);
-    CNetMessage GetReceivedMessage(std::chrono::microseconds time, bool& reject_message) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);
+    CNetMessage GetReceivedMessage(NodeClock::time_point time, bool& reject_message) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);
 
     // Send side functions.
     bool SetMessageToSend(CSerializedNetMsg& msg) noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_send_mutex);
@@ -707,10 +707,10 @@ public:
 
     uint64_t nRecvBytes GUARDED_BY(cs_vRecv){0};
 
-    std::atomic<std::chrono::seconds> m_last_send{0s};
-    std::atomic<std::chrono::seconds> m_last_recv{0s};
+    std::atomic<NodeClock::time_point> m_last_send{NodeClock::epoch};
+    std::atomic<NodeClock::time_point> m_last_recv{NodeClock::epoch};
     //! Unix epoch time at peer connection
-    const std::chrono::seconds m_connected;
+    const NodeClock::time_point m_connected;
     // Address of this peer
     const CAddress addr;
     // Bind address of our side of the connection
@@ -877,25 +877,25 @@ public:
      *  eviction logic. */
     std::atomic_bool m_bloom_filter_loaded{false};
 
-    /** UNIX epoch time of the last block received from this peer that we had
-     * not yet seen (e.g. not already received from another peer), that passed
-     * preliminary validity checks and was saved to disk, even if we don't
-     * connect the block or it eventually fails connection. Used as an inbound
-     * peer eviction criterium in CConnman::AttemptToEvictConnection. */
+    /// UNIX epoch time of the last block received from this peer that we had
+    /// not yet seen (e.g. not already received from another peer), that passed
+    /// preliminary validity checks and was saved to disk, even if we don't
+    /// connect the block or it eventually fails to connect. Used as an inbound
+    /// peer eviction criterion in CConnman::AttemptToEvictConnection.
     std::atomic<std::chrono::seconds> m_last_block_time{0s};
 
-    /** UNIX epoch time of the last transaction received from this peer that we
-     * had not yet seen (e.g. not already received from another peer) and that
-     * was accepted into our mempool. Used as an inbound peer eviction criterium
-     * in CConnman::AttemptToEvictConnection. */
+    /// UNIX epoch time of the last transaction received from this peer that we
+    /// had not yet seen (e.g. not already received from another peer) and that
+    /// was accepted into our mempool. Used as an inbound peer eviction criterion
+    /// in CConnman::AttemptToEvictConnection.
     std::atomic<std::chrono::seconds> m_last_tx_time{0s};
 
-    /** Last measured round-trip time. Used only for RPC/GUI stats/debugging.*/
-    std::atomic<std::chrono::microseconds> m_last_ping_time{0us};
+    /// Last measured round-trip duration. Used only for stats.
+    std::atomic<NodeClock::duration> m_last_ping_time{0us};
 
-    /** Lowest measured round-trip time. Used as an inbound peer eviction
-     * criterium in CConnman::AttemptToEvictConnection. */
-    std::atomic<std::chrono::microseconds> m_min_ping_time{std::chrono::microseconds::max()};
+    /// Lowest measured round-trip duration. Used as an inbound peer eviction
+    /// criterion in CConnman::AttemptToEvictConnection.
+    std::atomic<NodeClock::duration> m_min_ping_time{NodeClock::duration::max()};
 
     CNode(NodeId id,
           std::shared_ptr<Sock> sock,
@@ -968,23 +968,22 @@ public:
     std::string ConnectionTypeAsString() const { return ::ConnectionTypeAsString(m_conn_type); }
 
     /**
-     * Helper function to optionally log the IP address.
+     * Helper function to log the peer id, optionally including IP address.
      *
-     * @param[in] log_ip whether to include the IP address
-     * @return " peeraddr=..." or ""
+     * @return "peer=..." and optionally ", peeraddr=..."
      */
-    std::string LogIP(bool log_ip) const;
+    std::string LogPeer() const;
 
     /**
      * Helper function to log disconnects.
      *
-     * @param[in] log_ip whether to include the IP address
-     * @return "disconnecting peer=..." and optionally "peeraddr=..."
+     * @return "disconnecting peer=..." and optionally ", peeraddr=..."
      */
-    std::string DisconnectMsg(bool log_ip) const;
+    std::string DisconnectMsg() const;
 
-    /** A ping-pong round trip has completed successfully. Update latest and minimum ping times. */
-    void PongReceived(std::chrono::microseconds ping_time) {
+    /// A ping-pong round trip has completed successfully. Update latest and minimum ping durations.
+    void PongReceived(NodeClock::duration ping_time)
+    {
         m_last_ping_time = ping_time;
         m_min_ping_time = std::min(m_min_ping_time.load(), ping_time);
     }
@@ -1043,21 +1042,21 @@ public:
     virtual bool HasAllDesirableServiceFlags(ServiceFlags services) const = 0;
 
     /**
-    * Process protocol messages received from a given node
-    *
-    * @param[in]   pnode           The node which we have received messages from.
-    * @param[in]   interrupt       Interrupt condition for processing threads
-    * @return                      True if there is more work to be done
-    */
-    virtual bool ProcessMessages(CNode* pnode, std::atomic<bool>& interrupt) EXCLUSIVE_LOCKS_REQUIRED(g_msgproc_mutex) = 0;
+     * Process protocol messages received from a given node
+     *
+     * @param[in]   node            The node which we have received messages from.
+     * @param[in]   interrupt       Interrupt condition for processing threads
+     * @return                      True if there is more work to be done
+     */
+    virtual bool ProcessMessages(CNode& node, std::atomic<bool>& interrupt) EXCLUSIVE_LOCKS_REQUIRED(g_msgproc_mutex) = 0;
 
     /**
-    * Send queued protocol messages to a given node.
-    *
-    * @param[in]   pnode           The node which we are sending messages to.
-    * @return                      True if there is more work to be done
-    */
-    virtual bool SendMessages(CNode* pnode) EXCLUSIVE_LOCKS_REQUIRED(g_msgproc_mutex) = 0;
+     * Send queued protocol messages to a given node.
+     *
+     * @param[in]   node            The node which we are sending messages to.
+     * @return                      True if there is more work to be done
+     */
+    virtual bool SendMessages(CNode& node) EXCLUSIVE_LOCKS_REQUIRED(g_msgproc_mutex) = 0;
 
 
 protected:
@@ -1241,7 +1240,7 @@ public:
         /// Wait for the number of needed connections to become greater than 0.
         void NumToOpenWait() const;
 
-    private:
+    protected:
         /**
          * Check if private broadcast can be done to IPv4 or IPv6 peers and if so via which proxy.
          * If private broadcast connections should not be opened to IPv4 or IPv6, then this will
@@ -1251,6 +1250,8 @@ public:
 
         /// Number of `ConnectionType::PRIVATE_BROADCAST` connections to open.
         std::atomic_size_t m_num_to_open{0};
+
+        friend struct ConnmanTestMsg;
     } m_private_broadcast;
 
     bool CheckIncomingNonce(uint64_t nonce);
@@ -1395,7 +1396,7 @@ public:
     void WakeMessageHandler() EXCLUSIVE_LOCKS_REQUIRED(!mutexMsgProc);
 
     /** Return true if we should disconnect the peer for failing an inactivity check. */
-    bool ShouldRunInactivityChecks(const CNode& node, std::chrono::microseconds now) const;
+    bool ShouldRunInactivityChecks(const CNode& node, NodeClock::time_point now) const;
 
     bool MultipleManualOrFullOutboundConns(Network net) const EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
 
@@ -1446,7 +1447,7 @@ private:
     void DisconnectNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_reconnections_mutex, !m_nodes_mutex);
     void NotifyNumConnectionsChanged();
     /** Return true if the peer is inactive and should be disconnected. */
-    bool InactivityCheck(const CNode& node, std::chrono::microseconds now) const;
+    bool InactivityCheck(const CNode& node, NodeClock::time_point now) const;
 
     /**
      * Generate a collection of sockets to check for IO readiness.

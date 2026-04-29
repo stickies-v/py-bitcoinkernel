@@ -1,11 +1,83 @@
 import ctypes
 import datetime
+import typing
+from enum import IntEnum, IntFlag
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 from pbk.transaction import Transaction, TransactionSpentOutputs
 from pbk.util.sequence import LazySequence
 from pbk.writer import ByteWriter
+
+if typing.TYPE_CHECKING:
+    from pbk.chain import ConsensusParams
+
+
+class ValidationMode(IntEnum):
+    """Result of validation processing.
+
+    Indicates whether a data structure (such as a block) passed validation,
+    failed validation, or encountered an error during processing.
+    """
+
+    VALID = 0  #: Validation succeeded
+    INVALID = 1  #: Validation failed due to rule violations
+    INTERNAL_ERROR = 2  #: An error occurred during validation processing
+
+
+class BlockValidationResult(IntEnum):
+    """Specific reason why a block failed validation.
+
+    Provides detailed information about which validation rule was violated
+    when a block is rejected. These results help diagnose why blocks fail
+    to be accepted into the blockchain.
+    """
+
+    UNSET = 0  #: Initial value, block has not yet been rejected
+    CONSENSUS = 1  #: Invalid by consensus rules (excluding specific reasons below)
+    CACHED_INVALID = 2  #: Block was previously cached as invalid, reason not stored
+    INVALID_HEADER = 3  #: Invalid proof of work or timestamp too old
+    MUTATED = 4  #: Block data didn't match the data committed to by the PoW
+    MISSING_PREV = 5  #: The previous block this builds on is not available
+    INVALID_PREV = 6  #: A block this one builds on is invalid
+    TIME_FUTURE = 7  #: Block timestamp was more than 2 hours in the future
+    HEADER_LOW_WORK = 8  #: Block header may be on a too-little-work chain
+
+
+class BlockValidationState(KernelOpaquePtr):
+    """State of a block during validation.
+
+    Contains information about whether validation was successful and, if not,
+    which specific validation step failed. This state is provided to validation
+    interface callbacks to communicate detailed validation results.
+    """
+
+    _create_fn = k.btck_block_validation_state_create
+    _destroy_fn = k.btck_block_validation_state_destroy
+
+    def __init__(self):
+        """Create a block validation state."""
+        super().__init__()
+
+    @property
+    def validation_mode(self) -> ValidationMode:
+        """Overall validation result.
+
+        Returns:
+            Whether the block is valid, invalid, or encountered an error.
+        """
+        return ValidationMode(k.btck_block_validation_state_get_validation_mode(self))
+
+    @property
+    def block_validation_result(self) -> BlockValidationResult:
+        """Specific validation failure reason.
+
+        Returns:
+            The granular reason why validation failed, or UNSET if valid.
+        """
+        return BlockValidationResult(
+            k.btck_block_validation_state_get_block_validation_result(self)
+        )
 
 
 class BlockHash(KernelOpaquePtr):
@@ -124,6 +196,29 @@ class BlockTreeEntry(KernelOpaquePtr):
         """The header of the block this entry represents."""
         return BlockHeader._from_handle(k.btck_block_tree_entry_get_block_header(self))
 
+    def get_ancestor(self, height: int) -> "BlockTreeEntry":
+        """Get the ancestor of this block tree entry at the given height.
+
+        Args:
+            height: The height of the requested ancestor. Must be between
+                0 and this entry's height (inclusive).
+
+        Returns:
+            The block tree entry at the given height on the chain leading
+            to this entry.
+
+        Raises:
+            ValueError: If `height` is negative or greater than this
+                entry's height.
+        """
+        if height < 0 or height > self.height:
+            raise ValueError(
+                f"height {height} out of range for entry at height {self.height}"
+            )
+        return BlockTreeEntry._from_view(
+            k.btck_block_tree_entry_get_ancestor(self, height), self._parent
+        )
+
     def __eq__(self, other: object) -> bool:
         """Check equality with another block tree entry.
 
@@ -234,9 +329,39 @@ class BlockHeader(KernelOpaquePtr):
         """The nonce."""
         return k.btck_block_header_get_nonce(self)
 
+    def __bytes__(self) -> bytes:
+        """Serialize the block header to bytes.
+
+        Returns:
+            The 80-byte serialized block header in consensus format.
+
+        Raises:
+            RuntimeError: If serialization fails.
+        """
+        output = (ctypes.c_ubyte * 80)()
+        ret = k.btck_block_header_to_bytes(self, output)
+        if ret != 0:
+            raise RuntimeError(
+                f"Block header serialization failed with return code {ret}"
+            )
+        return bytes(output)
+
     def __repr__(self) -> str:
         """Return a string representation of the block header."""
         return f"<Block header hash={str(self.block_hash)}>"
+
+
+class BlockCheckFlags(IntFlag):
+    """Bitflags controlling optional context-free block checks.
+
+    These flags toggle the optional checks performed by [Block.check][pbk.Block.check].
+    Multiple flags can be combined using bitwise OR operations.
+    """
+
+    BASE = 0  #: Run only the base context-free block checks
+    POW = 1 << 0  #: Run CheckProofOfWork via CheckBlockHeader
+    MERKLE = 1 << 1  #: Verify the merkle root and detect mutation
+    ALL = POW | MERKLE  #: Enable all optional context-free block checks
 
 
 class Block(KernelOpaquePtr):
@@ -300,6 +425,32 @@ class Block(KernelOpaquePtr):
             A lazy sequence of transactions, including the coinbase.
         """
         return TransactionSequence(self)
+
+    def check(
+        self,
+        consensus_params: "ConsensusParams",
+        flags: BlockCheckFlags = BlockCheckFlags.ALL,
+    ) -> BlockValidationState:
+        """Perform context-free validation checks on this block.
+
+        Checks size limits, coinbase structure, per-transaction validity and
+        sigop limits using the supplied consensus params. Proof-of-work and
+        merkle-root checks are optional and toggled via `flags`. Does not
+        include script, timestamp, ordering or other context-dependent checks.
+
+        Args:
+            consensus_params: The consensus parameters to validate against.
+            flags: Bitmask controlling the optional POW and merkle-root checks.
+                Defaults to `BlockCheckFlags.ALL`.
+
+        Returns:
+            The resulting validation state. Inspect `validation_mode` to
+            determine whether the block passed.
+        """
+        state = BlockValidationState()
+        ret = k.btck_block_check(self, consensus_params, flags, state)
+        assert (ret == 1) == (state.validation_mode == ValidationMode.VALID)
+        return state
 
     def __repr__(self) -> str:
         """Return a string representation of the block."""

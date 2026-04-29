@@ -74,6 +74,37 @@ def test_transaction() -> None:
         == "<Transaction txid=9ababd66265528586981359efbf6b4c303430503e90d811c24d431cfd3994c55 ins=3 outs=2>"
     )
 
+    # Locktime: trailing 4 bytes of the serialized tx are the nLockTime in
+    # little-endian encoding. The fixture ends with `9f680600` -> 0x0006689f.
+    assert tx.locktime == 0x0006689F
+
+    # Each input has nSequence == 0xFFFFFFFE (feffffff in the serialized data).
+    for tx_input in tx.inputs:
+        assert tx_input.sequence == 0xFFFFFFFE
+
+
+def test_transaction_input_sequence_per_input() -> None:
+    # Three inputs with three distinct nSequence values, to verify the
+    # wrapper reads each input's own sequence rather than always
+    # returning the first input's value.
+    def make_input(prev_byte: str, vout: str, seq: str) -> str:
+        return prev_byte * 32 + vout + "00" + seq
+
+    inputs_hex = (
+        make_input("aa", "00000000", "ffffffff")
+        + make_input("bb", "01000000", "feffffff")
+        + make_input("cc", "02000000", "10000000")
+    )
+    output_hex = "00f2052a01000000" + "1976a914" + "00" * 20 + "88ac"
+    raw = "02000000" + "03" + inputs_hex + "01" + output_hex + "00000000"
+    tx = pbk.Transaction(bytes.fromhex(raw))
+
+    assert [tx_input.sequence for tx_input in tx.inputs] == [
+        0xFFFFFFFF,
+        0xFFFFFFFE,
+        0x00000010,
+    ]
+
 
 def test_block_undo(chainman_regtest: pbk.ChainstateManager) -> None:
     chain_man = chainman_regtest

@@ -4,11 +4,16 @@ from enum import IntEnum
 from pathlib import Path
 
 import pbk.capi.bindings as k
-from pbk.block import Block, BlockHash, BlockTreeEntry, BlockSpentOutputs
+from pbk.block import (
+    Block,
+    BlockHash,
+    BlockTreeEntry,
+    BlockSpentOutputs,
+    BlockValidationState,
+)
 from pbk.capi import KernelOpaquePtr
 from pbk.util.exc import ProcessBlockException, ProcessBlockHeaderException
 from pbk.util.sequence import LazySequence
-from pbk.validation import BlockValidationState
 
 if typing.TYPE_CHECKING:
     from pbk import BlockHash, BlockHeader, Context
@@ -24,6 +29,10 @@ class ChainType(IntEnum):
     TESTNET_4 = 2  #: Testnet4 Bitcoin network
     SIGNET = 3  #: Signet Bitcoin network
     REGTEST = 4  #: Regression test network
+
+
+class ConsensusParams(KernelOpaquePtr):
+    """View of the consensus parameters of a chain."""
 
 
 class ChainParameters(KernelOpaquePtr):
@@ -47,6 +56,13 @@ class ChainParameters(KernelOpaquePtr):
             RuntimeError: If the C constructor fails (propagated from base class).
         """
         super().__init__(chain_type)
+
+    @property
+    def consensus_params(self) -> ConsensusParams:
+        """The consensus parameters for this chain."""
+        return ConsensusParams._from_view(
+            k.btck_chain_parameters_get_consensus_params(self), self
+        )
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
