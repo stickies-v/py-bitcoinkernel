@@ -1,5 +1,7 @@
 ::: pbk.Block
 
+::: pbk.BlockCheckFlags
+
 ::: pbk.BlockHash
 
 ::: pbk.BlockHeader
