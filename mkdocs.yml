@@ -83,4 +83,5 @@ nav:
     - Python-bitcoinlib: examples/python-bitcoinlib.md
     - Threading: examples/threading.md
   - Concurrency: concurrency.md
+  - Object Lifetimes: lifetimes.md
   - Developer Notes: developer-notes.md

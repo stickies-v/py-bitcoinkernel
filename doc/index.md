@@ -26,8 +26,10 @@ In its current alpha state, it is primarily intended as a tool to:
     is likely going to change, without concern for backwards compatibility.
 
 All the classes and functions that can be used are exposed in a single
-`pbk` package. Lifetimes are managed automatically. The library is
-[thread-safe](#concurrency).
+`pbk` package. Lifetimes are managed automatically; see
+[Object Lifetimes](lifetimes.md) for details on how derived views
+relate to their parents and how to detach them when needed. The
+library is [thread-safe](#concurrency).
 
 The entry point for most current `libbitcoinkernel` usage is the
 [`ChainstateManager`][pbk.ChainstateManager].
