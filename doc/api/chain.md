@@ -17,3 +17,7 @@
 ::: pbk.Chain
 
 ::: pbk.ChainstateManager
+
+::: pbk.ConsensusParams
+
+::: pbk.load_chainman
