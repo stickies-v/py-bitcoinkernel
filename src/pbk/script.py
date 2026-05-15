@@ -90,6 +90,7 @@ class PrecomputedTransactionData(KernelOpaquePtr):
 
     _create_fn = k.btck_precomputed_transaction_data_create
     _destroy_fn = k.btck_precomputed_transaction_data_destroy
+    _copy_fn = k.btck_precomputed_transaction_data_copy
 
     def __init__(
         self, tx_to: "Transaction", spent_outputs: list["TransactionOutput"] | None
@@ -117,6 +118,7 @@ class ScriptPubkey(KernelOpaquePtr):
 
     _create_fn = k.btck_script_pubkey_create
     _destroy_fn = k.btck_script_pubkey_destroy
+    _copy_fn = k.btck_script_pubkey_copy
 
     def __init__(self, data: bytes):
         """Create a script pubkey from raw script data.

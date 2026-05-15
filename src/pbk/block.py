@@ -54,6 +54,7 @@ class BlockValidationState(KernelOpaquePtr):
 
     _create_fn = k.btck_block_validation_state_create
     _destroy_fn = k.btck_block_validation_state_destroy
+    _copy_fn = k.btck_block_validation_state_copy
 
     def __init__(self):
         """Create a block validation state."""
@@ -85,6 +86,7 @@ class BlockHash(KernelOpaquePtr):
 
     _create_fn = k.btck_block_hash_create
     _destroy_fn = k.btck_block_hash_destroy
+    _copy_fn = k.btck_block_hash_copy
 
     def __init__(self, block_hash: bytes):
         """Create a block hash from raw bytes.
@@ -164,9 +166,10 @@ class BlockTreeEntry(KernelOpaquePtr):
         """The hash of the block this entry represents.
 
         Returns:
-            The block hash associated with this entry.
+            The block hash associated with this entry. View into this
+            entry.
         """
-        return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self))
+        return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self), self)
 
     @property
     def height(self) -> int:
@@ -182,7 +185,8 @@ class BlockTreeEntry(KernelOpaquePtr):
         """The parent block tree entry.
 
         Returns:
-            The previous block tree entry in the tree.
+            The previous block tree entry in the tree. View into the
+            chainstate manager (transitively, via this entry's parent).
 
         Raises:
             RuntimeError: If the C constructor fails (propagated from base class).
@@ -193,7 +197,11 @@ class BlockTreeEntry(KernelOpaquePtr):
 
     @property
     def block_header(self) -> "BlockHeader":
-        """The header of the block this entry represents."""
+        """The header of the block this entry represents.
+
+        Returns:
+            The block header. Owned handle.
+        """
         return BlockHeader._from_handle(k.btck_block_tree_entry_get_block_header(self))
 
     def get_ancestor(self, height: int) -> "BlockTreeEntry":
@@ -205,7 +213,8 @@ class BlockTreeEntry(KernelOpaquePtr):
 
         Returns:
             The block tree entry at the given height on the chain leading
-            to this entry.
+            to this entry. View into the chainstate manager (transitively,
+            via this entry's parent).
 
         Raises:
             ValueError: If `height` is negative or greater than this
@@ -282,6 +291,7 @@ class BlockHeader(KernelOpaquePtr):
 
     _create_fn = k.btck_block_header_create
     _destroy_fn = k.btck_block_header_destroy
+    _copy_fn = k.btck_block_header_copy
 
     def __init__(self, raw_header: bytes):
         """Create a block header from serialized data.
@@ -300,12 +310,20 @@ class BlockHeader(KernelOpaquePtr):
 
     @property
     def block_hash(self) -> BlockHash:
-        """The block hash."""
+        """The block hash.
+
+        Returns:
+            The block hash. Owned handle.
+        """
         return BlockHash._from_handle(k.btck_block_header_get_hash(self))
 
     @property
     def prev_hash(self) -> BlockHash:
-        """The previous block hash."""
+        """The previous block hash.
+
+        Returns:
+            The previous block hash. View into this header.
+        """
         return BlockHash._from_view(k.btck_block_header_get_prev_hash(self), self)
 
     @property
@@ -369,6 +387,7 @@ class Block(KernelOpaquePtr):
 
     _create_fn = k.btck_block_create
     _destroy_fn = k.btck_block_destroy
+    _copy_fn = k.btck_block_copy
 
     def __init__(self, raw_block: bytes):
         """Create a block from serialized data.
@@ -388,7 +407,7 @@ class Block(KernelOpaquePtr):
         Computes the double-SHA256 hash of the block header.
 
         Returns:
-            The block hash.
+            The block hash. Owned handle.
         """
         return BlockHash._from_handle(k.btck_block_get_hash(self))
 
@@ -397,7 +416,7 @@ class Block(KernelOpaquePtr):
         """The header of this block.
 
         Returns:
-            The block header.
+            The block header. Owned handle.
         """
         return BlockHeader._from_handle(k.btck_block_get_header(self))
 
@@ -445,7 +464,7 @@ class Block(KernelOpaquePtr):
 
         Returns:
             The resulting validation state. Inspect `validation_mode` to
-            determine whether the block passed.
+            determine whether the block passed. Owned handle.
         """
         state = BlockValidationState()
         ret = k.btck_block_check(self, consensus_params, flags, state)
@@ -506,6 +525,7 @@ class BlockSpentOutputs(KernelOpaquePtr):
 
     # Non-instantiable but can own pointers when read from disk
     _destroy_fn = k.btck_block_spent_outputs_destroy
+    _copy_fn = k.btck_block_spent_outputs_copy
 
     def _get_transaction_spent_outputs_at(self, index: int) -> TransactionSpentOutputs:
         """Get the transaction spent outputs at the given index."""

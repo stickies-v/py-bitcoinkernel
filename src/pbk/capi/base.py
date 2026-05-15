@@ -28,6 +28,10 @@ class KernelOpaquePtr:
     Subclasses should set `_create_fn` and `_destroy_fn` class attributes to
     enable direct instantiation and automatic cleanup.
 
+    Subclasses defining methods that return a `KernelOpaquePtr` instance must
+    end the `Returns:` section with either `Owned handle.` or
+    `View into <parent>.` to document the returned object's lifetime.
+
     Attributes:
         _as_parameter_: The underlying ctypes pointer to the C object.
         _owns_ptr: If True, this object owns the pointer and will destroy it
@@ -48,6 +52,9 @@ class KernelOpaquePtr:
     _create_fn: Callable | None = None  # If None, cannot be created directly
     _destroy_fn: Callable | None = (
         None  # If None, cannot be destroyed. Should only be used for view-only classes.
+    )
+    _copy_fn: Callable | None = (
+        None  # If None, the object cannot be copied via copy.copy/copy.deepcopy.
     )
 
     def __init__(self, *args: typing.Any, **kwargs: typing.Any):
@@ -184,6 +191,57 @@ class KernelOpaquePtr:
                 )
             self._destroy_fn(self)
             self._as_parameter_ = None
+
+    def _copy_ptr(self) -> ctypes.c_void_p:
+        """Call the C copy function and return a fresh owned pointer.
+
+        Raises:
+            TypeError: If this object's type does not support copying.
+        """
+        if self._copy_fn is None:
+            raise TypeError(f"{type(self).__name__} cannot be copied")
+        return self._copy_fn(self)
+
+    def detach(self) -> Self:
+        """Promote a view to an owned, independent handle.
+
+        After this returns, the object no longer depends on its parent for
+        the validity of its underlying C memory: it owns a fresh copy and
+        will be destroyed independently. Useful to avoid keeping the parent
+        in-memory when only the child is still necessary.
+
+        No-op when called on an already-owned handle.
+
+        Returns `self` to support chaining.
+
+        Raises:
+            TypeError: If this object's type does not support copying.
+        """
+        if self._owns_ptr:
+            return self
+        self._as_parameter_ = self._copy_ptr()
+        self._owns_ptr = True
+        self._parent = None
+        return self
+
+    def __copy__(self) -> Self:
+        """Return a copy of this object.
+
+        Raises:
+            TypeError: If the class does not support copying.
+        """
+        return type(self)._from_handle(self._copy_ptr())
+
+    def __deepcopy__(self, memo: dict) -> Self:
+        """Return a copy of this object.
+
+        Deep and shallow copies are equivalent because copyable kernel objects
+        expose no mutable state.
+
+        Raises:
+            TypeError: If the class does not support copying.
+        """
+        return self.__copy__()
 
     def __enter__(self) -> Self:
         """Enter the context manager.

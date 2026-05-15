@@ -16,6 +16,9 @@ class Txid(KernelOpaquePtr):
         Transaction objects or TransactionOutPoint objects.
     """
 
+    _destroy_fn = k.btck_txid_destroy
+    _copy_fn = k.btck_txid_copy
+
     def __bytes__(self) -> bytes:
         """Serialize the txid to bytes.
 
@@ -74,6 +77,9 @@ class TransactionOutPoint(KernelOpaquePtr):
         obtained from TransactionInput objects.
     """
 
+    _destroy_fn = k.btck_transaction_out_point_destroy
+    _copy_fn = k.btck_transaction_out_point_copy
+
     @property
     def index(self) -> int:
         """The output index within the transaction.
@@ -88,7 +94,8 @@ class TransactionOutPoint(KernelOpaquePtr):
         """The transaction ID being referenced.
 
         Returns:
-            The txid of the transaction containing the output.
+            The txid of the transaction containing the output. View into
+            this outpoint.
         """
         return Txid._from_view(k.btck_transaction_out_point_get_txid(self), self)
 
@@ -105,12 +112,16 @@ class TransactionInput(KernelOpaquePtr):
         obtained from Transaction objects.
     """
 
+    _destroy_fn = k.btck_transaction_input_destroy
+    _copy_fn = k.btck_transaction_input_copy
+
     @property
     def out_point(self) -> TransactionOutPoint:
         """The outpoint being spent by this input.
 
         Returns:
-            The transaction outpoint referencing the previous output.
+            The transaction outpoint referencing the previous output. View
+            into this input.
         """
         return TransactionOutPoint._from_view(
             k.btck_transaction_input_get_out_point(self), self
@@ -136,6 +147,7 @@ class TransactionOutput(KernelOpaquePtr):
 
     _create_fn = k.btck_transaction_output_create
     _destroy_fn = k.btck_transaction_output_destroy
+    _copy_fn = k.btck_transaction_output_copy
 
     def __init__(self, script_pubkey: "ScriptPubkey", amount: int):
         """Create a transaction output.
@@ -160,7 +172,8 @@ class TransactionOutput(KernelOpaquePtr):
         """The spending conditions for this output.
 
         Returns:
-            The script pubkey defining how this output can be spent.
+            The script pubkey defining how this output can be spent. View
+            into this output.
         """
         ptr = k.btck_transaction_output_get_script_pubkey(self)
         return ScriptPubkey._from_view(ptr, self)
@@ -242,6 +255,7 @@ class Transaction(KernelOpaquePtr):
 
     _create_fn = k.btck_transaction_create
     _destroy_fn = k.btck_transaction_destroy
+    _copy_fn = k.btck_transaction_copy
 
     def __init__(self, data: bytes):
         """Create a transaction from serialized data.
@@ -289,7 +303,7 @@ class Transaction(KernelOpaquePtr):
         """The transaction identifier.
 
         Returns:
-            The txid of this transaction.
+            The txid of this transaction. View into this transaction.
         """
         return Txid._from_view(k.btck_transaction_get_txid(self), self)
 
@@ -326,6 +340,9 @@ class Coin(KernelOpaquePtr):
         from TransactionSpentOutputs objects.
     """
 
+    _destroy_fn = k.btck_coin_destroy
+    _copy_fn = k.btck_coin_copy
+
     @property
     def confirmation_height(self) -> int:
         """The block height where this coin was created.
@@ -354,6 +371,7 @@ class Coin(KernelOpaquePtr):
 
         Returns:
             The transaction output containing the amount and script pubkey.
+            View into this coin.
         """
         ptr = k.btck_coin_get_output(self)
         return TransactionOutput._from_view(ptr, self)
@@ -409,6 +427,9 @@ class TransactionSpentOutputs(KernelOpaquePtr):
         TransactionSpentOutputs instances cannot be directly constructed.
         They are obtained from BlockSpentOutputs objects.
     """
+
+    _destroy_fn = k.btck_transaction_spent_outputs_destroy
+    _copy_fn = k.btck_transaction_spent_outputs_copy
 
     def _get_coin_at(self, index: int) -> Coin:
         """Get the coin at the given index."""

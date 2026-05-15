@@ -1,7 +1,10 @@
-"""Test that non-instantiable classes raise TypeError consistently."""
+"""Tests for `KernelOpaquePtr` base-class behaviour."""
 
-import pytest
+from collections.abc import Callable
+
 import pbk
+import pytest
+from pbk.capi import KernelOpaquePtr
 
 
 def test_non_instantiable_classes_raise_type_error() -> None:
@@ -55,3 +58,41 @@ def test_instantiable_classes_work() -> None:
     except TypeError as e:
         if "cannot be instantiated directly" in str(e):
             raise  # This shouldn't happen!
+
+
+# Factories that produce an owned instance of each directly-constructible
+# kernel type. Used to verify base-class behaviour (e.g. `detach()` is a
+# no-op on owned handles) across the type hierarchy without hand-writing one
+# test per class.
+_OWNED_FACTORIES = {
+    "BlockHash": lambda: pbk.BlockHash(b"0" * 32),
+    "ScriptPubkey": lambda: pbk.ScriptPubkey(b"\x00"),
+    "TransactionOutput": lambda: pbk.TransactionOutput(pbk.ScriptPubkey(b"\x00"), 1),
+    "ChainParameters": lambda: pbk.ChainParameters(pbk.ChainType.REGTEST),
+}
+
+
+@pytest.mark.parametrize(
+    "factory", _OWNED_FACTORIES.values(), ids=_OWNED_FACTORIES.keys()
+)
+def test_detach_is_noop_on_owned_handle(factory: Callable[[], KernelOpaquePtr]) -> None:
+    obj = factory()
+    ptr_before = obj._as_parameter_
+
+    assert obj.detach() is obj
+    assert obj._owns_ptr is True
+    assert obj._as_parameter_ is ptr_before
+
+
+def test_detach_raises_on_noncopyable_view(
+    chainman_regtest: pbk.ChainstateManager,
+) -> None:
+    # BlockTreeEntry is a view-only type whose C API exposes no copy
+    # function. Calling detach() on such a view must raise rather than
+    # silently leave the user with a still-borrowed handle.
+    entry = chainman_regtest.get_active_chain().block_tree_entries[0]
+
+    assert entry._copy_fn is None
+
+    with pytest.raises(TypeError, match="cannot be copied"):
+        entry.detach()
