@@ -36,6 +36,7 @@ from pbk.log import (
     set_log_level_category,
 )
 from pbk.script import (
+    PrecomputedTransactionData,
     ScriptPubkey,
     ScriptVerificationFlags,
     ScriptVerifyException,
@@ -89,6 +90,7 @@ __all__ = [
     "LogLevel",
     "LoggingConnection",
     "LoggingOptions",
+    "PrecomputedTransactionData",
     "ProcessBlockException",
     "ProcessBlockHeaderException",
     "ScriptPubkey",
