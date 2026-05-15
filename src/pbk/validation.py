@@ -8,35 +8,18 @@ from pbk.block import (
     BlockTreeEntry,
     BlockValidationState,
 )
-from pbk.util.type import UserData
 
 
 def _wrap_block_and_state(fn: Callable[..., None]) -> Callable[..., None]:
-    def wrapper(
-        user_data: ctypes.c_void_p,
-        block_ptr: ctypes.c_void_p,
-        state_ptr: ctypes.c_void_p,
-    ) -> None:
-        fn(
-            user_data,
-            Block._from_handle(block_ptr),
-            BlockValidationState._from_view(state_ptr),
-        )
+    def wrapper(block_ptr: ctypes.c_void_p, state_ptr: ctypes.c_void_p) -> None:
+        fn(Block._from_handle(block_ptr), BlockValidationState._from_view(state_ptr))
 
     return wrapper
 
 
 def _wrap_block_and_entry(fn: Callable[..., None]) -> Callable[..., None]:
-    def wrapper(
-        user_data: ctypes.c_void_p,
-        block_ptr: ctypes.c_void_p,
-        entry_ptr: ctypes.c_void_p,
-    ) -> None:
-        fn(
-            user_data,
-            Block._from_handle(block_ptr),
-            BlockTreeEntry._from_view(entry_ptr),
-        )
+    def wrapper(block_ptr: ctypes.c_void_p, entry_ptr: ctypes.c_void_p) -> None:
+        fn(Block._from_handle(block_ptr), BlockTreeEntry._from_view(entry_ptr))
 
     return wrapper
 
@@ -59,15 +42,15 @@ class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
     All callbacks are optional; only those passed as keyword arguments are
     registered, and any unspecified event is silently ignored.
 
-    Available callbacks, each invoked with `(user_data, block, entry_or_state)`:
-      - `block_checked(user_data, block: Block, state: BlockValidationState)`:
+    Available callbacks, each invoked with `(block, entry_or_state)`:
+      - `block_checked(block: Block, state: BlockValidationState)`:
         a block has been fully validated. `state` is only valid for the duration
         of the callback — do not retain it.
-      - `pow_valid_block(user_data, block: Block, entry: BlockTreeEntry)`:
+      - `pow_valid_block(block: Block, entry: BlockTreeEntry)`:
         a block extends the header chain with valid PoW.
-      - `block_connected(user_data, block: Block, entry: BlockTreeEntry)`:
+      - `block_connected(block: Block, entry: BlockTreeEntry)`:
         a valid block was connected to the best chain.
-      - `block_disconnected(user_data, block: Block, entry: BlockTreeEntry)`:
+      - `block_disconnected(block: Block, entry: BlockTreeEntry)`:
         a block was disconnected during a reorg.
 
     `block` is owned by the callback; `entry` is a view into the kernel's
@@ -77,19 +60,17 @@ class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
         Register only `block_disconnected`:
 
         >>> cbs = ValidationInterfaceCallbacks(
-        ...     block_disconnected=lambda user_data, block, entry: print(entry.height)
+        ...     block_disconnected=lambda block, entry: print(entry.height)
         ... )
     """
 
     def __init__(
         self,
-        user_data: UserData | None = None,
         **callbacks: Callable[..., None],
     ):
         """Create validation interface callbacks.
 
         Args:
-            user_data: Optional user-defined data passed to all callbacks.
             **callbacks: Callback functions for validation events, keyed by callback name
                          (e.g. ``block_disconnected=my_fn``). All are optional; omitted
                          callbacks are left unset.
@@ -104,21 +85,20 @@ class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
             else fn
             for name, fn in callbacks.items()
         }
-        pbk.util.callbacks._initialize_callbacks(self, user_data, **wrapped)
+        pbk.util.callbacks._initialize_callbacks(self, **wrapped)
 
 
 default_validation_callbacks = ValidationInterfaceCallbacks(
-    user_data=None,
-    block_checked=lambda user_data, block, state: print(
+    block_checked=lambda block, state: print(
         f"block_checked: block: {block}, state: {state}"
     ),
-    pow_valid_block=lambda user_data, block, entry: print(
+    pow_valid_block=lambda block, entry: print(
         f"pow_valid_block: block: {block}, entry: {entry}"
     ),
-    block_connected=lambda user_data, block, entry: print(
+    block_connected=lambda block, entry: print(
         f"block_connected: block: {block}, entry: {entry}"
     ),
-    block_disconnected=lambda user_data, block, entry: print(
+    block_disconnected=lambda block, entry: print(
         f"block_disconnected: block: {block}, entry: {entry}"
     ),
 )

@@ -53,11 +53,12 @@ def test_validation_callbacks_unknown_raises() -> None:
 
 
 def test_validation_callbacks_reserved_names_rejected() -> None:
-    # `user_data` is a declared parameter, not a callback. `user_data_destroy`
-    # is a struct field reserved for internal use and must not be settable
-    # via the callback kwargs.
+    # `user_data` and `user_data_destroy` are struct fields reserved for
+    # internal use and must not be settable via the callback kwargs.
     with pytest.raises(ValueError, match="not recognized"):
         pbk.ValidationInterfaceCallbacks(user_data_destroy=_noop)
+    with pytest.raises(ValueError, match="not recognized"):
+        pbk.ValidationInterfaceCallbacks(user_data=_noop)
 
 
 def test_validation_callbacks_wrap_block_and_entry(temp_dir: Path) -> None:
@@ -66,7 +67,7 @@ def test_validation_callbacks_wrap_block_and_entry(temp_dir: Path) -> None:
         temp_dir,
         pbk.ChainType.REGTEST,
         pbk.ValidationInterfaceCallbacks(
-            block_connected=lambda u, b, e: received.append((b, e)),
+            block_connected=lambda b, e: received.append((b, e)),
         ),
     )
     with (Path(__file__).parent / "data" / "regtest" / "blocks.txt").open() as f:
@@ -84,9 +85,7 @@ def test_validation_callbacks_wrap_block_and_entry(temp_dir: Path) -> None:
 def test_validation_callbacks_wrap_block_and_state(temp_dir: Path) -> None:
     received: list[tuple[str, str, pbk.ValidationMode]] = []
 
-    def on_checked(
-        user_data: object, block: pbk.Block, state: pbk.BlockValidationState
-    ) -> None:
+    def on_checked(block: pbk.Block, state: pbk.BlockValidationState) -> None:
         # `state` is only valid inside the callback — read it here.
         received.append(
             (type(block).__name__, type(state).__name__, state.validation_mode)
