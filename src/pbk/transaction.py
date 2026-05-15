@@ -94,7 +94,8 @@ class TransactionOutPoint(KernelOpaquePtr):
         """The transaction ID being referenced.
 
         Returns:
-            The txid of the transaction containing the output.
+            The txid of the transaction containing the output. View into
+            this outpoint.
         """
         return Txid._from_view(k.btck_transaction_out_point_get_txid(self), self)
 
@@ -119,7 +120,8 @@ class TransactionInput(KernelOpaquePtr):
         """The outpoint being spent by this input.
 
         Returns:
-            The transaction outpoint referencing the previous output.
+            The transaction outpoint referencing the previous output. View
+            into this input.
         """
         return TransactionOutPoint._from_view(
             k.btck_transaction_input_get_out_point(self), self
@@ -170,7 +172,8 @@ class TransactionOutput(KernelOpaquePtr):
         """The spending conditions for this output.
 
         Returns:
-            The script pubkey defining how this output can be spent.
+            The script pubkey defining how this output can be spent. View
+            into this output.
         """
         ptr = k.btck_transaction_output_get_script_pubkey(self)
         return ScriptPubkey._from_view(ptr, self)
@@ -300,7 +303,7 @@ class Transaction(KernelOpaquePtr):
         """The transaction identifier.
 
         Returns:
-            The txid of this transaction.
+            The txid of this transaction. View into this transaction.
         """
         return Txid._from_view(k.btck_transaction_get_txid(self), self)
 
@@ -368,6 +371,7 @@ class Coin(KernelOpaquePtr):
 
         Returns:
             The transaction output containing the amount and script pubkey.
+            View into this coin.
         """
         ptr = k.btck_coin_get_output(self)
         return TransactionOutput._from_view(ptr, self)

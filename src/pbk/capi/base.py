@@ -28,6 +28,10 @@ class KernelOpaquePtr:
     Subclasses should set `_create_fn` and `_destroy_fn` class attributes to
     enable direct instantiation and automatic cleanup.
 
+    Subclasses defining methods that return a `KernelOpaquePtr` instance must
+    end the `Returns:` section with either `Owned handle.` or
+    `View into <parent>.` to document the returned object's lifetime.
+
     Attributes:
         _as_parameter_: The underlying ctypes pointer to the C object.
         _owns_ptr: If True, this object owns the pointer and will destroy it

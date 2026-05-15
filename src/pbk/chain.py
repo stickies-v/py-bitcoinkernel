@@ -60,7 +60,11 @@ class ChainParameters(KernelOpaquePtr):
 
     @property
     def consensus_params(self) -> ConsensusParams:
-        """The consensus parameters for this chain."""
+        """The consensus parameters for this chain.
+
+        Returns:
+            The consensus parameters. View into these chain parameters.
+        """
         return ConsensusParams._from_view(
             k.btck_chain_parameters_get_consensus_params(self), self
         )
@@ -298,7 +302,8 @@ class BlockTreeEntryMap(MapBase):
             key: The block hash to look up.
 
         Returns:
-            The block tree entry corresponding to the hash.
+            The block tree entry corresponding to the hash. View into the
+            chainstate manager.
 
         Raises:
             KeyError: If the block hash is not found in the block index.
@@ -335,7 +340,7 @@ class BlockMap(MapBase):
             key: The block tree entry identifying which block to read.
 
         Returns:
-            The full block data read from disk.
+            The full block data read from disk. Owned handle.
 
         Raises:
             RuntimeError: If reading the block from disk fails.
@@ -375,7 +380,7 @@ class BlockSpentOutputsMap(MapBase):
                 to read.
 
         Returns:
-            The spent outputs data for the block.
+            The spent outputs data for the block. Owned handle.
 
         Raises:
             KeyError: If attempting to read spent outputs for the genesis block,
@@ -452,7 +457,7 @@ class ChainstateManager(KernelOpaquePtr):
         are processed or as a reorg occurs.
 
         Returns:
-            The active chain view.
+            The active chain. View into this chainstate manager.
         """
         return Chain._from_view(k.btck_chainstate_manager_get_active_chain(self), self)
 
@@ -527,7 +532,11 @@ class ChainstateManager(KernelOpaquePtr):
     @property
     def best_entry(self) -> BlockTreeEntry:
         """The BlockTreeEntry whose associated BlockHeader has the most known
-        cumulative proof of work."""
+        cumulative proof of work.
+
+        Returns:
+            The best block tree entry. View into this chainstate manager.
+        """
         return BlockTreeEntry._from_view(
             k.btck_chainstate_manager_get_best_entry(self), self
         )
@@ -540,7 +549,7 @@ class ChainstateManager(KernelOpaquePtr):
             header: block header to be processed
 
         Returns:
-            The result of the block header validation
+            The result of the block header validation. Owned handle.
 
         Raises:
             ProcessBlockHeaderException: If processing the block header failed. Duplicate block headers do not throw.

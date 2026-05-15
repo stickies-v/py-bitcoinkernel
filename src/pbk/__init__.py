@@ -131,7 +131,7 @@ def make_context(
             `ValidationInterfaceCallbacks` for the available events.
 
     Returns:
-        A new `Context`.
+        A new `Context`. Owned handle.
     """
     chain_params = ChainParameters(chain_type)
     opts = ContextOptions()
@@ -154,14 +154,16 @@ def load_chainman(
     data directory. Sharing a data directory with Bitcoin Core will ONLY
     work when only one of both programs is running at a time.
 
-    @param datadir: The path of the data directory. If the directory
-        contains an existing `blocks/` and `chainstate/` directory
-        created by Bitoin Core, it will be used to load the chainstate.
-        Otherwise, a new chainstate will be created.
-    @param chain_type: The type of chain to load.
-    @param validation_callbacks: Optional callbacks forwarded to
-        `make_context` to receive validation events.
-    @return: A `ChainstateManager` object.
+    Args:
+        datadir: The path of the data directory. If the directory contains an
+            existing `blocks/` and `chainstate/` directory, it will be used to
+            load the chainstate. Otherwise, a new chainstate will be created.
+        chain_type: The type of chain to load.
+        validation_callbacks: Optional callbacks forwarded to `make_context` to
+            receive validation events.
+
+    Returns:
+        A `ChainstateManager` object. Owned handle.
     """
     datadir = Path(datadir)
     context = make_context(chain_type, validation_callbacks=validation_callbacks)
