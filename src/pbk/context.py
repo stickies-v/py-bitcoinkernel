@@ -64,6 +64,7 @@ class Context(KernelOpaquePtr):
 
     _create_fn = k.btck_context_create
     _destroy_fn = k.btck_context_destroy
+    _copy_fn = k.btck_context_copy
 
     def __init__(self, options: ContextOptions):
         """Create a kernel context.
@@ -74,6 +75,19 @@ class Context(KernelOpaquePtr):
         super().__init__(options)
         self._notifications = options._notifications
         self._validation_callbacks = options._validation_callbacks
+
+    def __copy__(self) -> "Context":
+        """Return an independent handle to the same kernel context.
+
+        Propagates Python-side keepalives for the notification and validation
+        callbacks: the kernel stores raw function pointers into ctypes
+        trampolines owned by these Python objects, so the copy must keep them
+        alive even if the source handle is dropped.
+        """
+        copy = super().__copy__()
+        copy._notifications = self._notifications
+        copy._validation_callbacks = self._validation_callbacks
+        return copy
 
     def interrupt(self) -> int:
         """Interrupt long-running validation functions. Useful for operations like reindexing,

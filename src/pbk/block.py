@@ -54,6 +54,7 @@ class BlockValidationState(KernelOpaquePtr):
 
     _create_fn = k.btck_block_validation_state_create
     _destroy_fn = k.btck_block_validation_state_destroy
+    _copy_fn = k.btck_block_validation_state_copy
 
     def __init__(self):
         """Create a block validation state."""
@@ -85,6 +86,7 @@ class BlockHash(KernelOpaquePtr):
 
     _create_fn = k.btck_block_hash_create
     _destroy_fn = k.btck_block_hash_destroy
+    _copy_fn = k.btck_block_hash_copy
 
     def __init__(self, block_hash: bytes):
         """Create a block hash from raw bytes.
@@ -282,6 +284,7 @@ class BlockHeader(KernelOpaquePtr):
 
     _create_fn = k.btck_block_header_create
     _destroy_fn = k.btck_block_header_destroy
+    _copy_fn = k.btck_block_header_copy
 
     def __init__(self, raw_header: bytes):
         """Create a block header from serialized data.
@@ -369,6 +372,7 @@ class Block(KernelOpaquePtr):
 
     _create_fn = k.btck_block_create
     _destroy_fn = k.btck_block_destroy
+    _copy_fn = k.btck_block_copy
 
     def __init__(self, raw_block: bytes):
         """Create a block from serialized data.
@@ -506,6 +510,7 @@ class BlockSpentOutputs(KernelOpaquePtr):
 
     # Non-instantiable but can own pointers when read from disk
     _destroy_fn = k.btck_block_spent_outputs_destroy
+    _copy_fn = k.btck_block_spent_outputs_copy
 
     def _get_transaction_spent_outputs_at(self, index: int) -> TransactionSpentOutputs:
         """Get the transaction spent outputs at the given index."""

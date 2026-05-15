@@ -16,6 +16,9 @@ class Txid(KernelOpaquePtr):
         Transaction objects or TransactionOutPoint objects.
     """
 
+    _destroy_fn = k.btck_txid_destroy
+    _copy_fn = k.btck_txid_copy
+
     def __bytes__(self) -> bytes:
         """Serialize the txid to bytes.
 
@@ -74,6 +77,9 @@ class TransactionOutPoint(KernelOpaquePtr):
         obtained from TransactionInput objects.
     """
 
+    _destroy_fn = k.btck_transaction_out_point_destroy
+    _copy_fn = k.btck_transaction_out_point_copy
+
     @property
     def index(self) -> int:
         """The output index within the transaction.
@@ -104,6 +110,9 @@ class TransactionInput(KernelOpaquePtr):
         TransactionInput instances cannot be directly constructed. They are
         obtained from Transaction objects.
     """
+
+    _destroy_fn = k.btck_transaction_input_destroy
+    _copy_fn = k.btck_transaction_input_copy
 
     @property
     def out_point(self) -> TransactionOutPoint:
@@ -136,6 +145,7 @@ class TransactionOutput(KernelOpaquePtr):
 
     _create_fn = k.btck_transaction_output_create
     _destroy_fn = k.btck_transaction_output_destroy
+    _copy_fn = k.btck_transaction_output_copy
 
     def __init__(self, script_pubkey: "ScriptPubkey", amount: int):
         """Create a transaction output.
@@ -242,6 +252,7 @@ class Transaction(KernelOpaquePtr):
 
     _create_fn = k.btck_transaction_create
     _destroy_fn = k.btck_transaction_destroy
+    _copy_fn = k.btck_transaction_copy
 
     def __init__(self, data: bytes):
         """Create a transaction from serialized data.
@@ -326,6 +337,9 @@ class Coin(KernelOpaquePtr):
         from TransactionSpentOutputs objects.
     """
 
+    _destroy_fn = k.btck_coin_destroy
+    _copy_fn = k.btck_coin_copy
+
     @property
     def confirmation_height(self) -> int:
         """The block height where this coin was created.
@@ -409,6 +423,9 @@ class TransactionSpentOutputs(KernelOpaquePtr):
         TransactionSpentOutputs instances cannot be directly constructed.
         They are obtained from BlockSpentOutputs objects.
     """
+
+    _destroy_fn = k.btck_transaction_spent_outputs_destroy
+    _copy_fn = k.btck_transaction_spent_outputs_copy
 
     def _get_coin_at(self, index: int) -> Coin:
         """Get the coin at the given index."""

@@ -49,6 +49,9 @@ class KernelOpaquePtr:
     _destroy_fn: Callable | None = (
         None  # If None, cannot be destroyed. Should only be used for view-only classes.
     )
+    _copy_fn: Callable | None = (
+        None  # If None, the object cannot be copied via copy.copy/copy.deepcopy.
+    )
 
     def __init__(self, *args: typing.Any, **kwargs: typing.Any):
         """Initialize a new kernel object by calling the underlying C constructor.
@@ -184,6 +187,27 @@ class KernelOpaquePtr:
                 )
             self._destroy_fn(self)
             self._as_parameter_ = None
+
+    def __copy__(self) -> Self:
+        """Return a copy of this object.
+
+        Raises:
+            TypeError: If the class does not support copying.
+        """
+        if self._copy_fn is None:
+            raise TypeError(f"{type(self).__name__} cannot be copied")
+        return type(self)._from_handle(self._copy_fn(self))
+
+    def __deepcopy__(self, memo: dict) -> Self:
+        """Return a copy of this object.
+
+        Deep and shallow copies are equivalent because copyable kernel objects
+        expose no mutable state.
+
+        Raises:
+            TypeError: If the class does not support copying.
+        """
+        return self.__copy__()
 
     def __enter__(self) -> Self:
         """Enter the context manager.

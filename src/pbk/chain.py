@@ -45,6 +45,7 @@ class ChainParameters(KernelOpaquePtr):
 
     _create_fn = k.btck_chain_parameters_create
     _destroy_fn = k.btck_chain_parameters_destroy
+    _copy_fn = k.btck_chain_parameters_copy
 
     def __init__(self, chain_type: ChainType):
         """Create chain parameters for a specific network type.
