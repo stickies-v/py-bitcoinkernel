@@ -193,7 +193,9 @@ class BlockTreeEntrySequence(LazySequence[BlockTreeEntry]):
 
     def _get_item(self, index: int) -> BlockTreeEntry:
         """Get the block tree entry at the given height."""
-        return BlockTreeEntry._from_view(k.btck_chain_get_by_height(self._chain, index))
+        return BlockTreeEntry._from_view(
+            k.btck_chain_get_by_height(self._chain, index), self._chain
+        )
 
     def __contains__(self, other: typing.Any) -> bool:
         """Return True if `other` exists in the sequence."""
@@ -229,7 +231,7 @@ class Chain(KernelOpaquePtr):
 
     def _get_by_height(self, height: int) -> BlockTreeEntry:
         """Get the block tree entry at the given height."""
-        return BlockTreeEntry._from_view(k.btck_chain_get_by_height(self, height))
+        return BlockTreeEntry._from_view(k.btck_chain_get_by_height(self, height), self)
 
     @property
     def block_tree_entries(self) -> BlockTreeEntrySequence:
@@ -306,7 +308,7 @@ class BlockTreeEntryMap(MapBase):
         )
         if not entry:
             raise KeyError(f"{key} not found")
-        return BlockTreeEntry._from_view(entry)
+        return BlockTreeEntry._from_view(entry, self._chainman)
 
 
 class BlockMap(MapBase):
@@ -526,7 +528,9 @@ class ChainstateManager(KernelOpaquePtr):
     def best_entry(self) -> BlockTreeEntry:
         """The BlockTreeEntry whose associated BlockHeader has the most known
         cumulative proof of work."""
-        return BlockTreeEntry._from_view(k.btck_chainstate_manager_get_best_entry(self))
+        return BlockTreeEntry._from_view(
+            k.btck_chainstate_manager_get_best_entry(self), self
+        )
 
     def process_block_header(self, header: "BlockHeader") -> "BlockValidationState":
         """

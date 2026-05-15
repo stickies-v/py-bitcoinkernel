@@ -168,7 +168,7 @@ class BlockTreeEntry(KernelOpaquePtr):
         Returns:
             The block hash associated with this entry.
         """
-        return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self))
+        return BlockHash._from_view(k.btck_block_tree_entry_get_block_hash(self), self)
 
     @property
     def height(self) -> int:
