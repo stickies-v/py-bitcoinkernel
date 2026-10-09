@@ -6,12 +6,22 @@
 #define BITCOIN_SCRIPT_DESCRIPTOR_H
 
 #include <outputtype.h>
-#include <script/script.h>
-#include <script/sign.h>
-#include <script/signingprovider.h>
+#include <pubkey.h>
+#include <uint256.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <optional>
+#include <set>
+#include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
+
+class CScript;
+class SigningProvider;
+struct FlatSigningProvider;
 
 using ExtPubKeyMap = std::unordered_map<uint32_t, CExtPubKey>;
 
@@ -108,7 +118,7 @@ struct Descriptor {
     /** Convert the descriptor back to a string, undoing parsing. */
     virtual std::string ToString(bool compat_format=false) const = 0;
 
-    /** Whether this descriptor will return one scriptPubKey or multiple (aka is or is not combo) */
+    /** Whether this descriptor will return at most one scriptPubKey or multiple (aka is or is not combo) */
     virtual bool IsSingleType() const = 0;
 
     /** Whether the given provider has all private keys required by this descriptor.
@@ -178,6 +188,9 @@ struct Descriptor {
      * @param[out] ext_pubs Any extended public keys
      */
     virtual void GetPubKeys(std::set<CPubKey>& pubkeys, std::set<CExtPubKey>& ext_pubs) const = 0;
+
+    /** Whether this descriptor produces any scripts with the Expand functions */
+    virtual bool HasScripts() const = 0;
 
     /** Semantic/safety warnings (includes subdescriptors). */
     virtual std::vector<std::string> Warnings() const = 0;
