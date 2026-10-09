@@ -2,8 +2,8 @@ import ctypes
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
+from pbk.capi.sequence import LazySequence
 from pbk.script import ScriptPubkey
-from pbk.util.sequence import LazySequence
 from pbk.writer import ByteWriter
 
 

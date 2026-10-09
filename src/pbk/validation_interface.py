@@ -2,7 +2,7 @@ import ctypes
 from collections.abc import Callable
 
 import pbk.capi.bindings as k
-import pbk.util.callbacks
+import pbk.capi.callbacks
 from pbk.block import Block, BlockTreeEntry
 from pbk.validation import BlockValidationState
 
@@ -82,7 +82,7 @@ class ValidationInterfaceCallbacks(k.btck_ValidationInterfaceCallbacks):
             else fn
             for name, fn in callbacks.items()
         }
-        pbk.util.callbacks._initialize_callbacks(self, **wrapped)
+        pbk.capi.callbacks._initialize_callbacks(self, **wrapped)
 
 
 default_validation_callbacks = ValidationInterfaceCallbacks(

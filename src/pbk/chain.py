@@ -11,10 +11,10 @@ from pbk.block import (
     BlockTreeEntry,
 )
 from pbk.capi import KernelOpaquePtr
+from pbk.capi.sequence import LazySequence
 from pbk.chainparams import ChainType
 from pbk.context import Context, make_context
 from pbk.exceptions import ProcessBlockException, ProcessBlockHeaderException
-from pbk.util.sequence import LazySequence
 from pbk.validation import BlockValidationState
 from pbk.validation_interface import ValidationInterfaceCallbacks
 

@@ -4,9 +4,9 @@ from enum import IntFlag
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
+from pbk.capi.sequence import LazySequence
 from pbk.chainparams import ConsensusParams
 from pbk.transaction import Transaction, TransactionSpentOutputs
-from pbk.util.sequence import LazySequence
 from pbk.validation import BlockValidationState, ValidationMode
 from pbk.writer import ByteWriter
 
