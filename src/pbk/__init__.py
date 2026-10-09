@@ -59,6 +59,8 @@ from pbk.transaction import (
 from pbk.validation import (
     BlockValidationResult,
     BlockValidationState,
+    TxValidationResult,
+    TxValidationState,
     ValidationMode,
 )
 from pbk.validation_interface import ValidationInterfaceCallbacks
@@ -109,6 +111,8 @@ __all__ = [
     "TransactionSequence",
     "TransactionSpentOutputs",
     "TransactionSpentOutputsSequence",
+    "TxValidationResult",
+    "TxValidationState",
     "Txid",
     "ValidationInterfaceCallbacks",
     "ValidationMode",

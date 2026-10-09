@@ -158,3 +158,19 @@ def test_txid_detach_is_chainable() -> None:
     del tx
     gc.collect()
     assert bytes(txid) == expected
+
+
+def test_transaction_check() -> None:
+    tx = pbk.Transaction(bytes.fromhex(SAMPLE_TX_HEX))
+    state = tx.check()
+    assert state.validation_mode == pbk.ValidationMode.VALID
+    assert state.tx_validation_result == pbk.TxValidationResult.UNSET
+    assert repr(state) == "<TxValidationState mode=VALID result=UNSET>"
+
+    # Two inputs that spend the same outpoint violate consensus.
+    duplicate_input_hex = "aa" * 32 + "00000000" + "00" + "ffffffff"
+    output_hex = "00f2052a01000000" + "1976a914" + "00" * 20 + "88ac"
+    raw = "02000000" + "02" + duplicate_input_hex * 2 + "01" + output_hex + "00000000"
+    state = pbk.Transaction(bytes.fromhex(raw)).check()
+    assert state.validation_mode == pbk.ValidationMode.INVALID
+    assert state.tx_validation_result == pbk.TxValidationResult.CONSENSUS
