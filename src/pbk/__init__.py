@@ -20,6 +20,11 @@ from pbk.chain import (
 )
 from pbk.chainparams import ChainParameters, ChainType, ConsensusParams
 from pbk.context import Context, ContextOptions, make_context
+from pbk.exceptions import (
+    KernelException,
+    ProcessBlockException,
+    ProcessBlockHeaderException,
+)
 from pbk.log import (
     KernelLogViewer,
     LogCategory,
@@ -50,11 +55,6 @@ from pbk.transaction import (
     TransactionOutputSequence,
     TransactionSpentOutputs,
     Txid,
-)
-from pbk.util.exc import (
-    KernelException,
-    ProcessBlockException,
-    ProcessBlockHeaderException,
 )
 from pbk.validation import (
     BlockValidationResult,

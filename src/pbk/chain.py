@@ -13,7 +13,7 @@ from pbk.block import (
 from pbk.capi import KernelOpaquePtr
 from pbk.chainparams import ChainType
 from pbk.context import Context, make_context
-from pbk.util.exc import ProcessBlockException, ProcessBlockHeaderException
+from pbk.exceptions import ProcessBlockException, ProcessBlockHeaderException
 from pbk.util.sequence import LazySequence
 from pbk.validation import BlockValidationState
 from pbk.validation_interface import ValidationInterfaceCallbacks
