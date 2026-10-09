@@ -4,4 +4,8 @@
 
 ::: pbk.BlockValidationState
 
+::: pbk.TxValidationResult
+
+::: pbk.TxValidationState
+
 ::: pbk.ValidationInterfaceCallbacks

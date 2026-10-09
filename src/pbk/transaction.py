@@ -5,6 +5,7 @@ from pbk.capi import KernelOpaquePtr
 from pbk.capi.sequence import LazySequence
 from pbk.capi.writer import ByteWriter
 from pbk.script import ScriptPubkey
+from pbk.validation import TxValidationState, ValidationMode
 
 
 class Txid(KernelOpaquePtr):
@@ -310,6 +311,23 @@ class Transaction(KernelOpaquePtr):
     def locktime(self) -> int:
         """The nLockTime value of this transaction."""
         return k.btck_transaction_get_locktime(self)
+
+    def check(self) -> TxValidationState:
+        """Run context-free consensus validation on this transaction.
+
+        Performs basic structural consensus checks (Bitcoin Core's
+        `CheckTransaction`) without requiring blockchain state.
+
+        Returns:
+            The resulting validation state. Inspect `validation_mode` to
+            determine whether the transaction passed. Only the UNSET and
+            CONSENSUS validation results are reachable via this method.
+            Owned handle.
+        """
+        state = TxValidationState()
+        ret = k.btck_transaction_check(self, state)
+        assert (ret == 1) == (state.validation_mode == ValidationMode.VALID)
+        return state
 
     def __bytes__(self) -> bytes:
         """Serialize the transaction to bytes.
