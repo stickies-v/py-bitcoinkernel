@@ -18,8 +18,8 @@ logging.basicConfig(
     format=FORMAT,
     handlers=[
         logging.FileHandler("my-log.log"),
-        logging.StreamHandler()
-    ]
+        logging.StreamHandler(),
+    ],
 )
 
 logger = pbk.KernelLogViewer()
@@ -36,8 +36,8 @@ logging.basicConfig(
     format=FORMAT,
     handlers=[
         logging.FileHandler("my-log.log"),
-        logging.StreamHandler()
-    ]
+        logging.StreamHandler(),
+    ],
 )
 
 logger = pbk.KernelLogViewer(categories=[pbk.LogCategory.VALIDATION])
@@ -72,9 +72,11 @@ statement:
 ```py
 import pbk
 
+
 def print_no_newline(msg: str) -> None:
     """`bitcoinkernel` log messages already contain a newline."""
     print(msg, end="")
+
 
 logging_set_options(pbk.LoggingOptions(log_timestamps=True))
 log = pbk.LoggingConnection(cb=print_no_newline)

@@ -17,6 +17,7 @@ First, we'll create a ChainstateManager and load the current chain tip:
 
 ```py
 import pbk
+
 chainman = pbk.load_chainman("/tmp/bitcoin/signet/", pbk.ChainType.SIGNET)
 tip = chainman.get_active_chain().block_tree_entries[-1]
 ```
@@ -32,7 +33,9 @@ block_bytes = bytes(chainman.blocks[tip])
 cblock = CBlock.deserialize(block_bytes)
 
 assert tip.block_hash == cblock.GetHash()
-print(f"Block {cblock.GetHash()} has {len(cblock.vtx)} transactions and {cblock.GetWeight()} weight")
+print(
+    f"Block {cblock.GetHash()} has {len(cblock.vtx)} transactions and {cblock.GetWeight()} weight"
+)
 print(f"The last transaction has witness data: {cblock.vtx[-1].wit.vtxinwit}")
 ```
 

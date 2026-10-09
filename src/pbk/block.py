@@ -251,7 +251,7 @@ class BlockTreeEntry(KernelOpaquePtr):
 
     def __repr__(self) -> str:
         """Return a string representation of the block tree entry."""
-        return f"<BlockTreeEntry height={self.height} hash={str(self.block_hash)}>"
+        return f"<BlockTreeEntry height={self.height} hash={self.block_hash}>"
 
 
 class TransactionSequence(LazySequence[Transaction]):
@@ -366,7 +366,7 @@ class BlockHeader(KernelOpaquePtr):
 
     def __repr__(self) -> str:
         """Return a string representation of the block header."""
-        return f"<Block header hash={str(self.block_hash)}>"
+        return f"<Block header hash={self.block_hash}>"
 
 
 class BlockCheckFlags(IntFlag):
@@ -473,7 +473,7 @@ class Block(KernelOpaquePtr):
 
     def __repr__(self) -> str:
         """Return a string representation of the block."""
-        return f"<Block hash={str(self.block_hash)} txs={len(self.transactions)}>"
+        return f"<Block hash={self.block_hash} txs={len(self.transactions)}>"
 
 
 class TransactionSpentOutputsSequence(LazySequence[TransactionSpentOutputs]):

@@ -5,7 +5,7 @@ import typing
 T = typing.TypeVar("T")
 
 
-class LazySequence(collections.abc.Sequence, typing.Generic[T], abc.ABC):
+class LazySequence(collections.abc.Sequence, abc.ABC, typing.Generic[T]):
     """A lazy sequence that fetches items on-demand, e.g. from a C API.
 
     Implements the Sequence protocol for efficient access to arrays
@@ -49,12 +49,10 @@ class LazySequence(collections.abc.Sequence, typing.Generic[T], abc.ABC):
     @typing.overload
     def __getitem__(self, index: int) -> T:
         """Get item at integer index."""
-        ...
 
     @typing.overload
     def __getitem__(self, index: slice) -> collections.abc.Sequence[T]:
         """Get items at slice indices."""
-        ...
 
     def __getitem__(self, index: int | slice) -> T | collections.abc.Sequence[T]:
         """Get item(s) at index. Supports negative indexing and slicing."""

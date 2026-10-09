@@ -1,5 +1,4 @@
 import ctypes
-import typing
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
@@ -29,7 +28,7 @@ class Txid(KernelOpaquePtr):
         k.btck_txid_to_bytes(self, hash_array)
         return bytes(hash_array)
 
-    def __eq__(self, other: typing.Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check equality with another txid.
 
         Args:
@@ -101,7 +100,7 @@ class TransactionOutPoint(KernelOpaquePtr):
 
     def __repr__(self) -> str:
         """Return a string representation of the transaction outpoint."""
-        return f"<TransactionOutPoint txid={str(self.txid)} index={self.index}>"
+        return f"<TransactionOutPoint txid={self.txid} index={self.index}>"
 
 
 class TransactionInput(KernelOpaquePtr):
@@ -324,7 +323,7 @@ class Transaction(KernelOpaquePtr):
 
     def __repr__(self) -> str:
         """Return a string representation of the transaction."""
-        return f"<Transaction txid={str(self.txid)} ins={len(self.inputs)} outs={len(self.outputs)}>"
+        return f"<Transaction txid={self.txid} ins={len(self.inputs)} outs={len(self.outputs)}>"
 
 
 class Coin(KernelOpaquePtr):

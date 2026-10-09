@@ -30,8 +30,8 @@ from pbk.capi.library import BITCOINKERNEL_LIB
 sed -i.bak "s/_libraries\['FIXME_STUB'\]/BITCOINKERNEL_LIB/g" "$FILE"
 
 # Remove the FunctionFactoryStub block (class, comments, stub assignment)
-# including 2 blank lines before and 1 after
-ex -sc '/^class FunctionFactoryStub/-2,/^BITCOINKERNEL_LIB = FunctionFactoryStub.*$/+1d' -cx "$FILE"
+# and leave 2 blank lines in its place
+perl -0pi -e 's/\n+class FunctionFactoryStub:.*?^BITCOINKERNEL_LIB = FunctionFactoryStub\(\).*?\n+/\n\n\n/ms' "$FILE"
 
 # Clean up backup files
 rm -f "$FILE.bak"

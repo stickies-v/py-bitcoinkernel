@@ -2,8 +2,9 @@
 
 from collections.abc import Callable
 
-import pbk
 import pytest
+
+import pbk
 from pbk.capi import KernelOpaquePtr
 
 

@@ -11,6 +11,6 @@ warnings.filterwarnings(
     category=DeprecationWarning,
 )
 
-from pbk.capi.base import KernelOpaquePtr  # noqa: E402
+from pbk.capi.base import KernelOpaquePtr
 
 __all__ = ["KernelOpaquePtr"]
