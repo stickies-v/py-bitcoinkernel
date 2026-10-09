@@ -1,7 +1,8 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
+
 import pbk
 import pbk.log
 
@@ -64,7 +65,12 @@ def test_kernel_log_viewer(caplog: pytest.LogCaptureFixture) -> None:
     assert record.msg == msg
     assert record.threadName == thread
     assert record.funcName == func
-    assert record.created == datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ").timestamp()
+    assert (
+        record.created
+        == datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
+        .replace(tzinfo=timezone.utc)
+        .timestamp()
+    )
 
     with logger.temporary_categories(categories=[pbk.LogCategory.KERNEL]):
         assert logger.getLogger().getEffectiveLevel() == logging.DEBUG

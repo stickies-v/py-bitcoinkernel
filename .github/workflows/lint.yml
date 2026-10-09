@@ -12,11 +12,13 @@ jobs:
       - name: Run Ruff
         uses: astral-sh/ruff-action@v2
         with:
+          version: "0.16.10"
           args: check
 
       - name: Run Ruff Format
         uses: astral-sh/ruff-action@v2
         with:
+          version: "0.16.10"
           args: format --check
 
   ty:

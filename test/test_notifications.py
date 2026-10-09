@@ -4,7 +4,6 @@ import pytest
 
 import pbk.notifications
 
-
 NOTIFICATION_CALLBACK_NAMES = (
     "block_tip",
     "header_tip",

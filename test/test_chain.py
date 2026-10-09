@@ -1,7 +1,8 @@
 from pathlib import Path
 
-import pbk
 import pytest
+
+import pbk
 from pbk.util.exc import ProcessBlockException
 
 

@@ -6,13 +6,12 @@ import threading
 import typing
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import IntEnum
 from pathlib import Path
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
-
 
 # bitcoinkernel's logging setters require external synchronization
 LOGGING_LOCK = threading.RLock()
@@ -123,10 +122,7 @@ def is_valid_log_callback(fn: typing.Any) -> bool:
         return False
 
     fn_sig = inspect.signature(fn)
-    if len(fn_sig.parameters) != 1:
-        return False
-
-    return True
+    return len(fn_sig.parameters) == 1
 
 
 def logging_set_options(options: LoggingOptions) -> None:
@@ -399,11 +395,15 @@ def parse_btck_log_string(logger_name: str, log_string: str) -> logging.LogRecor
     filename = Path(pathname).name
     if category.upper() != "ALL":
         logger_name += f".{category.upper()}"
-    created = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").timestamp()
+    created = (
+        datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+        .replace(tzinfo=timezone.utc)
+        .timestamp()
+    )
     levels = {
         "debug": logging.DEBUG,
         "info": logging.INFO,
-        "warning": logging.WARN,
+        "warning": logging.WARNING,
         "error": logging.ERROR,
     }
 

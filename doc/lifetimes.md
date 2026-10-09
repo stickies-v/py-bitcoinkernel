@@ -25,9 +25,9 @@ A *view* is an object obtained from accessing another object. It does
 not own its C memory; it borrows it from a *parent*:
 
 ```py
-tx = block.transactions[0]   # view of `block`
-txid = tx.txid               # view of `tx`
-output = tx.outputs[0]       # view of `tx`
+tx = block.transactions[0]  # view of `block`
+txid = tx.txid  # view of `tx`
+output = tx.outputs[0]  # view of `tx`
 ```
 
 To keep these views safe to use, each one holds a reference back to

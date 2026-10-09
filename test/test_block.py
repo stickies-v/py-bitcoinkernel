@@ -1,6 +1,6 @@
-import pbk
-
 import pytest
+
+import pbk
 
 # A height-1 regtest block built on the regtest genesis. Identical to
 # the first entry in test/data/regtest/blocks.txt with the nonce bumped
@@ -73,7 +73,6 @@ def test_block_tree_entry_get_ancestor_fork(
 def test_block_hash(chainman_regtest: pbk.ChainstateManager) -> None:
     hash_zero = pbk.BlockHash(b"0" * 32)
 
-    assert hash_zero == hash_zero
     assert hash_zero == pbk.BlockHash(b"0" * 32)
     assert hash_zero != pbk.BlockHash(b"1" * 32)
 
