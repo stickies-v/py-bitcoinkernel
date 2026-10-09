@@ -166,6 +166,7 @@ def test_block_check_invalid_merkle() -> None:
     state = bad_block.check(consensus_params, pbk.BlockCheckFlags.MERKLE)
     assert state.validation_mode == pbk.ValidationMode.INVALID
     assert state.block_validation_result == pbk.BlockValidationResult.MUTATED
+    assert repr(state) == "<BlockValidationState mode=INVALID result=MUTATED>"
 
     state = bad_block.check(consensus_params, pbk.BlockCheckFlags.BASE)
     assert state.validation_mode == pbk.ValidationMode.VALID

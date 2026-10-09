@@ -92,3 +92,7 @@ class BlockValidationState(KernelOpaquePtr):
         return BlockValidationResult(
             k.btck_block_validation_state_get_block_validation_result(self)
         )
+
+    def __repr__(self) -> str:
+        """Return a string representation of the block validation state."""
+        return f"<BlockValidationState mode={self.validation_mode.name} result={self.block_validation_result.name}>"
