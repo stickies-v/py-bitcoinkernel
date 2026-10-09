@@ -503,12 +503,10 @@ class ChainstateManager(KernelOpaquePtr):
         Raises:
             ProcessBlockHeaderException: If processing the block header failed. Duplicate block headers do not throw.
         """
-        state = BlockValidationState()
-        result = k.btck_chainstate_manager_process_block_header(self, header, state)
-        if result != 0:
-            raise ProcessBlockHeaderException(result)
-
-        return state
+        state = k.btck_chainstate_manager_process_block_header(self, header)
+        if not state:
+            raise ProcessBlockHeaderException()
+        return BlockValidationState._from_handle(state)
 
     def __repr__(self) -> str:
         """Return a string representation of the chainstate manager."""

@@ -93,9 +93,17 @@ def test_process_block_header(temp_dir: Path) -> None:
 
     assert chain_man.best_entry.height == 0
     result = chain_man.process_block_header(header)
+    assert result._owns_ptr is True
     assert result.block_validation_result == pbk.BlockValidationResult.UNSET
     assert result.validation_mode == pbk.ValidationMode.VALID
     assert chain_man.best_entry.height == 1
+
+    # A header with invalid proof of work is invalid.
+    bad_pow_raw = bytearray(bytes.fromhex(header_hex))
+    bad_pow_raw[76] ^= 0xFF  # Flip bits in nonce
+    result = chain_man.process_block_header(pbk.BlockHeader(bytes(bad_pow_raw)))
+    assert result.validation_mode == pbk.ValidationMode.INVALID
+    assert result.block_validation_result == pbk.BlockValidationResult.INVALID_HEADER
 
 
 def test_chain(chainman_regtest: pbk.ChainstateManager) -> None:
