@@ -26,6 +26,7 @@ add_executable(fuzz
   chain.cpp
   checkqueue.cpp
   cluster_linearize.cpp
+  cmpctblock.cpp
   coins_view.cpp
   coinscache_sim.cpp
   connman.cpp
@@ -39,6 +40,7 @@ add_executable(fuzz
   crypto_hkdf_hmac_sha256_l32.cpp
   crypto_poly1305.cpp
   cuckoocache.cpp
+  dbwrapper.cpp
   decode_tx.cpp
   descriptor_parse.cpp
   deserialize.cpp

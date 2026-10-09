@@ -6,7 +6,6 @@
 
 from decimal import Decimal, getcontext
 
-from test_framework.authproxy import JSONRPCException
 from test_framework.messages import (
     COIN,
     CTransaction,
@@ -28,6 +27,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_raises_rpc_error,
+    JSONRPCException,
 )
 
 from test_framework.mempool_util import (
@@ -448,7 +448,7 @@ class WalletV3Test(BitcoinTestFramework):
 
         outputs = {self.alice.getnewaddress() : 10}
         psbt = self.charlie.createpsbt(inputs=[], outputs=outputs, version=3)
-        assert_equal(self.charlie.decodepsbt(psbt)["tx"]["version"], 3)
+        assert_equal(self.charlie.decodepsbt(psbt)["tx_version"], 3)
 
     @cleanup
     def send_v3(self):
@@ -526,7 +526,7 @@ class WalletV3Test(BitcoinTestFramework):
 
         outputs = {self.alice.getnewaddress() : 10}
         psbt = self.charlie.walletcreatefundedpsbt(inputs=[], outputs=outputs, version=3)["psbt"]
-        assert_equal(self.charlie.decodepsbt(psbt)["tx"]["version"], 3)
+        assert_equal(self.charlie.decodepsbt(psbt)["tx_version"], 3)
 
     @cleanup
     def sendall_truc_weight_limit(self):

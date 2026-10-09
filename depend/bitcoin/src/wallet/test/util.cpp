@@ -40,7 +40,7 @@ std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, CChain& cc
     }
     WalletRescanReserver reserver(*wallet);
     reserver.reserve();
-    CWallet::ScanResult result = wallet->ScanForWalletTransactions(cchain.Genesis()->GetBlockHash(), /*start_height=*/0, /*max_height=*/{}, reserver, /*fUpdate=*/false, /*save_progress=*/false);
+    CWallet::ScanResult result = wallet->ScanForWalletTransactions(cchain.Genesis()->GetBlockHash(), /*start_height=*/0, /*max_height=*/{}, reserver, /*save_progress=*/false);
     assert(result.status == CWallet::ScanResult::SUCCESS);
     assert(result.last_scanned_block == cchain.Tip()->GetBlockHash());
     assert(*result.last_scanned_height == cchain.Height());
@@ -52,7 +52,7 @@ std::shared_ptr<CWallet> TestCreateWallet(std::unique_ptr<WalletDatabase> databa
 {
     bilingual_str _error;
     std::vector<bilingual_str> _warnings;
-    auto wallet = CWallet::CreateNew(context, "", std::move(database), create_flags, _error, _warnings);
+    auto wallet = CWallet::CreateNew(context, "", std::move(database), create_flags, /*born_encrypted=*/false, _error, _warnings);
     NotifyWalletLoaded(context, wallet);
     if (context.chain) {
         wallet->postInitProcess();

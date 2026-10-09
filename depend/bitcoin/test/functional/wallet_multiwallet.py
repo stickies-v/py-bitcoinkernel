@@ -12,7 +12,6 @@ import platform
 import shutil
 import stat
 
-from test_framework.authproxy import JSONRPCException
 from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import ErrorMatch
@@ -20,7 +19,7 @@ from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
     ensure_for,
-    get_rpc_proxy,
+    JSONRPCException,
 )
 
 got_loading_error = False
@@ -328,7 +327,7 @@ class MultiWalletTest(BitcoinTestFramework):
         self.log.info("Concurrent wallet loading")
         threads = []
         for _ in range(3):
-            n = node.cli if self.options.usecli else get_rpc_proxy(node.url, 1, timeout=600, coveragedir=node.coverage_dir)
+            n = node.create_new_rpc_connection()
             t = Thread(target=test_load_unload, args=(n, wallet_names[2]))
             t.start()
             threads.append(t)
