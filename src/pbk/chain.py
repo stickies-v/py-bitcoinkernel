@@ -11,10 +11,12 @@ from pbk.block import (
     BlockTreeEntry,
 )
 from pbk.capi import KernelOpaquePtr
-from pbk.context import Context
+from pbk.chainparams import ChainType
+from pbk.context import Context, make_context
 from pbk.util.exc import ProcessBlockException, ProcessBlockHeaderException
 from pbk.util.sequence import LazySequence
 from pbk.validation import BlockValidationState
+from pbk.validation_interface import ValidationInterfaceCallbacks
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
@@ -511,3 +513,39 @@ class ChainstateManager(KernelOpaquePtr):
     def __repr__(self) -> str:
         """Return a string representation of the chainstate manager."""
         return f"<ChainstateManager at {hex(id(self))}>"
+
+
+def load_chainman(
+    datadir: Path | str,
+    chain_type: ChainType = ChainType.REGTEST,
+    validation_callbacks: ValidationInterfaceCallbacks | None = None,
+) -> ChainstateManager:
+    """
+    Load and initialize a `ChainstateManager` object, loading its
+    chainstate from disk.
+
+    **IMPORTANT**: `py-bitcoinkernel` requires exclusive access to the
+    data directory. Sharing a data directory with Bitcoin Core will ONLY
+    work when only one of both programs is running at a time.
+
+    Args:
+        datadir: The path of the data directory. If the directory contains an
+            existing `blocks/` and `chainstate/` directory, it will be used to
+            load the chainstate. Otherwise, a new chainstate will be created.
+        chain_type: The type of chain to load.
+        validation_callbacks: Optional callbacks forwarded to `make_context` to
+            receive validation events.
+
+    Returns:
+        A `ChainstateManager` object. Owned handle.
+    """
+    datadir = Path(datadir)
+    context = make_context(chain_type, validation_callbacks=validation_callbacks)
+    blocksdir = datadir / "blocks"
+
+    chain_man_opts = ChainstateManagerOptions(
+        context, str(datadir.absolute()), str(blocksdir.absolute())
+    )
+    chain_man = ChainstateManager(chain_man_opts)
+
+    return chain_man
