@@ -4,6 +4,7 @@
 
 #include <bench/bench.h>
 #include <interfaces/chain.h>
+#include <interfaces/handler.h>
 #include <kernel/chainparams.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -12,14 +13,14 @@
 #include <test/util/setup_common.h>
 #include <test/util/time.h>
 #include <uint256.h>
-#include <util/time.h>
+#include <util/check.h>
 #include <validation.h>
+#include <wallet/db.h>
 #include <wallet/receive.h>
 #include <wallet/test/util.h>
 #include <wallet/wallet.h>
 #include <wallet/walletutil.h>
 
-#include <cassert>
 #include <memory>
 #include <optional>
 #include <string>
@@ -33,7 +34,7 @@ static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const b
 
     // Set clock to genesis block, so the descriptors/keys creation time don't interfere with the blocks scanning process.
     // The reason is 'generatetoaddress', which creates a chain with deterministic timestamps in the past.
-    NodeClockContext clock_ctx{test_setup->m_node.chainman->GetParams().GenesisBlock().Time()};
+    FakeNodeClock clock{test_setup->m_node.chainman->GetParams().GenesisBlock().Time()};
     CWallet wallet{test_setup->m_node.chain.get(), "", CreateMockableWalletDatabase()};
     {
         LOCK(wallet.cs_wallet);

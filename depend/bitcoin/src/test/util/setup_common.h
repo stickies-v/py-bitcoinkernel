@@ -13,7 +13,9 @@
 #include <node/context.h> // IWYU pragma: export
 #include <primitives/transaction.h>
 #include <random.h>
+#include <test/util/net.h>
 #include <test/util/random.h>
+#include <test/util/time.h>
 #include <util/chaintype.h> // IWYU pragma: export
 #include <util/fs.h>
 #include <util/signalinterrupt.h>
@@ -226,6 +228,7 @@ struct TestChain100Setup : public TestingSetup {
      */
     std::vector<CTransactionRef> PopulateMempool(FastRandomContext& det_rand, size_t num_transactions, bool submit);
 
+    FakeNodeClock m_clock{std::chrono::seconds{1598887952}}; // 2020-08-31, arbitrary
     std::vector<CTransactionRef> m_coinbase_txns; // For convenience, coinbase transactions
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
 };
@@ -246,6 +249,34 @@ std::unique_ptr<T> MakeNoLogFileContext(const ChainType chain_type = ChainType::
 
     return std::make_unique<T>(chain_type, opts);
 }
+
+class SocketTestingSetup : public BasicTestingSetup
+{
+public:
+    explicit SocketTestingSetup();
+    ~SocketTestingSetup();
+
+    /**
+     * Connect to the socket with a mock client and send pre-loaded data.
+     * Returns the I/O pipes from the mock client so we can read response data sent to it.
+     * Template parameter selects the socket type: DynSock by default.
+     */
+    template <typename T = DynSock>
+    std::shared_ptr<typename T::Pipes> ConnectClient(std::span<const std::byte> data)
+    {
+        auto connected_socket_pipes(std::make_shared<typename T::Pipes>());
+        connected_socket_pipes->recv.PushBytes(data.data(), data.size());
+        m_accepted_sockets.Push(std::make_unique<T>(connected_socket_pipes));
+        return connected_socket_pipes;
+    }
+
+private:
+    //! Save the original value of CreateSock here and restore it when the test ends.
+    decltype(CreateSock) m_create_sock_orig;
+
+    //! Queue of connected sockets returned by listening socket (represents network interface)
+    DynSock::Queue m_accepted_sockets;
+};
 
 CBlock getBlock13b8a();
 

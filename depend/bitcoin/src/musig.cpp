@@ -11,10 +11,7 @@
 
 //! MuSig2 chaincode as defined by BIP 328
 using namespace util::hex_literals;
-constexpr uint256 MUSIG_CHAINCODE{
-    // Use immediate lambda to work around GCC-14 bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=117966
-    []() consteval { return uint256{"868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965"_hex_u8}; }(),
-};
+const ChainCode MUSIG_CHAINCODE{"868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965"_hex_u8};
 
 static bool GetMuSig2KeyAggCache(const std::vector<CPubKey>& pubkeys, secp256k1_musig_keyagg_cache& keyagg_cache)
 {
@@ -125,10 +122,10 @@ bool MuSig2SecNonce::IsValid()
     return m_impl->IsValid();
 }
 
-uint256 MuSig2SessionID(const CPubKey& script_pubkey, const CPubKey& part_pubkey, const uint256& sighash)
+uint256 MuSig2SessionID(const CPubKey& script_pubkey, const CPubKey& part_pubkey, const uint256& sighash, const std::vector<uint8_t>& pubnonce)
 {
     HashWriter hasher;
-    hasher << script_pubkey << part_pubkey << sighash;
+    hasher << script_pubkey << part_pubkey << sighash << pubnonce;
     return hasher.GetSHA256();
 }
 
