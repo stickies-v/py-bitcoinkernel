@@ -64,6 +64,20 @@ def test_chainstate_manager(chainman_regtest: pbk.ChainstateManager) -> None:
     assert pbk.BlockHash(bytes(32)) not in chain_man.block_tree_entries
 
 
+def test_best_entry_none_before_import_after_wipe(temp_dir: Path) -> None:
+    context = pbk.make_context(pbk.ChainType.REGTEST)
+    chain_man_opts = pbk.ChainstateManagerOptions(
+        context, str(temp_dir), str(temp_dir / "blocks")
+    )
+    assert chain_man_opts.set_wipe_dbs(True, True) == 0
+    chain_man = pbk.ChainstateManager(chain_man_opts)
+
+    assert chain_man.best_entry is None
+    assert chain_man.import_blocks([]) == 0
+    best_entry = chain_man.best_entry
+    assert best_entry is not None and best_entry.height == 0
+
+
 def test_process_block(temp_dir: Path) -> None:
     chain_man = pbk.load_chainman(temp_dir, pbk.ChainType.REGTEST)
 
@@ -91,11 +105,21 @@ def test_process_block_header(temp_dir: Path) -> None:
     header_hex = "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299"  # block height 1
     header = pbk.BlockHeader(bytes.fromhex(header_hex))
 
-    assert chain_man.best_entry.height == 0
+    best_entry = chain_man.best_entry
+    assert best_entry is not None and best_entry.height == 0
     result = chain_man.process_block_header(header)
+    assert result._owns_ptr is True
     assert result.block_validation_result == pbk.BlockValidationResult.UNSET
     assert result.validation_mode == pbk.ValidationMode.VALID
-    assert chain_man.best_entry.height == 1
+    best_entry = chain_man.best_entry
+    assert best_entry is not None and best_entry.height == 1
+
+    # A header with invalid proof of work is invalid.
+    bad_pow_raw = bytearray(bytes.fromhex(header_hex))
+    bad_pow_raw[76] ^= 0xFF  # Flip bits in nonce
+    result = chain_man.process_block_header(pbk.BlockHeader(bytes(bad_pow_raw)))
+    assert result.validation_mode == pbk.ValidationMode.INVALID
+    assert result.block_validation_result == pbk.BlockValidationResult.INVALID_HEADER
 
 
 def test_chain(chainman_regtest: pbk.ChainstateManager) -> None:

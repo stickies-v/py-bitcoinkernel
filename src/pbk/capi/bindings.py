@@ -686,8 +686,8 @@ except AttributeError:
     pass
 try:
     btck_chainstate_manager_process_block_header = BITCOINKERNEL_LIB.btck_chainstate_manager_process_block_header
-    btck_chainstate_manager_process_block_header.restype = ctypes.c_int32
-    btck_chainstate_manager_process_block_header.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(struct_btck_BlockHeader), ctypes.POINTER(struct_btck_BlockValidationState)]
+    btck_chainstate_manager_process_block_header.restype = ctypes.POINTER(struct_btck_BlockValidationState)
+    btck_chainstate_manager_process_block_header.argtypes = [ctypes.POINTER(struct_btck_ChainstateManager), ctypes.POINTER(struct_btck_BlockHeader)]
 except AttributeError:
     pass
 try:

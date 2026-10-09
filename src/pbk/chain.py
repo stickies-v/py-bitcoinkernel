@@ -38,9 +38,9 @@ class ChainstateManagerOptions(KernelOpaquePtr):
 
         Args:
             context: The kernel context to associate with.
-            datadir: Non-empty path to the directory containing chainstate data. The
+            datadir: Path to the directory containing chainstate data. The
                 directory will be created if it doesn't exist.
-            blocks_dir: Non-empty path to the directory containing block data. The
+            blocks_dir: Path to the directory containing block data. The
                 directory will be created if it doesn't exist.
 
         Raises:
@@ -62,9 +62,8 @@ class ChainstateManagerOptions(KernelOpaquePtr):
         """Configure the wiping of the block tree database and the chainstate database.
 
         !!! warning
-            If `wipe_block_tree_db==True`, [pbk.ChainstateManager.__init__][] and [pbk.ChainstateManager.import_blocks][]
-            **must** be called for the wiping to take effect.
-
+            If a wipe is set, [pbk.ChainstateManager.import_blocks][] **must** be called on the
+            resulting [pbk.ChainstateManager][] before it is used for anything else.
 
         Args:
             wipe_block_tree_db: Whether to wipe the block tree database.
@@ -479,16 +478,18 @@ class ChainstateManager(KernelOpaquePtr):
         return BlockSpentOutputsMap(self)
 
     @property
-    def best_entry(self) -> BlockTreeEntry:
+    def best_entry(self) -> BlockTreeEntry | None:
         """The BlockTreeEntry whose associated BlockHeader has the most known
         cumulative proof of work.
 
         Returns:
-            The best block tree entry. View into this chainstate manager.
+            The best block tree entry, or None if no block headers have been
+            loaded. View into this chainstate manager.
         """
-        return BlockTreeEntry._from_view(
-            k.btck_chainstate_manager_get_best_entry(self), self
-        )
+        entry = k.btck_chainstate_manager_get_best_entry(self)
+        if not entry:
+            return None
+        return BlockTreeEntry._from_view(entry, self)
 
     def process_block_header(self, header: BlockHeader) -> BlockValidationState:
         """
@@ -503,12 +504,10 @@ class ChainstateManager(KernelOpaquePtr):
         Raises:
             ProcessBlockHeaderException: If processing the block header failed. Duplicate block headers do not throw.
         """
-        state = BlockValidationState()
-        result = k.btck_chainstate_manager_process_block_header(self, header, state)
-        if result != 0:
-            raise ProcessBlockHeaderException(result)
-
-        return state
+        state = k.btck_chainstate_manager_process_block_header(self, header)
+        if not state:
+            raise ProcessBlockHeaderException()
+        return BlockValidationState._from_handle(state)
 
     def __repr__(self) -> str:
         """Return a string representation of the chainstate manager."""
