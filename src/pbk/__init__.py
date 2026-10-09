@@ -31,6 +31,7 @@ from pbk.log import (
     logging_set_options,
     set_log_level_category,
 )
+from pbk.notifications import NotificationInterfaceCallbacks
 from pbk.script import (
     PrecomputedTransactionData,
     ScriptPubkey,
@@ -91,6 +92,7 @@ __all__ = [
     "LogLevel",
     "LoggingConnection",
     "LoggingOptions",
+    "NotificationInterfaceCallbacks",
     "PrecomputedTransactionData",
     "ProcessBlockException",
     "ProcessBlockHeaderException",
