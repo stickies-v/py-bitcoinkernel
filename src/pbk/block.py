@@ -11,7 +11,7 @@ from pbk.validation import BlockValidationState, ValidationMode
 from pbk.writer import ByteWriter
 
 if typing.TYPE_CHECKING:
-    from pbk.chain import ConsensusParams
+    from pbk.chainparams import ConsensusParams
 
 
 class BlockHash(KernelOpaquePtr):

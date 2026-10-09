@@ -4,7 +4,7 @@ import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 
 if typing.TYPE_CHECKING:
-    from pbk.chain import ChainParameters
+    from pbk.chainparams import ChainParameters
     from pbk.notifications import NotificationInterfaceCallbacks
     from pbk.validation_interface import ValidationInterfaceCallbacks
 

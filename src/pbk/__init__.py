@@ -14,12 +14,10 @@ from pbk.chain import (
     BlockTreeEntryMap,
     BlockTreeEntrySequence,
     Chain,
-    ChainParameters,
     ChainstateManager,
     ChainstateManagerOptions,
-    ChainType,
-    ConsensusParams,
 )
+from pbk.chainparams import ChainParameters, ChainType, ConsensusParams
 from pbk.context import Context, ContextOptions
 from pbk.log import (
     KernelLogViewer,
