@@ -306,10 +306,17 @@ class BlockCheckFlags(IntFlag):
     Multiple flags can be combined using bitwise OR operations.
     """
 
-    BASE = 0  #: Run only the base context-free block checks
-    POW = 1 << 0  #: Run CheckProofOfWork via CheckBlockHeader
-    MERKLE = 1 << 1  #: Verify the merkle root and detect mutation
-    ALL = POW | MERKLE  #: Enable all optional context-free block checks
+    BASE = 0
+    """Run the base context-free block checks only"""
+
+    POW = 1 << 0
+    """Run CheckProofOfWork via CheckBlockHeader"""
+
+    MERKLE = 1 << 1
+    """Verify merkle root (and mutation detection)"""
+
+    ALL = POW | MERKLE
+    """Enable all optional context-free block checks"""
 
 
 class Block(KernelOpaquePtr):

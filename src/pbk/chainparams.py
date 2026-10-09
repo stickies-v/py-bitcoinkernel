@@ -9,11 +9,20 @@ from pbk.capi import KernelOpaquePtr
 class ChainType(IntEnum):
     """Enumeration of supported Bitcoin network types."""
 
-    MAINNET = 0  #: Main Bitcoin network
-    TESTNET = 1  #: Test Bitcoin network
-    TESTNET_4 = 2  #: Testnet4 Bitcoin network
-    SIGNET = 3  #: Signet Bitcoin network
-    REGTEST = 4  #: Regression test network
+    MAINNET = 0
+    """Main Bitcoin network"""
+
+    TESTNET = 1
+    """Test Bitcoin network"""
+
+    TESTNET_4 = 2
+    """Testnet4 Bitcoin network"""
+
+    SIGNET = 3
+    """Signet Bitcoin network"""
+
+    REGTEST = 4
+    """Regression test network"""
 
 
 class ConsensusParams(KernelOpaquePtr):

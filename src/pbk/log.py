@@ -26,17 +26,38 @@ class LogCategory(IntEnum):
     messages are enabled. Categories can be individually enabled or disabled.
     """
 
-    ALL = 0  #: All log categories
-    BENCH = 1  #: Benchmarking and performance metrics
-    BLOCKSTORAGE = 2  #: Block storage operations
-    COINDB = 3  #: Coin database operations
-    LEVELDB = 4  #: LevelDB database operations
-    MEMPOOL = 5  #: Memory pool (mempool) operations
-    PRUNE = 6  #: Block pruning operations
-    RAND = 7  #: Random number generation
-    REINDEX = 8  #: Blockchain reindexing operations
-    VALIDATION = 9  #: Block and transaction validation
-    KERNEL = 10  #: General kernel operations
+    ALL = 0
+    """All log categories"""
+
+    BENCH = 1
+    """Benchmarking and performance metrics"""
+
+    BLOCKSTORAGE = 2
+    """Block storage operations"""
+
+    COINDB = 3
+    """Coin database operations"""
+
+    LEVELDB = 4
+    """LevelDB database operations"""
+
+    MEMPOOL = 5
+    """Memory pool (mempool) operations"""
+
+    PRUNE = 6
+    """Block pruning operations"""
+
+    RAND = 7
+    """Random number generation"""
+
+    REINDEX = 8
+    """Blockchain reindexing operations"""
+
+    VALIDATION = 9
+    """Block and transaction validation"""
+
+    KERNEL = 10
+    """General kernel operations"""
 
 
 # TODO: add enum auto-generation or testing to ensure it remains in
@@ -52,8 +73,11 @@ class LogLevel(IntEnum):
         natively supported by Python's logging library.
     """
 
-    DEBUG = 1  #: Debug-level messages with detailed information
-    INFO = 2  #: Informational messages about normal operations
+    DEBUG = 1
+    """Debug-level messages with detailed information"""
+
+    INFO = 2
+    """Informational messages about normal operations"""
 
 
 KERNEL_LEVEL_TO_PYTHON = {  # numeric value
