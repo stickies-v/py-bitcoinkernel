@@ -3,11 +3,8 @@ from collections.abc import Callable
 
 import pbk.capi.bindings as k
 import pbk.util.callbacks
-from pbk.block import (
-    Block,
-    BlockTreeEntry,
-    BlockValidationState,
-)
+from pbk.block import Block, BlockTreeEntry
+from pbk.validation import BlockValidationState
 
 
 def _wrap_block_and_state(fn: Callable[..., None]) -> Callable[..., None]:

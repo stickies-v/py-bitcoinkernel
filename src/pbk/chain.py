@@ -9,11 +9,11 @@ from pbk.block import (
     BlockHash,
     BlockSpentOutputs,
     BlockTreeEntry,
-    BlockValidationState,
 )
 from pbk.capi import KernelOpaquePtr
 from pbk.util.exc import ProcessBlockException, ProcessBlockHeaderException
 from pbk.util.sequence import LazySequence
+from pbk.validation import BlockValidationState
 
 if typing.TYPE_CHECKING:
     from pbk import BlockHeader, Context

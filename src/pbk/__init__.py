@@ -5,11 +5,8 @@ from pbk.block import (
     BlockHeader,
     BlockSpentOutputs,
     BlockTreeEntry,
-    BlockValidationResult,
-    BlockValidationState,
     TransactionSequence,
     TransactionSpentOutputsSequence,
-    ValidationMode,
 )
 from pbk.chain import (
     BlockMap,
@@ -58,6 +55,11 @@ from pbk.util.exc import (
     KernelException,
     ProcessBlockException,
     ProcessBlockHeaderException,
+)
+from pbk.validation import (
+    BlockValidationResult,
+    BlockValidationState,
+    ValidationMode,
 )
 from pbk.validation_interface import ValidationInterfaceCallbacks
 
