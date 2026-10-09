@@ -11,9 +11,14 @@ class ValidationMode(IntEnum):
     failed validation, or encountered an error during processing.
     """
 
-    VALID = 0  #: Validation succeeded
-    INVALID = 1  #: Validation failed due to rule violations
-    INTERNAL_ERROR = 2  #: An error occurred during validation processing
+    VALID = 0
+    """Validation succeeded"""
+
+    INVALID = 1
+    """Validation failed due to rule violations"""
+
+    INTERNAL_ERROR = 2
+    """An error occurred during validation processing"""
 
 
 class BlockValidationResult(IntEnum):
@@ -24,15 +29,32 @@ class BlockValidationResult(IntEnum):
     to be accepted into the blockchain.
     """
 
-    UNSET = 0  #: Initial value, block has not yet been rejected
-    CONSENSUS = 1  #: Invalid by consensus rules (excluding specific reasons below)
-    CACHED_INVALID = 2  #: Block was previously cached as invalid, reason not stored
-    INVALID_HEADER = 3  #: Invalid proof of work or timestamp too old
-    MUTATED = 4  #: Block data didn't match the data committed to by the PoW
-    MISSING_PREV = 5  #: The previous block this builds on is not available
-    INVALID_PREV = 6  #: A block this one builds on is invalid
-    TIME_FUTURE = 7  #: Block timestamp was more than 2 hours in the future
-    HEADER_LOW_WORK = 8  #: Block header may be on a too-little-work chain
+    UNSET = 0
+    """Initial value. Block has not yet been rejected"""
+
+    CONSENSUS = 1
+    """Invalid by consensus rules (excluding any below reasons)"""
+
+    CACHED_INVALID = 2
+    """This block was cached as being invalid and we didn't store the reason why"""
+
+    INVALID_HEADER = 3
+    """Invalid proof of work or time too old"""
+
+    MUTATED = 4
+    """The block's data didn't match the data committed to by the PoW"""
+
+    MISSING_PREV = 5
+    """We don't have the previous block the checked one is built on"""
+
+    INVALID_PREV = 6
+    """A block this one builds on is invalid"""
+
+    TIME_FUTURE = 7
+    """Block timestamp was > 2 hours in the future (or our clock is bad)"""
+
+    HEADER_LOW_WORK = 8
+    """The block header may be on a too-little-work chain"""
 
 
 class BlockValidationState(KernelOpaquePtr):

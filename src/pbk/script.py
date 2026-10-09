@@ -20,15 +20,31 @@ class ScriptVerificationFlags(IntFlag):
     verification. Multiple flags can be combined using bitwise OR operations.
     """
 
-    NONE = 0  #: No verification flags
-    P2SH = 1 << 0  #: Evaluate P2SH subscripts (BIP16)
-    DERSIG = 1 << 2  #: Enforce strict DER signature encoding (BIP66)
-    NULLDUMMY = 1 << 4  #: Enforce NULLDUMMY rule (BIP147)
-    CHECKLOCKTIMEVERIFY = 1 << 9  #: Enable CHECKLOCKTIMEVERIFY opcode (BIP65)
-    CHECKSEQUENCEVERIFY = 1 << 10  #: Enable CHECKSEQUENCEVERIFY opcode (BIP112)
-    WITNESS = 1 << 11  #: Enable Segregated Witness (BIP141)
-    TAPROOT = 1 << 17  #: Enable Taproot (BIP341 & BIP342)
-    ALL = (  #: All verification flags combined
+    NONE = 0
+    """No verification flags"""
+
+    P2SH = 1 << 0
+    """Evaluate P2SH (BIP16) subscripts"""
+
+    DERSIG = 1 << 2
+    """Enforce strict DER (BIP66) compliance"""
+
+    NULLDUMMY = 1 << 4
+    """Enforce NULLDUMMY (BIP147)"""
+
+    CHECKLOCKTIMEVERIFY = 1 << 9
+    """Enable CHECKLOCKTIMEVERIFY (BIP65)"""
+
+    CHECKSEQUENCEVERIFY = 1 << 10
+    """Enable CHECKSEQUENCEVERIFY (BIP112)"""
+
+    WITNESS = 1 << 11
+    """Enable WITNESS (BIP141)"""
+
+    TAPROOT = 1 << 17
+    """Enable TAPROOT (BIPs 341 & 342)"""
+
+    ALL = (
         P2SH
         | DERSIG
         | NULLDUMMY
@@ -37,6 +53,7 @@ class ScriptVerificationFlags(IntFlag):
         | WITNESS
         | TAPROOT
     )
+    """All verification flags combined"""
 
 
 # TODO: add enum auto-generation or testing to ensure it remains in
@@ -48,13 +65,14 @@ class ScriptVerifyStatus(IntEnum):
     success, various error conditions, and validation failures.
     """
 
-    OK = 0  #: Verification succeeded
-    ERROR_INVALID_FLAGS_COMBINATION = (
-        1  #: The verification flags were combined in an invalid way
-    )
-    ERROR_SPENT_OUTPUTS_REQUIRED = (
-        2  #: The taproot flag requires valid spent outputs to be provided
-    )
+    OK = 0
+    """Verification succeeded"""
+
+    ERROR_INVALID_FLAGS_COMBINATION = 1
+    """The flags were combined in an invalid way."""
+
+    ERROR_SPENT_OUTPUTS_REQUIRED = 2
+    """The taproot flag was set, so valid spent_outputs have to be provided."""
 
 
 class ScriptVerifyException(KernelException):
