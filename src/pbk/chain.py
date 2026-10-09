@@ -62,9 +62,8 @@ class ChainstateManagerOptions(KernelOpaquePtr):
         """Configure the wiping of the block tree database and the chainstate database.
 
         !!! warning
-            If `wipe_block_tree_db==True`, [pbk.ChainstateManager.__init__][] and [pbk.ChainstateManager.import_blocks][]
-            **must** be called for the wiping to take effect.
-
+            If a wipe is set, [pbk.ChainstateManager.import_blocks][] **must** be called on the
+            resulting [pbk.ChainstateManager][] before it is used for anything else.
 
         Args:
             wipe_block_tree_db: Whether to wipe the block tree database.
