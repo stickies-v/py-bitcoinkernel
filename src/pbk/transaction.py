@@ -148,7 +148,7 @@ class TransactionOutput(KernelOpaquePtr):
     _destroy_fn = k.btck_transaction_output_destroy
     _copy_fn = k.btck_transaction_output_copy
 
-    def __init__(self, script_pubkey: "ScriptPubkey", amount: int):
+    def __init__(self, script_pubkey: ScriptPubkey, amount: int):
         """Create a transaction output.
 
         Args:
@@ -167,7 +167,7 @@ class TransactionOutput(KernelOpaquePtr):
         return k.btck_transaction_output_get_amount(self)
 
     @property
-    def script_pubkey(self) -> "ScriptPubkey":
+    def script_pubkey(self) -> ScriptPubkey:
         """The spending conditions for this output.
 
         Returns:

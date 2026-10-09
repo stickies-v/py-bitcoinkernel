@@ -1,17 +1,14 @@
 import ctypes
 import datetime
-import typing
 from enum import IntFlag
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
+from pbk.chainparams import ConsensusParams
 from pbk.transaction import Transaction, TransactionSpentOutputs
 from pbk.util.sequence import LazySequence
 from pbk.validation import BlockValidationState, ValidationMode
 from pbk.writer import ByteWriter
-
-if typing.TYPE_CHECKING:
-    from pbk.chainparams import ConsensusParams
 
 
 class BlockHash(KernelOpaquePtr):
@@ -380,7 +377,7 @@ class Block(KernelOpaquePtr):
 
     def check(
         self,
-        consensus_params: "ConsensusParams",
+        consensus_params: ConsensusParams,
         flags: BlockCheckFlags = BlockCheckFlags.ALL,
     ) -> BlockValidationState:
         """Perform context-free validation checks on this block.

@@ -1,12 +1,8 @@
-import typing
-
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
-
-if typing.TYPE_CHECKING:
-    from pbk.chainparams import ChainParameters
-    from pbk.notifications import NotificationInterfaceCallbacks
-    from pbk.validation_interface import ValidationInterfaceCallbacks
+from pbk.chainparams import ChainParameters
+from pbk.notifications import NotificationInterfaceCallbacks
+from pbk.validation_interface import ValidationInterfaceCallbacks
 
 
 class ContextOptions(KernelOpaquePtr):
@@ -26,7 +22,7 @@ class ContextOptions(KernelOpaquePtr):
         self._notifications: NotificationInterfaceCallbacks | None = None
         self._validation_callbacks: ValidationInterfaceCallbacks | None = None
 
-    def set_chainparams(self, chain_parameters: "ChainParameters") -> None:
+    def set_chainparams(self, chain_parameters: ChainParameters) -> None:
         """Sets the chain parameters for the context options.
 
         Args:
@@ -34,9 +30,7 @@ class ContextOptions(KernelOpaquePtr):
         """
         k.btck_context_options_set_chainparams(self, chain_parameters)
 
-    def set_notifications(
-        self, notifications: "NotificationInterfaceCallbacks"
-    ) -> None:
+    def set_notifications(self, notifications: NotificationInterfaceCallbacks) -> None:
         """Sets the kernel notifications for the context options.
 
         Args:
@@ -46,7 +40,7 @@ class ContextOptions(KernelOpaquePtr):
         self._notifications = notifications
 
     def set_validation_interface(
-        self, interface_callbacks: "ValidationInterfaceCallbacks"
+        self, interface_callbacks: ValidationInterfaceCallbacks
     ) -> None:
         """Sets the validation interface callbacks for the context options.
 

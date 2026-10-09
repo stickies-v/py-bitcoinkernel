@@ -6,16 +6,15 @@ import pbk.capi.bindings as k
 from pbk.block import (
     Block,
     BlockHash,
+    BlockHeader,
     BlockSpentOutputs,
     BlockTreeEntry,
 )
 from pbk.capi import KernelOpaquePtr
+from pbk.context import Context
 from pbk.util.exc import ProcessBlockException, ProcessBlockHeaderException
 from pbk.util.sequence import LazySequence
 from pbk.validation import BlockValidationState
-
-if typing.TYPE_CHECKING:
-    from pbk import BlockHeader, Context
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
@@ -32,7 +31,7 @@ class ChainstateManagerOptions(KernelOpaquePtr):
     _create_fn = k.btck_chainstate_manager_options_create
     _destroy_fn = k.btck_chainstate_manager_options_destroy
 
-    def __init__(self, context: "Context", datadir: str, blocks_dir: str):
+    def __init__(self, context: Context, datadir: str, blocks_dir: str):
         """Create chainstate manager options.
 
         Args:
@@ -489,7 +488,7 @@ class ChainstateManager(KernelOpaquePtr):
             k.btck_chainstate_manager_get_best_entry(self), self
         )
 
-    def process_block_header(self, header: "BlockHeader") -> "BlockValidationState":
+    def process_block_header(self, header: BlockHeader) -> BlockValidationState:
         """
         Processes and validates the provided block header.
 
