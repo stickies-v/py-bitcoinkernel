@@ -6,7 +6,7 @@ from pbk.capi import KernelOpaquePtr
 if typing.TYPE_CHECKING:
     from pbk.chain import ChainParameters
     from pbk.notifications import NotificationInterfaceCallbacks
-    from pbk.validation import ValidationInterfaceCallbacks
+    from pbk.validation_interface import ValidationInterfaceCallbacks
 
 
 class ContextOptions(KernelOpaquePtr):

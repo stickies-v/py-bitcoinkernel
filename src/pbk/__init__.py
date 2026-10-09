@@ -59,7 +59,7 @@ from pbk.util.exc import (
     ProcessBlockException,
     ProcessBlockHeaderException,
 )
-from pbk.validation import ValidationInterfaceCallbacks
+from pbk.validation_interface import ValidationInterfaceCallbacks
 
 __all__ = [
     "Block",
