@@ -56,3 +56,27 @@ ruff check .
 ruff format --check .
 uv run --extra type ty check
 ```
+
+## Module layering
+
+The modules in `src/pbk` form layers: a module only imports from
+modules in lower layers. From top to bottom:
+
+1. `chain`
+2. `context`
+3. `validation_interface`, `notifications`
+4. `block`
+5. `transaction`
+6. `script`
+7. `validation`, `chainparams`, `log`, `exceptions`
+8. `capi`: the C bindings and the helpers that turn the C API into
+   Python objects, without domain knowledge
+
+- Put a new type in the lowest module that all of its runtime
+  dependencies allow.
+- Do not import from the package root (`from pbk import ...`) inside
+  `pbk`.
+- Do not use `if TYPE_CHECKING:` imports to work around an import
+  cycle. A cycle means that a type is in the wrong module. The only
+  exception is `script` -> `transaction`: `ScriptPubkey.verify()` uses
+  `Transaction` only in its type annotations.
