@@ -76,11 +76,13 @@ class ScriptVerifyStatus(IntEnum):
 
 
 class ScriptVerifyException(KernelException):
-    """Exception raised when script verification fails.
+    """Exception raised when script verification cannot run.
 
     This exception is raised by the [ScriptPubkey.verify][pbk.ScriptPubkey.verify]
-    function when a script does not pass validation. The exception includes a
-    status code that provides details about why verification failed.
+    function when its arguments do not allow a verification, e.g. when the
+    flags are combined in an invalid way. A script that does not pass
+    validation does not raise; `verify` returns False for it. The exception
+    includes a status code that tells why the verification could not run.
 
     Attributes:
         status: The status code indicating the failure reason.
@@ -199,11 +201,12 @@ class ScriptPubkey(KernelOpaquePtr):
                 enforce. Use ScriptFlags values combined with bitwise OR.
 
         Returns:
-            True if the script verification succeeds.
+            True if the input spends the script pubkey validly, False otherwise.
 
         Raises:
-            ScriptVerifyException: If script verification fails. The exception
-                contains a status code indicating the specific failure reason.
+            ScriptVerifyException: If the verification could not run, e.g.
+                because the flags were combined in an invalid way. The
+                exception contains the status code.
         """
         k_status = k.btck_ScriptVerifyStatus(ScriptVerifyStatus.OK)
         success = k.btck_script_pubkey_verify(
