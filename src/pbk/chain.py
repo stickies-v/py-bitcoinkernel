@@ -479,16 +479,18 @@ class ChainstateManager(KernelOpaquePtr):
         return BlockSpentOutputsMap(self)
 
     @property
-    def best_entry(self) -> BlockTreeEntry:
+    def best_entry(self) -> BlockTreeEntry | None:
         """The BlockTreeEntry whose associated BlockHeader has the most known
         cumulative proof of work.
 
         Returns:
-            The best block tree entry. View into this chainstate manager.
+            The best block tree entry, or None if no block headers have been
+            loaded. View into this chainstate manager.
         """
-        return BlockTreeEntry._from_view(
-            k.btck_chainstate_manager_get_best_entry(self), self
-        )
+        entry = k.btck_chainstate_manager_get_best_entry(self)
+        if not entry:
+            return None
+        return BlockTreeEntry._from_view(entry, self)
 
     def process_block_header(self, header: BlockHeader) -> BlockValidationState:
         """
