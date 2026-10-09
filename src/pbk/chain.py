@@ -38,9 +38,9 @@ class ChainstateManagerOptions(KernelOpaquePtr):
 
         Args:
             context: The kernel context to associate with.
-            datadir: Non-empty path to the directory containing chainstate data. The
+            datadir: Path to the directory containing chainstate data. The
                 directory will be created if it doesn't exist.
-            blocks_dir: Non-empty path to the directory containing block data. The
+            blocks_dir: Path to the directory containing block data. The
                 directory will be created if it doesn't exist.
 
         Raises:
