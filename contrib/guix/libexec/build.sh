@@ -5,72 +5,12 @@
 export LC_ALL=C
 set -e -o pipefail
 
-# Environment variables for determinism
-export TAR_OPTIONS="--no-same-owner --owner=0 --group=0 --numeric-owner --mtime='@${SOURCE_DATE_EPOCH}' --sort=name"
-export TZ=UTC
-
-# Although Guix _does_ set umask when building its own packages (in our case,
-# this is all packages in manifest.scm), it does not set it for `guix
-# shell`. It does make sense for at least `guix shell --container`
-# to set umask, so if that change gets merged upstream and we bump the
-# time-machine to a commit which includes the aforementioned change, we can
-# remove this line.
-#
-# This line should be placed before any commands which creates files.
-umask 0022
-
-if [ -n "$V" ]; then
-    # Print both unexpanded (-v) and expanded (-x) forms of commands as they are
-    # read from this file.
-    set -vx
-    # Set VERBOSE for CMake-based builds
-    export VERBOSE="$V"
-fi
-
-# Check that required environment variables are set
-cat << EOF
-Required environment variables as seen inside the container:
-    DIST_ARCHIVE_BASE: ${DIST_ARCHIVE_BASE:?not set}
-    DISTNAME: ${DISTNAME:?not set}
-    HOST: ${HOST:?not set}
-    SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:?not set}
-    JOBS: ${JOBS:?not set}
-    DISTSRC: ${DISTSRC:?not set}
-    OUTDIR: ${OUTDIR:?not set}
-EOF
-
-ACTUAL_OUTDIR="${OUTDIR}"
-OUTDIR="${DISTSRC}/output"
-
-#####################
-# Environment Setup #
-#####################
-
-# The depends folder also serves as a base-prefix for depends packages for
-# $HOSTs after successfully building.
-BASEPREFIX="${PWD}/depends"
-
-# Given a package name and an output name, return the path of that output in our
-# current guix environment
-store_path() {
-    grep --extended-regexp "/[^-]{32}-${1}-[^-]+${2:+-${2}}" "${GUIX_ENVIRONMENT}/manifest" \
-        | head --lines=1 \
-        | sed --expression='s|\x29*$||' \
-              --expression='s|^[[:space:]]*"||' \
-              --expression='s|"[[:space:]]*$||'
-}
-
+# shellcheck source=setup.sh
+source "$(dirname "${BASH_SOURCE[0]}")/setup.sh"
 
 # Set environment variables to point the NATIVE toolchain to the right
 # includes/libs
 NATIVE_GCC="$(store_path gcc-toolchain)"
-
-unset LIBRARY_PATH
-unset CPATH
-unset C_INCLUDE_PATH
-unset CPLUS_INCLUDE_PATH
-unset OBJC_INCLUDE_PATH
-unset OBJCPLUS_INCLUDE_PATH
 
 # Set native toolchain
 build_CC="${NATIVE_GCC}/bin/gcc -isystem ${NATIVE_GCC}/include"
@@ -134,15 +74,6 @@ for p in "${PATHS[@]}"; do
     fi
 done
 
-# Disable Guix ld auto-rpath behavior
-export GUIX_LD_WRAPPER_DISABLE_RPATH=yes
-
-# Make /usr/bin if it doesn't exist
-[ -e /usr/bin ] || mkdir -p /usr/bin
-
-# Symlink env to a conventional path
-[ -e /usr/bin/env ]  || ln -s --no-dereference "$(command -v env)"  /usr/bin/env
-
 # Determine the correct value for -Wl,--dynamic-linker for the current $HOST
 case "$HOST" in
     *linux*)
@@ -185,20 +116,6 @@ case "$HOST" in
         unset LIBRARY_PATH
         ;;
 esac
-
-###########################
-# Source Tarball Building #
-###########################
-
-GIT_ARCHIVE="${DIST_ARCHIVE_BASE}/${DISTNAME}.tar.gz"
-
-# Create the source tarball if not already there
-if [ ! -e "$GIT_ARCHIVE" ]; then
-    mkdir -p "$(dirname "$GIT_ARCHIVE")"
-    git archive --prefix="${DISTNAME}/" --output="$GIT_ARCHIVE" HEAD
-fi
-
-mkdir -p "$OUTDIR"
 
 ###########################
 # Binary Tarball Building #
@@ -249,17 +166,17 @@ mkdir -p "$DISTSRC"
           -DWITH_CCACHE=OFF \
           -Werror=dev \
           ${CONFIGFLAGS} \
-          "${CMAKE_EXE_LINKER_FLAGS}"
+          ${CMAKE_EXE_LINKER_FLAGS+"$CMAKE_EXE_LINKER_FLAGS"}
 
     # Build Bitcoin Core
-    cmake --build build -j "$JOBS" ${V:+--verbose}
+    cmake --build build -j "$JOBS"
 
     mkdir -p "$OUTDIR"
 
     # Make the os-specific installers
     case "$HOST" in
         *mingw*)
-            cmake --build build -j "$JOBS" -t deploy ${V:+--verbose}
+            cmake --build build -j "$JOBS" -t deploy
             mv build/bitcoin-win64-setup.exe "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
             ;;
     esac
@@ -267,15 +184,14 @@ mkdir -p "$DISTSRC"
     # Setup the directory where our Bitcoin Core build for HOST will be
     # installed. This directory will also later serve as the input for our
     # binary tarballs.
-    INSTALLPATH="${PWD}/installed/${DISTNAME}"
     mkdir -p "${INSTALLPATH}"
     # Install built Bitcoin Core to $INSTALLPATH
     case "$HOST" in
         *darwin*)
-            cmake --install build --strip --prefix "${INSTALLPATH}" ${V:+--verbose}
+            cmake --install build --strip --prefix "${INSTALLPATH}"
             ;;
         *)
-            cmake --install build --prefix "${INSTALLPATH}" ${V:+--verbose}
+            cmake --install build --prefix "${INSTALLPATH}"
             ;;
     esac
 
@@ -285,126 +201,7 @@ mkdir -p "$DISTSRC"
     # Check that executables only contain allowed version symbols.
     echo "Running symbol and dynamic library checks on installed executables..."
     python3 "${DISTSRC}/contrib/guix/symbol-check.py" "${INSTALLPATH}/bin/"* "${INSTALLPATH}/libexec/"*
-
-    (
-        cd installed
-
-        case "$HOST" in
-            *darwin*) ;;
-            *)
-                # Split binaries from their debug symbols
-                {
-                    find "${DISTNAME}/bin" "${DISTNAME}/libexec" -type f -executable -print0
-                } | xargs -0 -P"$JOBS" -I{} "${DISTSRC}/build/split-debug.sh" {} {} {}.dbg
-                ;;
-        esac
-
-        case "$HOST" in
-            *mingw*)
-                cp "${DISTSRC}/doc/README_windows.txt" "${DISTNAME}/readme.txt"
-                ;;
-            *linux*)
-                cp "${DISTSRC}/README.md" "${DISTNAME}/"
-                cp "${DISTSRC}/doc/INSTALL_linux.md" "${DISTNAME}/INSTALL.md"
-                ;;
-        esac
-
-        # copy over the example bitcoin.conf file. if contrib/devtools/gen-bitcoin-conf.sh
-        # has not been run before buildling, this file will be a stub
-        cp "${DISTSRC}/share/examples/bitcoin.conf" "${DISTNAME}/"
-
-        cp -r "${DISTSRC}/share/rpcauth" "${DISTNAME}/share/"
-
-        # Deterministically produce {non-,}debug binary tarballs ready
-        # for release
-        case "$HOST" in
-            *mingw*)
-                find "${DISTNAME}" -not -name "*.dbg" -print0 \
-                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}" -not -name "*.dbg" \
-                    | sort \
-                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-unsigned.zip" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-unsigned.zip" && exit 1 )
-                find "${DISTNAME}" -name "*.dbg" -print0 \
-                    | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-                find "${DISTNAME}" -name "*.dbg" \
-                    | sort \
-                    | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-w64-mingw32/win64}-debug.zip" && exit 1 )
-                ;;
-            *linux*)
-                find "${DISTNAME}" -not -name "*.dbg" -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}.tar.gz" && exit 1 )
-                find "${DISTNAME}" -name "*.dbg" -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" && exit 1 )
-                ;;
-            *darwin*)
-                find "${DISTNAME}" -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-unsigned.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-unsigned.tar.gz" && exit 1 )
-                ;;
-        esac
-    )  # $DISTSRC/installed
-
-    # Finally make tarballs for codesigning
-    case "$HOST" in
-        *mingw*)
-            cp -rf --target-directory=. contrib/windeploy
-            (
-                cd ./windeploy
-                mkdir -p unsigned
-                cp --target-directory=unsigned/ "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
-                cp -r --target-directory=unsigned/ "${INSTALLPATH}"
-                find unsigned/ -name "*.dbg" -print0 \
-                    | xargs -0r rm
-                find . -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-win64-codesigning.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-win64-codesigning.tar.gz" && exit 1 )
-            )
-            ;;
-        *darwin*)
-            cmake --build build --target deploy ${V:+--verbose}
-            mv build/dist/bitcoin-macos-app.zip "${OUTDIR}/${DISTNAME}-${HOST}-unsigned.zip"
-            mkdir -p "unsigned-app-${HOST}"
-            cp  --target-directory="unsigned-app-${HOST}" \
-                contrib/macdeploy/detached-sig-create.sh
-            mv --target-directory="unsigned-app-${HOST}" build/dist
-            cp -r --target-directory="unsigned-app-${HOST}" "${INSTALLPATH}"
-            (
-                cd "unsigned-app-${HOST}"
-                find . -print0 \
-                    | sort --zero-terminated \
-                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
-                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-codesigning.tar.gz" \
-                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-codesigning.tar.gz" && exit 1 )
-            )
-            ;;
-    esac
 )  # $DISTSRC
 
-rm -rf "$ACTUAL_OUTDIR"
-mv --no-target-directory "$OUTDIR" "$ACTUAL_OUTDIR" \
-    || ( rm -rf "$ACTUAL_OUTDIR" && exit 1 )
-
-(
-    tmp="$(mktemp)"
-    cd /outdir-base
-    {
-        echo "$GIT_ARCHIVE"
-        find "$ACTUAL_OUTDIR" -type f
-    } | xargs realpath --relative-base="$PWD" \
-        | xargs sha256sum \
-        | sort -k2 \
-        > "$tmp";
-    mv "$tmp" "$ACTUAL_OUTDIR"/SHA256SUMS.part
-)
+# shellcheck source=package.sh
+source "$(dirname "${BASH_SOURCE[0]}")/package.sh"

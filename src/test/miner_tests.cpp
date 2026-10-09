@@ -13,6 +13,7 @@
 #include <interfaces/types.h>
 #include <kernel/chainparams.h>
 #include <node/miner.h>
+#include <node/mining_args.h>
 #include <node/mining_types.h>
 #include <policy/feerate.h>
 #include <policy/policy.h>
@@ -26,13 +27,13 @@
 #include <test/util/common.h>
 #include <test/util/setup_common.h>
 #include <test/util/transaction_utils.h>
+#include <test/util/time.h>
 #include <test/util/txmempool.h>
 #include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/feefrac.h>
 #include <util/strencodings.h>
-#include <util/time.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <versionbits.h>
@@ -197,7 +198,7 @@ void MinerTestingSetup::TestPackageSelection(const CScript& scriptPubKey, const 
     const auto block_package_feerates = BlockAssembler{
         m_node.chainman->ActiveChainstate(),
         &tx_mempool,
-        m_node.mining_args,
+        MergeMiningOptions(options, m_node.mining_args),
     }.CreateNewBlock()->m_package_feerates;
     BOOST_CHECK(block_package_feerates.size() == 2);
 
@@ -342,6 +343,8 @@ std::vector<CTransactionRef> CreateBigSigOpsCluster(const CTransactionRef& first
 
 void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::vector<CTransactionRef>& txFirst, int baseheight)
 {
+    FakeNodeClock clock{};
+
     Txid hash;
     CMutableTransaction tx;
     TestMemPoolEntryHelper entry;
@@ -565,7 +568,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     LOCK(tx_mempool.cs);
 
     // non-final txs in mempool
-    SetMockTime(m_node.chainman->ActiveChain().Tip()->GetMedianTimePast() + 1);
+    clock.set(std::chrono::seconds{m_node.chainman->ActiveChain().Tip()->GetMedianTimePast() + 1});
     const int flags{LOCKTIME_VERIFY_SEQUENCE};
     // height map
     std::vector<int> prevheights;
@@ -670,7 +673,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         ancestor->nTime += SEQUENCE_LOCK_TIME; // Trick the MedianTimePast
     }
     m_node.chainman->ActiveChain().Tip()->nHeight++;
-    SetMockTime(m_node.chainman->ActiveChain().Tip()->GetMedianTimePast() + 1);
+    clock.set(std::chrono::seconds{m_node.chainman->ActiveChain().Tip()->GetMedianTimePast() + 1});
 
     block_template = mining->createNewBlock(options, /*cooldown=*/false);
     BOOST_REQUIRE(block_template);
@@ -896,12 +899,10 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     TestBasicMining(scriptPubKey, txFirst, baseheight);
 
     m_node.chainman->ActiveChain().Tip()->nHeight--;
-    SetMockTime(0);
 
     TestPackageSelection(scriptPubKey, txFirst);
 
     m_node.chainman->ActiveChain().Tip()->nHeight--;
-    SetMockTime(0);
 
     TestPrioritisedMining(scriptPubKey, txFirst);
 }

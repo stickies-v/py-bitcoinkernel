@@ -45,6 +45,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -813,13 +814,23 @@ btck_ChainParameters* btck_chain_parameters_create(const btck_ChainType chain_ty
         return btck_ChainParameters::ref(const_cast<CChainParams*>(CChainParams::TestNet4().release()));
     }
     case btck_ChainType_SIGNET: {
-        return btck_ChainParameters::ref(const_cast<CChainParams*>(CChainParams::SigNet({}).release()));
+        return btck_ChainParameters::ref(const_cast<CChainParams*>(CChainParams::SigNet().release()));
     }
     case btck_ChainType_REGTEST: {
-        return btck_ChainParameters::ref(const_cast<CChainParams*>(CChainParams::RegTest({}).release()));
+        return btck_ChainParameters::ref(const_cast<CChainParams*>(CChainParams::RegTest().release()));
     }
     }
     assert(false);
+}
+
+btck_ChainParameters* btck_chain_parameters_create_signet(const void* challenge, size_t challenge_len)
+{
+    assert(challenge != nullptr || challenge_len == 0);
+    const uint8_t* p = static_cast<const uint8_t*>(challenge);
+    CChainParams::SigNetOptions options{
+        .challenge = std::vector<uint8_t>{p, p + challenge_len},
+    };
+    return btck_ChainParameters::ref(const_cast<CChainParams*>(CChainParams::SigNet(options).release()));
 }
 
 btck_ChainParameters* btck_chain_parameters_copy(const btck_ChainParameters* chain_parameters)

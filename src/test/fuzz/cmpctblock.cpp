@@ -163,7 +163,8 @@ FUZZ_TARGET(cmpctblock, .init = initialize_cmpctblock)
     SeedRandomStateForTest(SeedRand::ZEROS);
     FuzzedDataProvider fuzzed_data_provider(buffer.data(), buffer.size());
 
-    NodeClockContext clock_ctx{1610000000s};
+    FakeNodeClock clock{1610000000s};
+    FakeSteadyClock steady_clock;
 
     auto setup = g_setup;
     auto& mempool = *setup->m_node.mempool;
@@ -189,7 +190,7 @@ FUZZ_TARGET(cmpctblock, .init = initialize_cmpctblock)
 
     std::vector<CNode*> peers;
     for (int i = 0; i < 4; ++i) {
-        peers.push_back(ConsumeNodeAsUniquePtr(fuzzed_data_provider, i).release());
+        peers.push_back(ConsumeNodeAsUniquePtr(fuzzed_data_provider, steady_clock, i).release());
         CNode& p2p_node = *peers.back();
         FillNode(fuzzed_data_provider, connman, p2p_node);
         connman.AddTestNode(p2p_node);
@@ -453,10 +454,10 @@ FUZZ_TARGET(cmpctblock, .init = initialize_cmpctblock)
             [&]() {
                 // Set mock time randomly or to tip's time.
                 if (fuzzed_data_provider.ConsumeBool()) {
-                    clock_ctx.set(ConsumeTime(fuzzed_data_provider));
+                    clock.set(ConsumeTime(fuzzed_data_provider));
                 } else {
                     const NodeSeconds tip_time = WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()->Time());
-                    clock_ctx.set(tip_time);
+                    clock.set(tip_time);
                 }
 
                 sent_net_msg = false;
