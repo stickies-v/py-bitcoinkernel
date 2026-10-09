@@ -1,73 +1,22 @@
 import ctypes
 import typing
-from enum import IntEnum
 from pathlib import Path
 
 import pbk.capi.bindings as k
 from pbk.block import (
     Block,
     BlockHash,
+    BlockHeader,
     BlockSpentOutputs,
     BlockTreeEntry,
-    BlockValidationState,
 )
 from pbk.capi import KernelOpaquePtr
-from pbk.util.exc import ProcessBlockException, ProcessBlockHeaderException
-from pbk.util.sequence import LazySequence
-
-if typing.TYPE_CHECKING:
-    from pbk import BlockHeader, Context
-
-
-# TODO: add enum auto-generation or testing to ensure it remains in
-# sync with bitcoinkernel.h
-class ChainType(IntEnum):
-    """Enumeration of supported Bitcoin network types."""
-
-    MAINNET = 0  #: Main Bitcoin network
-    TESTNET = 1  #: Test Bitcoin network
-    TESTNET_4 = 2  #: Testnet4 Bitcoin network
-    SIGNET = 3  #: Signet Bitcoin network
-    REGTEST = 4  #: Regression test network
-
-
-class ConsensusParams(KernelOpaquePtr):
-    """View of the consensus parameters of a chain."""
-
-
-class ChainParameters(KernelOpaquePtr):
-    """Chain parameters describing properties of a Bitcoin network.
-
-    Chain parameters define network-specific constants and rules. These
-    are typically passed to [context options][pbk.ContextOptions] when
-    creating a kernel context.
-    """
-
-    _create_fn = k.btck_chain_parameters_create
-    _destroy_fn = k.btck_chain_parameters_destroy
-    _copy_fn = k.btck_chain_parameters_copy
-
-    def __init__(self, chain_type: ChainType):
-        """Create chain parameters for a specific network type.
-
-        Args:
-            chain_type: The Bitcoin network type to configure.
-
-        Raises:
-            RuntimeError: If the C constructor fails (propagated from base class).
-        """
-        super().__init__(chain_type)
-
-    @property
-    def consensus_params(self) -> ConsensusParams:
-        """The consensus parameters for this chain.
-
-        Returns:
-            The consensus parameters. View into these chain parameters.
-        """
-        return ConsensusParams._from_view(
-            k.btck_chain_parameters_get_consensus_params(self), self
-        )
+from pbk.capi.sequence import LazySequence
+from pbk.chainparams import ChainType
+from pbk.context import Context, make_context
+from pbk.exceptions import ProcessBlockException, ProcessBlockHeaderException
+from pbk.validation import BlockValidationState
+from pbk.validation_interface import ValidationInterfaceCallbacks
 
 
 class ChainstateManagerOptions(KernelOpaquePtr):
@@ -84,7 +33,7 @@ class ChainstateManagerOptions(KernelOpaquePtr):
     _create_fn = k.btck_chainstate_manager_options_create
     _destroy_fn = k.btck_chainstate_manager_options_destroy
 
-    def __init__(self, context: "Context", datadir: str, blocks_dir: str):
+    def __init__(self, context: Context, datadir: str, blocks_dir: str):
         """Create chainstate manager options.
 
         Args:
@@ -541,7 +490,7 @@ class ChainstateManager(KernelOpaquePtr):
             k.btck_chainstate_manager_get_best_entry(self), self
         )
 
-    def process_block_header(self, header: "BlockHeader") -> "BlockValidationState":
+    def process_block_header(self, header: BlockHeader) -> BlockValidationState:
         """
         Processes and validates the provided block header.
 
@@ -564,3 +513,39 @@ class ChainstateManager(KernelOpaquePtr):
     def __repr__(self) -> str:
         """Return a string representation of the chainstate manager."""
         return f"<ChainstateManager at {hex(id(self))}>"
+
+
+def load_chainman(
+    datadir: Path | str,
+    chain_type: ChainType = ChainType.REGTEST,
+    validation_callbacks: ValidationInterfaceCallbacks | None = None,
+) -> ChainstateManager:
+    """
+    Load and initialize a `ChainstateManager` object, loading its
+    chainstate from disk.
+
+    **IMPORTANT**: `py-bitcoinkernel` requires exclusive access to the
+    data directory. Sharing a data directory with Bitcoin Core will ONLY
+    work when only one of both programs is running at a time.
+
+    Args:
+        datadir: The path of the data directory. If the directory contains an
+            existing `blocks/` and `chainstate/` directory, it will be used to
+            load the chainstate. Otherwise, a new chainstate will be created.
+        chain_type: The type of chain to load.
+        validation_callbacks: Optional callbacks forwarded to `make_context` to
+            receive validation events.
+
+    Returns:
+        A `ChainstateManager` object. Owned handle.
+    """
+    datadir = Path(datadir)
+    context = make_context(chain_type, validation_callbacks=validation_callbacks)
+    blocksdir = datadir / "blocks"
+
+    chain_man_opts = ChainstateManagerOptions(
+        context, str(datadir.absolute()), str(blocksdir.absolute())
+    )
+    chain_man = ChainstateManager(chain_man_opts)
+
+    return chain_man

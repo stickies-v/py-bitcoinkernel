@@ -1,6 +1,6 @@
 import pytest
 
-import pbk.util.sequence as seq
+import pbk.capi.sequence as seq
 
 
 class MockOwner:

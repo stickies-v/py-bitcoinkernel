@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 import pbk.capi.bindings as k
 from pbk.capi.base import KernelOpaquePtr
-from pbk.util.type import UserData
+from pbk.capi.userdata import UserData
 
 
 def _py_callback(

@@ -4,8 +4,8 @@ from enum import IntEnum, IntFlag
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
-from pbk.util.exc import KernelException
-from pbk.writer import ByteWriter
+from pbk.capi.writer import ByteWriter
+from pbk.exceptions import KernelException
 
 if typing.TYPE_CHECKING:
     from pbk.transaction import Transaction, TransactionOutput

@@ -2,7 +2,7 @@ import ctypes
 from collections.abc import Callable
 
 import pbk.capi.bindings as k
-import pbk.util.callbacks
+import pbk.capi.callbacks
 
 
 class NotificationInterfaceCallbacks(k.btck_NotificationInterfaceCallbacks):
@@ -23,7 +23,7 @@ class NotificationInterfaceCallbacks(k.btck_NotificationInterfaceCallbacks):
             ValueError: If an unknown callback name is passed.
         """
         super().__init__()
-        pbk.util.callbacks._initialize_callbacks(self, **callbacks)
+        pbk.capi.callbacks._initialize_callbacks(self, **callbacks)
 
 
 default_notification_callbacks = NotificationInterfaceCallbacks(

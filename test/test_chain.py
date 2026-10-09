@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 import pbk
-from pbk.util.exc import ProcessBlockException
+from pbk.exceptions import ProcessBlockException
 
 
 def test_chain_type() -> None:
