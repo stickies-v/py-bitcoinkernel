@@ -104,6 +104,34 @@ class TransactionOutPoint(KernelOpaquePtr):
         return f"<TransactionOutPoint txid={self.txid} index={self.index}>"
 
 
+class WitnessStack(KernelOpaquePtr, LazySequence[bytes]):
+    """Witness stack of a transaction input.
+
+    Holds a sequence of witness stack items. It supports indexing, iteration
+    and length queries.
+
+    Note:
+        WitnessStack instances cannot be directly constructed. They are
+        obtained from TransactionInput objects.
+    """
+
+    _destroy_fn = k.btck_witness_stack_destroy
+    _copy_fn = k.btck_witness_stack_copy
+
+    def __len__(self) -> int:
+        """Number of items in the witness stack."""
+        return k.btck_witness_stack_count_items(self)
+
+    def _get_item(self, index: int) -> bytes:
+        """Get the witness stack item at the given index."""
+        writer = ByteWriter()
+        return writer.write(k.btck_witness_stack_get_item_at, self, index)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the witness stack."""
+        return f"<WitnessStack items={len(self)}>"
+
+
 class TransactionInput(KernelOpaquePtr):
     """Input to a transaction that spends a previous output.
 
@@ -131,6 +159,23 @@ class TransactionInput(KernelOpaquePtr):
     def sequence(self) -> int:
         """The nSequence value of this input."""
         return k.btck_transaction_input_get_sequence(self)
+
+    @property
+    def script_sig(self) -> bytes:
+        """The serialized script sig of this input."""
+        writer = ByteWriter()
+        return writer.write(k.btck_transaction_input_get_script_sig, self)
+
+    @property
+    def witness_stack(self) -> WitnessStack:
+        """The witness stack of this input.
+
+        Returns:
+            The witness stack. View into this input.
+        """
+        return WitnessStack._from_view(
+            k.btck_transaction_input_get_witness_stack(self), self
+        )
 
     def __repr__(self) -> str:
         """Return a string representation of the transaction input."""
