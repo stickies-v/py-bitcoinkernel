@@ -11,6 +11,17 @@ def test_chain_type() -> None:
         pbk.ChainParameters(chain_type)
 
 
+def test_create_signet() -> None:
+    op_true_challenge = bytes.fromhex("51")
+    params = pbk.ChainParameters.create_signet(op_true_challenge)
+    assert params._owns_ptr is True
+    assert isinstance(params.consensus_params, pbk.ConsensusParams)
+
+    opts = pbk.ContextOptions()
+    opts.set_chainparams(params)
+    pbk.Context(opts)
+
+
 def test_consensus_params() -> None:
     for chain_type in pbk.ChainType:
         params = pbk.ChainParameters(chain_type).consensus_params

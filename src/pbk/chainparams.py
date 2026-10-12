@@ -1,3 +1,4 @@
+import ctypes
 from enum import IntEnum
 
 import pbk.capi.bindings as k
@@ -51,6 +52,24 @@ class ChainParameters(KernelOpaquePtr):
             RuntimeError: If the C constructor fails (propagated from base class).
         """
         super().__init__(chain_type)
+
+    @classmethod
+    def create_signet(cls, challenge: bytes) -> "ChainParameters":
+        """Create signet chain parameters with a user-provided challenge.
+
+        Args:
+            challenge: The signet challenge value. Blocks must satisfy it in
+                order to be valid.
+
+        Returns:
+            The signet chain parameters. Owned handle.
+        """
+        return cls._from_handle(
+            k.btck_chain_parameters_create_signet(
+                (ctypes.c_ubyte * len(challenge)).from_buffer_copy(challenge),
+                len(challenge),
+            )
+        )
 
     @property
     def consensus_params(self) -> ConsensusParams:

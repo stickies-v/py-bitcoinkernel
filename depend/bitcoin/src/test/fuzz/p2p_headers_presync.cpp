@@ -164,11 +164,11 @@ FUZZ_TARGET(p2p_headers_presync, .init = initialize)
     FuzzedDataProvider fuzzed_data_provider{buffer.data(), buffer.size()};
     // The steady clock is currently only used for logging, so a constant
     // time-point seems acceptable for now.
-    SteadyClockContext steady_ctx{};
+    FakeSteadyClock steady_ctx{};
 
     ChainstateManager& chainman = *g_testing_setup->m_node.chainman;
     CBlockHeader base{chainman.GetParams().GenesisBlock()};
-    const NodeClockContext clock_ctx{base.Time()};
+    const FakeNodeClock clock{base.Time()};
 
     LOCK(NetEventsInterface::g_msgproc_mutex);
 

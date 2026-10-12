@@ -268,6 +268,13 @@ BOOST_FIXTURE_TEST_CASE(logging_Conf, LogSetup)
         BOOST_CHECK(http_it != category_levels.end());
         BOOST_CHECK_EQUAL(http_it->second, BCLog::Level::Info);
     }
+
+    // Removed categories (like "libevent") should not store a category-specific level
+    {
+        ResetLogger();
+        BOOST_CHECK(LogInstance().SetCategoryLogLevel(/*category_str=*/"libevent", /*level_str=*/"trace"));
+        BOOST_CHECK(LogInstance().CategoryLevels().empty());
+    }
 }
 
 struct ScopedScheduler {

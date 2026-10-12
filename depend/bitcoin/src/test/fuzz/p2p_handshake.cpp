@@ -41,7 +41,8 @@ FUZZ_TARGET(p2p_handshake, .init = ::initialize)
     auto& node{g_setup->m_node};
     auto& connman{static_cast<ConnmanTestMsg&>(*node.connman)};
     auto& chainman{static_cast<TestChainstateManager&>(*node.chainman)};
-    NodeClockContext clock_ctx{1610000000s}; // any time to successfully reset ibd
+    FakeNodeClock clock{1610000000s}; // any time to successfully reset ibd
+    FakeSteadyClock steady_clock;
     chainman.ResetIbd();
 
     node.banman.reset();
@@ -64,7 +65,7 @@ FUZZ_TARGET(p2p_handshake, .init = ::initialize)
     std::vector<CNode*> peers;
     const auto num_peers_to_add = fuzzed_data_provider.ConsumeIntegralInRange(1, 3);
     for (int i = 0; i < num_peers_to_add; ++i) {
-        peers.push_back(ConsumeNodeAsUniquePtr(fuzzed_data_provider, i).release());
+        peers.push_back(ConsumeNodeAsUniquePtr(fuzzed_data_provider, steady_clock, i).release());
         connman.AddTestNode(*peers.back());
         node.peerman->InitializeNode(
             *peers.back(),
@@ -80,7 +81,7 @@ FUZZ_TARGET(p2p_handshake, .init = ::initialize)
             continue;
         }
 
-        clock_ctx += std::chrono::seconds{
+        clock += std::chrono::seconds{
                     fuzzed_data_provider.ConsumeIntegralInRange<int64_t>(
                         -std::chrono::seconds{10min}.count(), // Allow mocktime to go backwards slightly
                         std::chrono::seconds{TIMEOUT_INTERVAL}.count()),

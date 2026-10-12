@@ -83,7 +83,8 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
     connman.Reset();
     auto& chainman{static_cast<TestChainstateManager&>(*node.chainman)};
     const auto block_index_size{WITH_LOCK(chainman.GetMutex(), return chainman.BlockIndex().size())};
-    NodeClockContext clock_ctx{1610000000s}; // any time to successfully reset ibd
+    FakeNodeClock clock{1610000000s}; // any time to successfully reset ibd
+    FakeSteadyClock steady_clock;
     chainman.ResetIbd();
     chainman.DisableNextWrite();
 
@@ -111,12 +112,12 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
 
     node.validation_signals->RegisterValidationInterface(node.peerman.get());
 
-    CNode& p2p_node = *ConsumeNodeAsUniquePtr(fuzzed_data_provider).release();
+    CNode& p2p_node = *ConsumeNodeAsUniquePtr(fuzzed_data_provider, steady_clock).release();
 
     connman.AddTestNode(p2p_node);
     FillNode(fuzzed_data_provider, connman, p2p_node);
 
-    clock_ctx.set(ConsumeTime(fuzzed_data_provider));
+    clock.set(ConsumeTime(fuzzed_data_provider));
 
     CSerializedNetMsg net_msg;
     net_msg.m_type = random_message_type;

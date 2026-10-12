@@ -528,6 +528,12 @@ try:
 except AttributeError:
     pass
 try:
+    btck_chain_parameters_create_signet = BITCOINKERNEL_LIB.btck_chain_parameters_create_signet
+    btck_chain_parameters_create_signet.restype = ctypes.POINTER(struct_btck_ChainParameters)
+    btck_chain_parameters_create_signet.argtypes = [ctypes.POINTER(None), size_t]
+except AttributeError:
+    pass
+try:
     btck_chain_parameters_copy = BITCOINKERNEL_LIB.btck_chain_parameters_copy
     btck_chain_parameters_copy.restype = ctypes.POINTER(struct_btck_ChainParameters)
     btck_chain_parameters_copy.argtypes = [ctypes.POINTER(struct_btck_ChainParameters)]
@@ -1130,7 +1136,9 @@ __all__ = \
     'btck_block_validation_state_get_validation_mode',
     'btck_chain_contains', 'btck_chain_get_by_height',
     'btck_chain_get_height', 'btck_chain_parameters_copy',
-    'btck_chain_parameters_create', 'btck_chain_parameters_destroy',
+    'btck_chain_parameters_create',
+    'btck_chain_parameters_create_signet',
+    'btck_chain_parameters_destroy',
     'btck_chain_parameters_get_consensus_params',
     'btck_chainstate_manager_create',
     'btck_chainstate_manager_destroy',

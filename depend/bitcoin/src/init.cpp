@@ -7,13 +7,10 @@
 
 #include <init.h>
 
-#include <kernel/checks.h>
-
 #include <addrdb.h>
 #include <addrman.h>
 #include <banman.h>
 #include <blockfilter.h>
-#include <btcsignals.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <chainparamsbase.h>
@@ -42,6 +39,7 @@
 #include <kernel/blockmanager_opts.h>
 #include <kernel/caches.h>
 #include <kernel/chainstatemanager_opts.h>
+#include <kernel/checks.h>
 #include <kernel/context.h>
 #include <kernel/notifications_interface.h>
 #include <key.h>
@@ -87,6 +85,7 @@
 #include <uint256.h>
 #include <util/asmap.h>
 #include <util/batchpriority.h>
+#include <util/btcsignals.h>
 #include <util/chaintype.h>
 #include <util/check.h>
 #include <util/fs.h>
@@ -146,6 +145,10 @@
 using common::InvalidPortErrMsg;
 using common::ResolveErrMsg;
 
+using http_bitcoin::InitHTTPServer;
+using http_bitcoin::InterruptHTTPServer;
+using http_bitcoin::StartHTTPServer;
+using http_bitcoin::StopHTTPServer;
 using node::ApplyArgsManOptions;
 using node::BlockManager;
 using node::CalculateCacheSizes;
@@ -771,7 +774,7 @@ static void StartupNotify(const ArgsManager& args)
 static bool AppInitServers(NodeContext& node)
 {
     const ArgsManager& args = *Assert(node.args);
-    if (!InitHTTPServer(*Assert(node.shutdown_signal))) {
+    if (!InitHTTPServer()) {
         return false;
     }
     StartRPC();
@@ -1122,6 +1125,16 @@ bool AppInitParameterInteraction(const ArgsManager& args)
             if (it == TEST_OPTIONS_DOC.end()) {
                 InitWarning(strprintf(_("Unrecognised option \"%s\" provided in -test=<option>."), option));
             }
+        }
+    }
+
+    // Prevent setting deployment parameters on mainnet.
+    if (chainparams.GetChainType() == ChainType::MAIN) {
+        if (args.IsArgSet("-testactivationheight")) {
+            return InitError(_("The -testactivationheight option may not be used on mainnet."));
+        }
+        if (args.IsArgSet("-vbparams")) {
+            return InitError(_("The -vbparams option may not be used on mainnet."));
         }
     }
 
@@ -1564,7 +1577,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
      * be disabled when initialisation is finished.
      */
     if (args.GetBoolArg("-server", false)) {
-        uiInterface.InitMessage_connect(SetRPCWarmupStatus);
+        uiInterface.InitMessage.connect(SetRPCWarmupStatus);
         if (!AppInitServers(node))
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
@@ -2016,7 +2029,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 #if HAVE_SYSTEM
     const std::string block_notify = args.GetArg("-blocknotify", "");
     if (!block_notify.empty()) {
-        uiInterface.NotifyBlockTip_connect([block_notify](SynchronizationState sync_state, const CBlockIndex& block, double /* verification_progress */) {
+        uiInterface.NotifyBlockTip.connect([block_notify](SynchronizationState sync_state, const CBlockIndex& block, double /* verification_progress */) {
             if (sync_state != SynchronizationState::POST_INIT) return;
             std::string command = block_notify;
             ReplaceAll(command, "%s", block.GetBlockHash().GetHex());
@@ -2032,10 +2045,16 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     /// \anchor initload
-    node.background_init_thread = std::thread(&util::TraceThread, "initload", [=, &chainman, &args, &node] {
+    node.background_init_thread = std::thread(&util::TraceThread, "initload", [=, &chainman, &args, &kernel_notifications, &node] {
         ScheduleBatchPriority();
         // Import blocks and ActivateBestChain()
         ImportBlocks(chainman, vImportFiles);
+        // An interrupted import may return without activating genesis. Wake
+        // the init thread's genesis wait, which is otherwise only notified
+        // on blockTip, and that never fires when the import was interrupted
+        // before activating genesis. This wakeup lets the wait observe the
+        // shutdown request.
+        WITH_LOCK(kernel_notifications.m_tip_block_mutex, kernel_notifications.m_tip_block_cv.notify_all());
         WITH_LOCK(::cs_main, chainman.UpdateIBDStatus());
         if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
             LogInfo("Stopping after block import");

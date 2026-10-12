@@ -18,12 +18,11 @@ from test_framework.util import (
 # Decorator to reset activewallet to zero utxos
 def cleanup(func):
     def wrapper(self):
-        try:
-            func(self)
-        finally:
-            if 0 < self.wallet.getbalances()["mine"]["trusted"]:
-                self.wallet.sendall([self.remainder_target])
-            assert_equal(0, self.wallet.getbalances()["mine"]["trusted"]) # wallet is empty
+        func(self)
+
+        if 0 < self.wallet.getbalances()["mine"]["trusted"]:
+            self.wallet.sendall([self.remainder_target])
+        assert_equal(0, self.wallet.getbalances()["mine"]["trusted"]) # wallet is empty
     return wrapper
 
 class SendallTest(BitcoinTestFramework):
@@ -59,8 +58,8 @@ class SendallTest(BitcoinTestFramework):
         return self.wallet.getbalances()["mine"]["trusted"]
 
     # Helper schema for success cases
-    def test_sendall_success(self, sendall_args, remaining_balance = 0):
-        sendall_tx_receipt = self.wallet.sendall(sendall_args)
+    def test_sendall_success(self, sendall_args, remaining_balance = 0, *, options=None):
+        sendall_tx_receipt = self.wallet.sendall(sendall_args, options=options)
         self.generate(self.nodes[0], 1)
         # wallet has remaining balance (usually empty)
         assert_equal(remaining_balance, self.wallet.getbalances()["mine"]["trusted"])
@@ -436,7 +435,7 @@ class SendallTest(BitcoinTestFramework):
     def sendall_anti_fee_sniping(self):
         self.log.info("Testing sendall does anti-fee-sniping when locktime is not specified")
         self.add_utxos([10,11])
-        tx_from_wallet = self.test_sendall_success(sendall_args = [self.remainder_target])
+        tx_from_wallet = self.test_sendall_success(sendall_args = [self.remainder_target], options={"replaceable":False})
 
         # the locktime should be within 100 blocks of the
         # block height
