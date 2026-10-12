@@ -1,8 +1,8 @@
 import ctypes
+import typing
 from collections.abc import Callable
 
 import pbk.capi.bindings as k
-from pbk.capi.base import KernelOpaquePtr
 from pbk.capi.userdata import UserData
 
 
@@ -31,12 +31,17 @@ class ByteWriter:
         self.buffer = bytearray()
         self.exception = None
 
-    def write(self, to_bytes_func: Callable, obj: KernelOpaquePtr) -> bytes:
-        """Serialize a kernel object to bytes using the provided C function."""
+    def write(self, to_bytes_func: Callable, *args: typing.Any) -> bytes:
+        """Serialize to bytes with a C function that takes a writer callback.
+
+        `args` are the arguments of `to_bytes_func` before the writer
+        callback and its user data, which are always its last two
+        parameters, e.g. the object and the index of the item to serialize.
+        """
         self.buffer.clear()
         self.exception = None
 
-        ret = to_bytes_func(obj, k.btck_WriteBytes(_py_callback), UserData(self))
+        ret = to_bytes_func(*args, k.btck_WriteBytes(_py_callback), UserData(self))
 
         if ret != 0:
             if self.exception:

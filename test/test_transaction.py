@@ -1,4 +1,5 @@
 import gc
+import hashlib
 import weakref
 
 import pbk
@@ -84,6 +85,12 @@ def test_transaction() -> None:
     # Each input has nSequence == 0xFFFFFFFE (feffffff in the serialized data).
     for tx_input in tx.inputs:
         assert tx_input.sequence == 0xFFFFFFFE
+
+    # The first input's scriptSig is 0x6b (107) bytes, starting at byte 42.
+    assert tx.inputs[0].script_sig == ser_tx[42 : 42 + 0x6B]
+    for tx_input in tx.inputs:
+        assert len(tx_input.witness_stack) == 0
+        assert list(tx_input.witness_stack) == []
 
 
 def test_transaction_input_sequence_per_input() -> None:
@@ -174,3 +181,50 @@ def test_transaction_check() -> None:
     state = pbk.Transaction(bytes.fromhex(raw)).check()
     assert state.validation_mode == pbk.ValidationMode.INVALID
     assert state.tx_validation_result == pbk.TxValidationResult.CONSENSUS
+
+
+def _sha256d(data: bytes) -> bytes:
+    return hashlib.sha256(hashlib.sha256(data).digest()).digest()
+
+
+def test_transaction_witness() -> None:
+    witness_items = [bytes([0x30]) * 71, bytes([0x02]) * 33]
+    witness_hex = "02" + "".join(
+        f"{len(item):02x}" + item.hex() for item in witness_items
+    )
+    # SegWit spends have an empty scriptSig.
+    input_hex = "aa" * 32 + "00000000" + "00" + "ffffffff"
+    output_hex = "00f2052a01000000" + "1600140000000000000000000000000000000000000000"
+    no_witness_hex = "03000000" + "01" + input_hex + "01" + output_hex + "00000000"
+    witness_tx_hex = (
+        "03000000"
+        + "0001"  # SegWit marker and flag
+        + "01"
+        + input_hex
+        + "01"
+        + output_hex
+        + witness_hex
+        + "00000000"
+    )
+    raw = bytes.fromhex(witness_tx_hex)
+    tx = pbk.Transaction(raw)
+
+    assert bytes(tx) == raw
+    # The txid commits to the transaction without its witness.
+    assert bytes(tx.txid) == _sha256d(bytes.fromhex(no_witness_hex))
+
+    tx_input = tx.inputs[0]
+    assert tx_input.script_sig == b""
+
+    witness_stack = tx_input.witness_stack
+    assert witness_stack._owns_ptr is False
+    assert len(witness_stack) == 2
+    assert list(witness_stack) == witness_items
+    assert witness_stack[-1] == witness_items[-1]
+    assert repr(witness_stack) == "<WitnessStack items=2>"
+
+    # A detached witness stack outlives its transaction.
+    witness_stack.detach()
+    del tx, tx_input
+    gc.collect()
+    assert list(witness_stack) == witness_items

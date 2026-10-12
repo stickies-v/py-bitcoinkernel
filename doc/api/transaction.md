@@ -2,6 +2,8 @@
 
 ::: pbk.TransactionOutPoint
 
+::: pbk.WitnessStack
+
 ::: pbk.TransactionInput
 
 ::: pbk.TransactionOutput
