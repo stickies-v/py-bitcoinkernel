@@ -25,14 +25,15 @@ logging.basicConfig(
 logger = pbk.KernelLogViewer()
 ```
 
-To inspect DEBUG logs, set the appropriate `logging.DEBUG`
-[level][pbk.LogLevel] and initialize `KernelLogViewer` with the
-[categories][pbk.LogCategory] you want the log output for (or
-`pbk.LogCategory.ALL` to view all DEBUG log output, which is noisy).
+Each [category][pbk.LogCategory] is forwarded to its own child logger,
+e.g. `bitcoinkernel.VALIDATION`. To inspect DEBUG logs, initialize
+`KernelLogViewer` with a lower [level][pbk.LogLevel], and use the
+python logger levels to select the categories you want the DEBUG log
+output for (all DEBUG log output is noisy).
 
 ```py
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format=FORMAT,
     handlers=[
         logging.FileHandler("my-log.log"),
@@ -40,18 +41,14 @@ logging.basicConfig(
     ],
 )
 
-logger = pbk.KernelLogViewer(categories=[pbk.LogCategory.VALIDATION])
+logger = pbk.KernelLogViewer(level=pbk.LogLevel.DEBUG)
+logger.getLogger(pbk.LogCategory.VALIDATION).setLevel(logging.DEBUG)
 ```
 
-DEBUG categories can also be enabled temporarily with a context manager.
-For example, to inspect validation logs during the initialization of
-a `ChainstateManager`:
-
-```py
-logger = pbk.KernelLogViewer()  # no debug categories are enabled
-with logger.temporary_categories(categories=[pbk.LogCategory.LEVELDB]):
-    chainman = pbk.load_chainman("/tmp/bitcoin/signet", pbk.ChainType.SIGNET)
-```
+> [!NOTE]
+> The kernel's minimum log level is a global setting. Lower levels
+> make the kernel pass more log entries to python, which has a
+> performance cost even if python then discards them.
 
 > [!IMPORTANT]
 > `KernelLogViewer` objects MUST be kept alive for the
@@ -63,7 +60,7 @@ with logger.temporary_categories(categories=[pbk.LogCategory.LEVELDB]):
 
 `KernelLogViewer` is a convenience class around the
 [`LoggingConnection`][pbk.LoggingConnection], which allows any callback
-that takes a single string argument.
+that takes a single [`LogEntry`][pbk.LogEntry] argument.
 
 For example, to implement your own logging with a simple print
 statement:
@@ -73,13 +70,12 @@ statement:
 import pbk
 
 
-def print_no_newline(msg: str) -> None:
-    """`bitcoinkernel` log messages already contain a newline."""
-    print(msg, end="")
+def print_entry(entry: pbk.LogEntry) -> None:
+    print(f"[{entry.category.name}:{entry.level.name}] {entry.message}")
 
 
-logging_set_options(pbk.LoggingOptions(log_timestamps=True))
-log = pbk.LoggingConnection(cb=print_no_newline)
+pbk.logging_set_min_level(pbk.LogLevel.INFO)
+log = pbk.LoggingConnection(cb=print_entry)
 ```
 
 > [!IMPORTANT]

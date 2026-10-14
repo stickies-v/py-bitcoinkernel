@@ -28,13 +28,10 @@ from pbk.exceptions import (
 from pbk.log import (
     KernelLogViewer,
     LogCategory,
+    LogEntry,
     LoggingConnection,
-    LoggingOptions,
     LogLevel,
-    disable_log_category,
-    enable_log_category,
-    logging_set_options,
-    set_log_level_category,
+    logging_set_min_level,
 )
 from pbk.notifications import NotificationInterfaceCallbacks
 from pbk.script import (
@@ -94,9 +91,9 @@ __all__ = [
     "KernelException",
     "KernelLogViewer",
     "LogCategory",
+    "LogEntry",
     "LogLevel",
     "LoggingConnection",
-    "LoggingOptions",
     "NotificationInterfaceCallbacks",
     "PrecomputedTransactionData",
     "ProcessBlockException",
@@ -121,11 +118,8 @@ __all__ = [
     "ValidationMode",
     "WitnessStack",
     "Wtxid",
-    "disable_log_category",
-    "enable_log_category",
     "load_chainman",
-    "logging_set_options",
+    "logging_set_min_level",
     "make_context",
-    "set_log_level_category",
     "set_mock_time",
 ]
