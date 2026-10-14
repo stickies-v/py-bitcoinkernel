@@ -5847,7 +5847,7 @@ util::Result<void> ChainstateManager::PopulateAndValidateSnapshot(
                     return util::Error{Untranslated(strprintf("Bad snapshot data after deserializing %d coins - bad tx out value",
                               coins_count - coins_left))};
                 }
-                coins_cache.EmplaceCoinInternalDANGER(std::move(outpoint), std::move(coin));
+                coins_cache.EmplaceCoinInternalDANGER(outpoint, std::move(coin));
 
                 --coins_left;
                 ++coins_processed;
@@ -5920,7 +5920,7 @@ util::Result<void> ChainstateManager::PopulateAndValidateSnapshot(
 
     // As above, okay to immediately release cs_main here since no other context knows
     // about the snapshot_chainstate.
-    CCoinsViewDB* snapshot_coinsdb = WITH_LOCK(::cs_main, return &snapshot_chainstate.CoinsDB());
+    const CCoinsViewDB& snapshot_coinsdb = WITH_LOCK(::cs_main, return snapshot_chainstate.CoinsDB());
 
     std::optional<CCoinsStats> maybe_stats;
 
@@ -6061,7 +6061,7 @@ SnapshotCompletionResult ChainstateManager::MaybeValidateSnapshot(Chainstate& va
     try {
         validated_cs_stats = ComputeUTXOStats(
             CoinStatsHashType::HASH_SERIALIZED,
-            &validated_coins_db,
+            validated_coins_db,
             m_blockman,
             [&interrupt = m_interrupt] { SnapshotUTXOHashBreakpoint(interrupt); });
     } catch (StopHashingException const&) {
@@ -6268,7 +6268,7 @@ bool ChainstateManager::DeleteChainstate(Chainstate& chainstate)
     }
     std::unique_ptr<Chainstate> prev_chainstate{Assert(RemoveChainstate(chainstate))};
     Chainstate& curr_chainstate{CurrentChainstate()};
-    assert(prev_chainstate->m_mempool->size() == 0);
+    assert(!prev_chainstate->m_mempool || prev_chainstate->m_mempool->size() == 0);
     assert(!curr_chainstate.m_mempool);
     std::swap(curr_chainstate.m_mempool, prev_chainstate->m_mempool);
     return true;
