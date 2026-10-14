@@ -424,6 +424,11 @@ class Transaction(KernelOpaquePtr):
         return Wtxid._from_view(k.btck_transaction_get_wtxid(self), self)
 
     @property
+    def version(self) -> int:
+        """The version of this transaction."""
+        return k.btck_transaction_get_version(self)
+
+    @property
     def locktime(self) -> int:
         """The nLockTime value of this transaction."""
         return k.btck_transaction_get_locktime(self)

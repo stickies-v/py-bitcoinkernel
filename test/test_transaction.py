@@ -86,6 +86,7 @@ def test_transaction() -> None:
     for tx_input in tx.inputs:
         assert tx_input.sequence == 0xFFFFFFFE
 
+    assert tx.version == 1
     assert not tx.has_witness
     # Without witness data, the wtxid commits to the same bytes as the txid.
     assert bytes(tx.wtxid) == bytes(tx.txid)
@@ -216,6 +217,7 @@ def test_transaction_witness() -> None:
     tx = pbk.Transaction(raw)
 
     assert bytes(tx) == raw
+    assert tx.version == 3
     assert tx.has_witness
     # The txid commits to the transaction without its witness, the wtxid with it.
     assert bytes(tx.txid) == _sha256d(bytes.fromhex(no_witness_hex))
