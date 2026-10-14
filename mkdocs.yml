@@ -73,7 +73,6 @@ nav:
     - Chain: api/chain.md
     - Context: api/context.md
     - Exception: api/exception.md
-    - Logging: api/logging.md
     - Script: api/script.md
     - Testing: api/testing.md
     - Transaction: api/transaction.md
