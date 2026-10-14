@@ -257,6 +257,17 @@ class BlockHeader(KernelOpaquePtr):
         return BlockHash._from_view(k.btck_block_header_get_prev_hash(self), self)
 
     @property
+    def merkle_root(self) -> bytes:
+        """The Merkle root.
+
+        Returns:
+            The 32-byte Merkle root.
+        """
+        output = (ctypes.c_ubyte * 32)()
+        k.btck_block_header_get_merkle_root(self, output)
+        return bytes(output)
+
+    @property
     def timestamp(self) -> datetime.datetime:
         """The timestamp."""
         epoch = k.btck_block_header_get_timestamp(self)

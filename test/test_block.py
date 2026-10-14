@@ -135,6 +135,8 @@ def test_block() -> None:
 
     assert len(block.transactions) == 1
     assert block.block_header.block_hash == block.block_hash
+    # The Merkle root of a block with one transaction is the txid of that transaction.
+    assert block.block_header.merkle_root == bytes(block.transactions[0].txid)
 
     # Test __repr__
     assert repr(block) == f"<Block hash={GENESIS_BLOCK_HASH_HEX} txs=1>"
