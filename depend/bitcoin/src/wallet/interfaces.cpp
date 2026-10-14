@@ -9,8 +9,8 @@
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
 #include <node/types.h>
-#include <policy/fees/block_policy_estimator.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
 #include <rpc/server.h>
 #include <scheduler.h>
 #include <support/allocators/secure.h>
@@ -24,13 +24,16 @@
 #include <wallet/export.h>
 #include <wallet/feebumper.h>
 #include <wallet/fees.h>
+#include <wallet/imports.h>
 #include <wallet/load.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
 #include <wallet/spend.h>
+#include <wallet/scan.h>
 #include <wallet/wallet.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -151,7 +154,7 @@ public:
     {
         return m_wallet->ChangeWalletPassphrase(old_wallet_passphrase, new_wallet_passphrase);
     }
-    void abortRescan() override { m_wallet->AbortRescan(); }
+    void abortRescan() override { m_wallet->Scanner().Abort(); }
     bool backupWallet(const std::string& filename) override { return m_wallet->BackupWallet(filename); }
     std::string getWalletName() override { return m_wallet->GetName(); }
     util::Result<CTxDestination> getNewDestination(const OutputType type, const std::string& label) override
@@ -167,6 +170,11 @@ public:
         }
         return false;
     }
+    util::Expected<CExtPubKey, wallet::WalletError> addHDKey(const std::optional<CExtKey>& key) override
+    {
+        return m_wallet->AddHDKey(key);
+    }
+
     SigningResult signMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) override
     {
         return m_wallet->SignMessage(message, pkhash, str_sig);
@@ -373,6 +381,10 @@ public:
     {
         return m_wallet->FillPSBT(psbtx, options, complete, n_signed);
     }
+    std::vector<wallet::ImportResult> importDescriptors(std::vector<wallet::ImportDescriptorRequest>& requests) override
+    {
+        return wallet::ProcessDescriptorsImport(*m_wallet, requests);
+    }
     WalletBalances getBalances() override
     {
         const auto bal = GetBalance(*m_wallet);
@@ -469,14 +481,13 @@ public:
     CAmount getRequiredFee(unsigned int tx_bytes) override { return GetRequiredFee(*m_wallet, tx_bytes); }
     CAmount getMinimumFee(unsigned int tx_bytes,
         const CCoinControl& coin_control,
-        int* returned_target,
+        std::optional<int>* returned_target,
         FeeReason* reason) override
     {
-        FeeCalculation fee_calc;
-        CAmount result;
-        result = GetMinimumFee(*m_wallet, tx_bytes, coin_control, &fee_calc);
-        if (returned_target) *returned_target = fee_calc.returnedTarget;
-        if (reason) *reason = fee_calc.reason;
+        auto min_fee_rate{GetMinimumFeeRate(*m_wallet, coin_control)};
+        auto result = GetMinimumFee(min_fee_rate, tx_bytes);
+        if (returned_target) *returned_target = min_fee_rate.returned_target;
+        if (reason) *reason = min_fee_rate.fee_reason;
         return result;
     }
     unsigned int getConfirmTarget() override { return m_wallet->m_confirm_target; }
@@ -564,7 +575,7 @@ public:
         return StartWallets(m_context);
     }
     void stop() override { return UnloadWallets(m_context); }
-    void setMockTime(int64_t time) override { return SetMockTime(time); }
+    void setMockTime(int64_t time) override { return SetMockTime(std::chrono::seconds{time}); }
     void schedulerMockForward(std::chrono::seconds delta) override { Assert(m_context.scheduler)->MockForward(delta); }
 
     //! WalletLoader methods
