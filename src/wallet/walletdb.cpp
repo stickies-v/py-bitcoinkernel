@@ -96,7 +96,7 @@ bool WalletBatch::ErasePurpose(const std::string& strAddress)
     return EraseIC(std::make_pair(DBKeys::PURPOSE, strAddress));
 }
 
-bool WalletBatch::WriteTx(const CWalletTx& wtx)
+bool WalletBatch::WriteFullTx(const CWalletTx& wtx)
 {
     const Txid txid = wtx.GetHash();
     // Persist all witness variants. Including the canonical one
@@ -116,6 +116,11 @@ bool WalletBatch::EraseTx(Txid hash)
 bool WalletBatch::WriteWtxVariant(const Txid& txid, const CTransactionRef& tx)
 {
     return WriteIC(std::make_pair(DBKeys::WTX_VARIANT, std::make_pair(txid, tx->GetWitnessHash())), TX_WITH_WITNESS(tx));
+}
+
+bool WalletBatch::WriteTxMetadata(const CWalletTx& wtx)
+{
+    return WriteIC(std::make_pair(DBKeys::TX, wtx.GetHash()), wtx);
 }
 
 bool WalletBatch::WriteKeyMetadata(const CKeyMetadata& meta, const CPubKey& pubkey, const bool overwrite)
@@ -627,20 +632,20 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
                     strErr = "Error reading wallet database: keymeta found with unexpected path";
                     return DBErrors::NONCRITICAL_ERROR;
                 }
-                if (path[0] != 0x80000000) {
+                if (path[0] != BIP32_HARDENED_FLAG) {
                     strErr = strprintf("Unexpected path index of 0x%08x (expected 0x80000000) for the element at index 0", path[0]);
                     return DBErrors::NONCRITICAL_ERROR;
                 }
-                if (path[1] != 0x80000000 && path[1] != (1 | 0x80000000)) {
+                if (path[1] != BIP32_HARDENED_FLAG && path[1] != (1 | BIP32_HARDENED_FLAG)) {
                     strErr = strprintf("Unexpected path index of 0x%08x (expected 0x80000000 or 0x80000001) for the element at index 1", path[1]);
                     return DBErrors::NONCRITICAL_ERROR;
                 }
-                if ((path[2] & 0x80000000) == 0) {
+                if ((path[2] & BIP32_HARDENED_FLAG) == 0) {
                     strErr = strprintf("Unexpected path index of 0x%08x (expected to be greater than or equal to 0x80000000)", path[2]);
                     return DBErrors::NONCRITICAL_ERROR;
                 }
-                internal = path[1] == (1 | 0x80000000);
-                index = path[2] & ~0x80000000;
+                internal = path[1] == (1 | BIP32_HARDENED_FLAG);
+                index = path[2] & ~BIP32_HARDENED_FLAG;
             }
 
             // Insert a new CHDChain, or get the one that already exists
@@ -672,7 +677,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
                 }
             }
         } else {
-            pwallet->WalletLogPrintf("Inactive HD Chains found but no Legacy ScriptPubKeyMan\n");
+            pwallet->WalletLogPrintf("Inactive HD chains found but no LegacyDataSPKM\n");
             result = DBErrors::CORRUPT;
         }
     }
@@ -764,9 +769,9 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
 
         uint256 id;
         key >> id;
-        WalletDescriptor desc;
+        std::optional<WalletDescriptor> desc;
         try {
-            value >> desc;
+            desc.emplace(WalletDescriptor::FromStream(deserialize, value));
         } catch (const std::ios_base::failure& e) {
             strErr = strprintf("Error: Unrecognized descriptor found in wallet %s. ", pwallet->GetName());
             strErr += (last_client > CLIENT_VERSION) ? "The wallet might have been created on a newer version. " :
@@ -775,11 +780,6 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
             // Also include error details
             strErr = strprintf("%s\nDetails: %s", strErr, e.what());
             return DBErrors::UNKNOWN_DESCRIPTOR;
-        }
-
-        if (id != desc.id) {
-            strErr = "The descriptor ID calculated by the wallet differs from the one in DB";
-            return DBErrors::CORRUPT;
         }
 
         DescriptorCache cache;
@@ -837,7 +837,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
         result = std::max(result, lh_cache_res.m_result);
 
         // Set the cache to the WalletDescriptor
-        desc.cache = cache;
+        desc->cache = cache;
 
         // Get unencrypted keys
         KeyMap keys;
@@ -906,7 +906,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
         num_ckeys = ckey_res.m_records;
 
         try {
-            pwallet->LoadDescriptorScriptPubKeyMan(id, desc, keys, ckeys);
+            pwallet->LoadDescriptorScriptPubKeyMan(id, *desc, keys, ckeys);
         } catch (std::runtime_error& e) {
             strErr = e.what();
             return DBErrors::CORRUPT;

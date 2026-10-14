@@ -64,6 +64,13 @@ int64_t GetMinimumTime(const CBlockIndex* pindexPrev, const int64_t difficulty_a
     if (height % difficulty_adjustment_interval == 0) {
         min_time = std::max<int64_t>(min_time, pindexPrev->GetBlockTime() - MAX_TIMEWARP);
     }
+    // Account for the BIP54 Murch-Zawy rule on all networks: the last block of
+    // a difficulty adjustment period may not be earlier than its first block.
+    if (height % difficulty_adjustment_interval == difficulty_adjustment_interval - 1) {
+        const int first_height{height - static_cast<int>(difficulty_adjustment_interval) + 1};
+        const CBlockIndex* first_block{Assert(pindexPrev->GetAncestor(first_height))};
+        min_time = std::max<int64_t>(min_time, first_block->GetBlockTime());
+    }
     return min_time;
 }
 
@@ -243,11 +250,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     return std::move(pblocktemplate);
 }
 
-bool BlockAssembler::TestChunkBlockLimits(FeePerWeight chunk_feerate, int64_t chunk_sigops_cost) const
+bool BlockAssembler::TestChunkBlockLimits(int64_t chunk_weight, int64_t chunk_sigops_cost) const
 {
     // block_max_weight has been flattened before block assembly limit checks.
     Assert(m_options.block_max_weight);
-    if (nBlockWeight + chunk_feerate.size >= *m_options.block_max_weight) {
+    if (nBlockWeight + chunk_weight >= m_options.block_max_weight) {
         return false;
     }
     if (nBlockSigOpsCost + chunk_sigops_cost >= MAX_BLOCK_SIGOPS_COST) {
@@ -310,12 +317,14 @@ void BlockAssembler::addChunks()
         }
 
         int64_t chunk_sig_ops = 0;
+        int64_t chunk_weight = 0;
         for (const auto& tx : selected_transactions) {
             chunk_sig_ops += tx.get().GetSigOpCost();
+            chunk_weight += tx.get().GetTxWeight();
         }
 
         // Check to see if this chunk will fit.
-        if (!TestChunkBlockLimits(chunk_feerate, chunk_sig_ops) || !TestChunkTransactions(selected_transactions)) {
+        if (!TestChunkBlockLimits(chunk_weight, chunk_sig_ops) || !TestChunkTransactions(selected_transactions)) {
             // This chunk won't fit, so we skip it and will try the next best one.
             m_mempool->SkipBuilderChunk();
             ++nConsecutiveFailed;

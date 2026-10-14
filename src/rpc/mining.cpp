@@ -6,6 +6,7 @@
 #include <bitcoin-build-config.h> // IWYU pragma: keep
 
 #include <interfaces/mining.h>
+#include <rpc/register.h> // IWYU pragma: associated
 
 #include <addresstype.h>
 #include <arith_uint256.h>
@@ -65,7 +66,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <initializer_list>
 #include <limits>
 #include <map>
 #include <memory>
@@ -454,6 +454,7 @@ static RPCMethod getmininginfo()
                     RPCResult::Type::OBJ, "", "",
                     {
                         {RPCResult::Type::NUM, "blocks", "The current block"},
+                        {RPCResult::Type::STR_HEX, "bestblockhash", "The hash of the current best block"},
                         {RPCResult::Type::NUM, "currentblockweight", /*optional=*/true, "The block weight (including reserved weight for block header, txs count and coinbase tx) of the last assembled block (only present if a block was ever assembled)"},
                         {RPCResult::Type::NUM, "currentblocktx", /*optional=*/true, "The number of block transactions (excluding coinbase) of the last assembled block (only present if a block was ever assembled)"},
                         {RPCResult::Type::STR_HEX, "bits", "The current nBits, compact representation of the block difficulty target"},
@@ -495,6 +496,7 @@ static RPCMethod getmininginfo()
 
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("blocks", active_chain.Height());
+    obj.pushKV("bestblockhash", tip.GetBlockHash().GetHex());
     if (BlockAssembler::m_last_block_weight) obj.pushKV("currentblockweight", *BlockAssembler::m_last_block_weight);
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
     obj.pushKV("bits", strprintf("%08x", tip.nBits));
@@ -606,7 +608,7 @@ static RPCMethod getprioritisedtransactions()
                 if (delta_info.in_mempool) {
                     result_inner.pushKV("modified_fee", *delta_info.modified_fee);
                 }
-                rpc_result.pushKV(delta_info.txid.GetHex(), std::move(result_inner));
+                rpc_result.pushKVEnd(delta_info.txid.GetHex(), std::move(result_inner));
             }
             return rpc_result;
         },
