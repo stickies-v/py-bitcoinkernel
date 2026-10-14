@@ -1128,6 +1128,12 @@ try:
     btck_block_header_destroy.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
 except AttributeError:
     pass
+try:
+    btck_set_mock_time = BITCOINKERNEL_LIB.btck_set_mock_time
+    btck_set_mock_time.restype = ctypes.c_int32
+    btck_set_mock_time.argtypes = [int64_t]
+except AttributeError:
+    pass
 __all__ = \
     ['btck_Block', 'btck_BlockCheckFlags', 'btck_BlockHash',
     'btck_BlockHeader', 'btck_BlockSpentOutputs',
@@ -1221,13 +1227,13 @@ __all__ = \
     'btck_precomputed_transaction_data_destroy',
     'btck_script_pubkey_copy', 'btck_script_pubkey_create',
     'btck_script_pubkey_destroy', 'btck_script_pubkey_to_bytes',
-    'btck_script_pubkey_verify', 'btck_transaction_check',
-    'btck_transaction_copy', 'btck_transaction_count_inputs',
-    'btck_transaction_count_outputs', 'btck_transaction_create',
-    'btck_transaction_destroy', 'btck_transaction_get_input_at',
-    'btck_transaction_get_locktime', 'btck_transaction_get_output_at',
-    'btck_transaction_get_txid', 'btck_transaction_input_copy',
-    'btck_transaction_input_destroy',
+    'btck_script_pubkey_verify', 'btck_set_mock_time',
+    'btck_transaction_check', 'btck_transaction_copy',
+    'btck_transaction_count_inputs', 'btck_transaction_count_outputs',
+    'btck_transaction_create', 'btck_transaction_destroy',
+    'btck_transaction_get_input_at', 'btck_transaction_get_locktime',
+    'btck_transaction_get_output_at', 'btck_transaction_get_txid',
+    'btck_transaction_input_copy', 'btck_transaction_input_destroy',
     'btck_transaction_input_get_out_point',
     'btck_transaction_input_get_script_sig',
     'btck_transaction_input_get_sequence',

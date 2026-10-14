@@ -44,6 +44,7 @@ from pbk.script import (
     ScriptVerifyException,
     ScriptVerifyStatus,
 )
+from pbk.testing import set_mock_time
 from pbk.transaction import (
     Coin,
     CoinSequence,
@@ -124,4 +125,5 @@ __all__ = [
     "logging_set_options",
     "make_context",
     "set_log_level_category",
+    "set_mock_time",
 ]

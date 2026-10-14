@@ -153,6 +153,7 @@ BASE_SCRIPTS = [
     # vv Tests less than 30s vv
     'wallet_deprecated_rbf.py',
     'p2p_invalid_messages.py',
+    'rpc_echo_payload.py',
     'rpc_createmultisig.py',
     'p2p_timeouts.py --v1transport',
     'p2p_timeouts.py --v2transport',
@@ -399,6 +400,7 @@ BASE_SCRIPTS = [
     'p2p_ibd_txrelay.py',
     'p2p_seednode.py',
     'rpc_openrpc.py',
+    'wallet_ancient_migration.py',
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time
 ]
