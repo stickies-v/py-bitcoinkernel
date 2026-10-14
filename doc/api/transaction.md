@@ -1,5 +1,7 @@
 ::: pbk.Txid
 
+::: pbk.Wtxid
+
 ::: pbk.TransactionOutPoint
 
 ::: pbk.WitnessStack

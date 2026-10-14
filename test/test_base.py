@@ -17,6 +17,7 @@ def test_non_instantiable_classes_raise_type_error() -> None:
         (pbk.Chain, "Chain"),
         (pbk.Coin, "Coin"),
         (pbk.Txid, "Txid"),
+        (pbk.Wtxid, "Wtxid"),
         (pbk.WitnessStack, "WitnessStack"),
         (pbk.TransactionOutPoint, "TransactionOutPoint"),
         (pbk.TransactionInput, "TransactionInput"),

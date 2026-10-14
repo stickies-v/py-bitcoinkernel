@@ -65,6 +65,63 @@ class Txid(KernelOpaquePtr):
         return f"Txid({bytes(self)!r})"
 
 
+class Wtxid(KernelOpaquePtr):
+    """Type-safe identifier for a transaction that commits to witness data.
+
+    Note:
+        Wtxid instances cannot be directly constructed. They are obtained from
+        Transaction objects.
+    """
+
+    _destroy_fn = k.btck_wtxid_destroy
+    _copy_fn = k.btck_wtxid_copy
+
+    def __bytes__(self) -> bytes:
+        """Serialize the wtxid to bytes.
+
+        Returns:
+            The 32-byte wtxid in little-endian byte order.
+        """
+        hash_array = (ctypes.c_ubyte * 32)()
+        k.btck_wtxid_to_bytes(self, hash_array)
+        return bytes(hash_array)
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality with another wtxid.
+
+        Args:
+            other: Object to compare with.
+
+        Returns:
+            True if both are Wtxid instances with equal values.
+        """
+        if not isinstance(other, Wtxid):
+            return False
+        return bool(k.btck_wtxid_equals(self, other))
+
+    def __hash__(self) -> int:
+        """Get hash value for use in sets and dictionaries.
+
+        Returns:
+            Hash of the wtxid bytes.
+        """
+        return hash(bytes(self))
+
+    def __str__(self) -> str:
+        """Get the hexadecimal representation of the wtxid.
+
+        Returns:
+            The wtxid as a 64-character hex string in big-endian
+            byte order (standard Bitcoin display format).
+        """
+        # bytes are serialized in little-endian byte order, typically displayed in big-endian byte order
+        return bytes(self)[::-1].hex()
+
+    def __repr__(self) -> str:
+        """Return a string representation of the wtxid."""
+        return f"Wtxid({bytes(self)!r})"
+
+
 class TransactionOutPoint(KernelOpaquePtr):
     """Reference to a specific output of a transaction.
 
@@ -351,6 +408,20 @@ class Transaction(KernelOpaquePtr):
             The txid of this transaction. View into this transaction.
         """
         return Txid._from_view(k.btck_transaction_get_txid(self), self)
+
+    @property
+    def has_witness(self) -> bool:
+        """Whether this transaction has witness data."""
+        return bool(k.btck_transaction_has_witness(self))
+
+    @property
+    def wtxid(self) -> Wtxid:
+        """The wtxid of this transaction.
+
+        Returns:
+            The wtxid. View into this transaction.
+        """
+        return Wtxid._from_view(k.btck_transaction_get_wtxid(self), self)
 
     @property
     def locktime(self) -> int:

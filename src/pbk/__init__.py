@@ -57,6 +57,7 @@ from pbk.transaction import (
     TransactionSpentOutputs,
     Txid,
     WitnessStack,
+    Wtxid,
 )
 from pbk.validation import (
     BlockValidationResult,
@@ -119,6 +120,7 @@ __all__ = [
     "ValidationInterfaceCallbacks",
     "ValidationMode",
     "WitnessStack",
+    "Wtxid",
     "disable_log_category",
     "enable_log_category",
     "load_chainman",
