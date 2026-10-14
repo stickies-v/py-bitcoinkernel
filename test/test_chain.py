@@ -57,6 +57,13 @@ def test_chainstate_manager_options(temp_dir: Path) -> None:
         chain_man_opts.set_worker_threads_num(num_threads)
         pbk.ChainstateManager(chain_man_opts)
 
+    for cache_bytes in [4 << 20, 450 << 20]:
+        chain_man_opts.set_database_cache_bytes(cache_bytes)
+        pbk.ChainstateManager(chain_man_opts)
+    for cache_bytes in [0, (4 << 20) - 1]:
+        with pytest.raises(ValueError, match="Invalid database cache size"):
+            chain_man_opts.set_database_cache_bytes(cache_bytes)
+
     chain_man_opts.update_block_tree_db_in_memory(True)
     chain_man_opts.update_chainstate_db_in_memory(True)
     pbk.ChainstateManager(chain_man_opts)

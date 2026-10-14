@@ -253,8 +253,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_basic)
     BOOST_CHECK(!addr.SetSpecial("udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v\0wtf.b32.i2p"s));
 
     // I2P, valid but unsupported (56 Base32 characters)
-    // See "Encrypted LS with Base 32 Addresses" in
-    // https://geti2p.net/spec/encryptedleaseset.txt
+    // See https://i2p.net/en/docs/specs/b32encrypted
     BOOST_CHECK(
         !addr.SetSpecial("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscsad.b32.i2p"));
 
@@ -1624,6 +1623,49 @@ BOOST_AUTO_TEST_CASE(private_broadcast_version_does_not_update_addrman_services)
 
     BOOST_CHECK_EQUAL(m_node.addrman->Select().first.nServices, NODE_NONE);
     m_node.peerman->FinalizeNode(node);
+}
+
+BOOST_AUTO_TEST_CASE(addlocal_onlynet_externalip)
+{
+    // Test that `-externalip` addresses bypass `-onlynet`, but score alone does
+    // not.
+
+    CAddress addr_onion;
+    BOOST_REQUIRE(addr_onion.SetSpecial("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"));
+    BOOST_REQUIRE(addr_onion.IsValid());
+    BOOST_REQUIRE(addr_onion.IsTor());
+
+    const auto reachable_nets_at_start{g_reachable_nets.All()};
+    const bool discover_orig{fDiscover};
+
+    // Simulate using -onlynet=ipv4 -externalip=<onion>
+    g_reachable_nets.RemoveAll();
+    g_reachable_nets.Add(NET_IPV4);
+    fDiscover = false;
+
+    // Now AddLocal with a non-manual score should fail for an unreachable network.
+    BOOST_CHECK(!AddLocal(addr_onion, LOCAL_BIND));
+    BOOST_CHECK(!IsLocal(addr_onion));
+
+    BOOST_CHECK(!AddLocal(addr_onion, LOCAL_MANUAL));
+    BOOST_CHECK(!IsLocal(addr_onion));
+
+    // Whereas AddLocal for -externalip should succeed.
+    BOOST_CHECK(AddLocal(addr_onion, LOCAL_MANUAL, /*add_even_if_unreachable=*/true));
+    BOOST_CHECK(IsLocal(addr_onion));
+
+    // Normal AddLocal on a reachable network still works.
+    const CNetAddr addr_ipv4{LookupHost("1.2.3.4", false).value()};
+    BOOST_CHECK(AddLocal(addr_ipv4, LOCAL_MANUAL));
+    BOOST_CHECK(IsLocal(CService{addr_ipv4, GetListenPort()}));
+
+    RemoveLocal(CService{addr_ipv4, GetListenPort()});
+    RemoveLocal(addr_onion);
+    g_reachable_nets.RemoveAll();
+    for (const auto& net : reachable_nets_at_start) {
+        g_reachable_nets.Add(net);
+    }
+    fDiscover = discover_orig;
 }
 
 BOOST_AUTO_TEST_SUITE_END()

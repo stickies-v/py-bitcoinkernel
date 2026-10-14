@@ -87,6 +87,26 @@ class ChainstateManagerOptions(KernelOpaquePtr):
         """
         k.btck_chainstate_manager_options_set_worker_threads_num(self, worker_threads)
 
+    def set_database_cache_bytes(self, database_cache_bytes: int) -> None:
+        """Set the total database cache used by the chainstate manager.
+
+        The total cache is split internally between the block tree database,
+        chainstate database, and in-memory coins cache. If this method is not
+        called, the total cache defaults to 450 MiB.
+
+        Args:
+            database_cache_bytes: The total database cache size in bytes.
+                Values below 4 MiB are rejected. On 32-bit systems, values
+                above 1 GiB are also rejected.
+
+        Raises:
+            ValueError: If the value is rejected.
+        """
+        if k.btck_chainstate_manager_options_set_database_cache_bytes(
+            self, database_cache_bytes
+        ):
+            raise ValueError(f"Invalid database cache size: {database_cache_bytes}")
+
     def update_block_tree_db_in_memory(self, block_tree_db_in_memory: bool) -> None:
         """Configure whether to use an in-memory block tree database.
 

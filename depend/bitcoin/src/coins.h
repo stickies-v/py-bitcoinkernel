@@ -9,6 +9,7 @@
 #include <attributes.h>
 #include <compressor.h>
 #include <core_memusage.h>
+#include <crypto/siphash.h>
 #include <memusage.h>
 #include <primitives/transaction.h>
 #include <primitives/transaction_identifier.h>
@@ -18,7 +19,6 @@
 #include <util/check.h>
 #include <util/log.h>
 #include <util/overflow.h>
-#include <util/hasher.h>
 
 #include <cassert>
 #include <cstdint>
@@ -220,6 +220,43 @@ public:
 };
 
 /**
+ * SipHash-1-3-UJ based hasher for the coins cache and related coins containers.
+ *
+ * Retained entries identify real transaction outputs, so their keys contain computed txids.
+ * Missing-input lookups may contain arbitrary claimed prevouts, but FetchCoin() immediately
+ * erases their temporary entries when the backend lookup fails, so non-hash keys cannot
+ * accumulate.
+ *
+ * The assumeutxo loader assumes snapshot txids are valid while loading and verifies the
+ * complete snapshot's content hash before activation.
+ *
+ * Hash values are process-local and must not be persisted, serialized, or compared across
+ * processes.
+ *
+ * Having the hash noexcept lets libstdc++ recalculate it during rehash instead of storing it in
+ * each node.
+ */
+class SaltedCoinsCacheHasher
+{
+    const SipHasher13UJ m_hasher;
+
+public:
+    SaltedCoinsCacheHasher(bool deterministic = false);
+
+    /** Hash a transaction ID, itself a cryptographic hash, as one jumbo block. */
+    size_t operator()(const Txid& id) const noexcept
+    {
+        return m_hasher.Hash(id.ToUint256());
+    }
+
+    /** Hash an outpoint as its txid jumbo block followed by the zero-extended index as one normal block. */
+    size_t operator()(const COutPoint& id) const noexcept
+    {
+        return m_hasher.Hash(id.hash.ToUint256(), uint64_t{id.n});
+    }
+};
+
+/**
  * PoolAllocator's MAX_BLOCK_SIZE_BYTES parameter here uses sizeof the data, and adds the size
  * of 4 pointers. We do not know the exact node size used in the std::unordered_node implementation
  * because it is implementation defined. Most implementations have an overhead of 1 or 2 pointers,
@@ -229,7 +266,7 @@ public:
  */
 using CCoinsMap = std::unordered_map<COutPoint,
                                      CCoinsCacheEntry,
-                                     SaltedOutpointHasher,
+                                     SaltedCoinsCacheHasher,
                                      std::equal_to<COutPoint>,
                                      PoolAllocator<CoinsCachePair,
                                                    sizeof(CoinsCachePair) + sizeof(void*) * 4>>;
@@ -346,9 +383,6 @@ public:
     //! The passed cursor is used to iterate through the coins.
     virtual void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash) = 0;
 
-    //! Get a cursor to iterate over the whole state. Implementations may return nullptr.
-    virtual std::unique_ptr<CCoinsViewCursor> Cursor() const = 0;
-
     //! Estimate database size
     virtual size_t EstimateSize() const = 0;
 };
@@ -374,7 +408,6 @@ public:
     {
         for (auto it{cursor.Begin()}; it != cursor.End(); it = cursor.NextAndMaybeErase(*it)) { }
     }
-    std::unique_ptr<CCoinsViewCursor> Cursor() const override { return {}; }
     size_t EstimateSize() const override { return 0; }
 };
 
@@ -395,7 +428,6 @@ public:
     uint256 GetBestBlock() const override { return base->GetBestBlock(); }
     std::vector<uint256> GetHeadBlocks() const override { return base->GetHeadBlocks(); }
     void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash) override { base->BatchWrite(cursor, block_hash); }
-    std::unique_ptr<CCoinsViewCursor> Cursor() const override { return base->Cursor(); }
     size_t EstimateSize() const override { return base->EstimateSize(); }
 };
 
@@ -446,9 +478,6 @@ public:
     uint256 GetBestBlock() const override;
     void SetBestBlock(const uint256& block_hash);
     void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash) override;
-    std::unique_ptr<CCoinsViewCursor> Cursor() const override {
-        throw std::logic_error("CCoinsViewCache cursor iteration not supported.");
-    }
 
     /**
      * Check if we have the given utxo already loaded in this cache.
@@ -482,7 +511,7 @@ public:
      * NOT FOR GENERAL USE. Used only when loading coins from a UTXO snapshot.
      * @sa ChainstateManager::PopulateAndValidateSnapshot()
      */
-    void EmplaceCoinInternalDANGER(COutPoint&& outpoint, Coin&& coin);
+    void EmplaceCoinInternalDANGER(const COutPoint& outpoint, Coin&& coin);
 
     /**
      * Spend a coin. Pass moveto in order to get the deleted data.
