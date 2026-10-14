@@ -658,6 +658,13 @@ try:
     btck_chainstate_manager_options_set_worker_threads_num.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions), ctypes.c_int32]
 except AttributeError:
     pass
+uint64_t = ctypes.c_uint64
+try:
+    btck_chainstate_manager_options_set_database_cache_bytes = BITCOINKERNEL_LIB.btck_chainstate_manager_options_set_database_cache_bytes
+    btck_chainstate_manager_options_set_database_cache_bytes.restype = ctypes.c_int32
+    btck_chainstate_manager_options_set_database_cache_bytes.argtypes = [ctypes.POINTER(struct_btck_ChainstateManagerOptions), uint64_t]
+except AttributeError:
+    pass
 try:
     btck_chainstate_manager_options_set_wipe_dbs = BITCOINKERNEL_LIB.btck_chainstate_manager_options_set_wipe_dbs
     btck_chainstate_manager_options_set_wipe_dbs.restype = ctypes.c_int32
@@ -1189,6 +1196,7 @@ __all__ = \
     'btck_chainstate_manager_import_blocks',
     'btck_chainstate_manager_options_create',
     'btck_chainstate_manager_options_destroy',
+    'btck_chainstate_manager_options_set_database_cache_bytes',
     'btck_chainstate_manager_options_set_wipe_dbs',
     'btck_chainstate_manager_options_set_worker_threads_num',
     'btck_chainstate_manager_options_update_block_tree_db_in_memory',
@@ -1260,4 +1268,4 @@ __all__ = \
     'struct_btck_TransactionSpentOutputs',
     'struct_btck_TxValidationState', 'struct_btck_Txid',
     'struct_btck_ValidationInterfaceCallbacks',
-    'struct_btck_WitnessStack', 'uint32_t']
+    'struct_btck_WitnessStack', 'uint32_t', 'uint64_t']
