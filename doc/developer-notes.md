@@ -68,7 +68,7 @@ modules in lower layers. From top to bottom:
 4. `block`
 5. `transaction`
 6. `script`
-7. `validation`, `chainparams`, `log`, `exceptions`
+7. `validation`, `chainparams`, `log`, `exceptions`, `testing`
 8. `capi`: the C bindings and the helpers that turn the C API into
    Python objects, without domain knowledge
 
