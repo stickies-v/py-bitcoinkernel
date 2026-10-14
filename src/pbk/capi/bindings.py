@@ -240,6 +240,10 @@ class struct_btck_Txid(Structure):
     pass
 
 btck_Txid = struct_btck_Txid
+class struct_btck_Wtxid(Structure):
+    pass
+
+btck_Wtxid = struct_btck_Wtxid
 class struct_btck_BlockHeader(Structure):
     pass
 
@@ -381,6 +385,12 @@ except AttributeError:
     pass
 uint32_t = ctypes.c_uint32
 try:
+    btck_transaction_get_version = BITCOINKERNEL_LIB.btck_transaction_get_version
+    btck_transaction_get_version.restype = uint32_t
+    btck_transaction_get_version.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
+except AttributeError:
+    pass
+try:
     btck_transaction_get_locktime = BITCOINKERNEL_LIB.btck_transaction_get_locktime
     btck_transaction_get_locktime.restype = uint32_t
     btck_transaction_get_locktime.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
@@ -390,6 +400,18 @@ try:
     btck_transaction_get_txid = BITCOINKERNEL_LIB.btck_transaction_get_txid
     btck_transaction_get_txid.restype = ctypes.POINTER(struct_btck_Txid)
     btck_transaction_get_txid.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
+except AttributeError:
+    pass
+try:
+    btck_transaction_has_witness = BITCOINKERNEL_LIB.btck_transaction_has_witness
+    btck_transaction_has_witness.restype = ctypes.c_int32
+    btck_transaction_has_witness.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
+except AttributeError:
+    pass
+try:
+    btck_transaction_get_wtxid = BITCOINKERNEL_LIB.btck_transaction_get_wtxid
+    btck_transaction_get_wtxid.restype = ctypes.POINTER(struct_btck_Wtxid)
+    btck_transaction_get_wtxid.argtypes = [ctypes.POINTER(struct_btck_Transaction)]
 except AttributeError:
     pass
 try:
@@ -1009,6 +1031,30 @@ try:
 except AttributeError:
     pass
 try:
+    btck_wtxid_copy = BITCOINKERNEL_LIB.btck_wtxid_copy
+    btck_wtxid_copy.restype = ctypes.POINTER(struct_btck_Wtxid)
+    btck_wtxid_copy.argtypes = [ctypes.POINTER(struct_btck_Wtxid)]
+except AttributeError:
+    pass
+try:
+    btck_wtxid_equals = BITCOINKERNEL_LIB.btck_wtxid_equals
+    btck_wtxid_equals.restype = ctypes.c_int32
+    btck_wtxid_equals.argtypes = [ctypes.POINTER(struct_btck_Wtxid), ctypes.POINTER(struct_btck_Wtxid)]
+except AttributeError:
+    pass
+try:
+    btck_wtxid_to_bytes = BITCOINKERNEL_LIB.btck_wtxid_to_bytes
+    btck_wtxid_to_bytes.restype = None
+    btck_wtxid_to_bytes.argtypes = [ctypes.POINTER(struct_btck_Wtxid), ctypes.c_ubyte * 32]
+except AttributeError:
+    pass
+try:
+    btck_wtxid_destroy = BITCOINKERNEL_LIB.btck_wtxid_destroy
+    btck_wtxid_destroy.restype = None
+    btck_wtxid_destroy.argtypes = [ctypes.POINTER(struct_btck_Wtxid)]
+except AttributeError:
+    pass
+try:
     btck_coin_copy = BITCOINKERNEL_LIB.btck_coin_copy
     btck_coin_copy.restype = ctypes.POINTER(struct_btck_Coin)
     btck_coin_copy.argtypes = [ctypes.POINTER(struct_btck_Coin)]
@@ -1093,6 +1139,12 @@ try:
 except AttributeError:
     pass
 try:
+    btck_block_header_get_merkle_root = BITCOINKERNEL_LIB.btck_block_header_get_merkle_root
+    btck_block_header_get_merkle_root.restype = None
+    btck_block_header_get_merkle_root.argtypes = [ctypes.POINTER(struct_btck_BlockHeader), ctypes.c_ubyte * 32]
+except AttributeError:
+    pass
+try:
     btck_block_header_get_timestamp = BITCOINKERNEL_LIB.btck_block_header_get_timestamp
     btck_block_header_get_timestamp.restype = uint32_t
     btck_block_header_get_timestamp.argtypes = [ctypes.POINTER(struct_btck_BlockHeader)]
@@ -1160,7 +1212,7 @@ __all__ = \
     'btck_ValidationInterfaceCallbacks',
     'btck_ValidationInterfacePoWValidBlock', 'btck_ValidationMode',
     'btck_Warning', 'btck_WitnessStack', 'btck_WriteBytes',
-    'btck_block_check', 'btck_block_copy',
+    'btck_Wtxid', 'btck_block_check', 'btck_block_copy',
     'btck_block_count_transactions', 'btck_block_create',
     'btck_block_destroy', 'btck_block_get_hash',
     'btck_block_get_header', 'btck_block_get_transaction_at',
@@ -1169,6 +1221,7 @@ __all__ = \
     'btck_block_hash_to_bytes', 'btck_block_header_copy',
     'btck_block_header_create', 'btck_block_header_destroy',
     'btck_block_header_get_bits', 'btck_block_header_get_hash',
+    'btck_block_header_get_merkle_root',
     'btck_block_header_get_nonce', 'btck_block_header_get_prev_hash',
     'btck_block_header_get_timestamp',
     'btck_block_header_get_version', 'btck_block_header_to_bytes',
@@ -1233,7 +1286,9 @@ __all__ = \
     'btck_transaction_create', 'btck_transaction_destroy',
     'btck_transaction_get_input_at', 'btck_transaction_get_locktime',
     'btck_transaction_get_output_at', 'btck_transaction_get_txid',
-    'btck_transaction_input_copy', 'btck_transaction_input_destroy',
+    'btck_transaction_get_version', 'btck_transaction_get_wtxid',
+    'btck_transaction_has_witness', 'btck_transaction_input_copy',
+    'btck_transaction_input_destroy',
     'btck_transaction_input_get_out_point',
     'btck_transaction_input_get_script_sig',
     'btck_transaction_input_get_sequence',
@@ -1257,11 +1312,13 @@ __all__ = \
     'btck_txid_destroy', 'btck_txid_equals', 'btck_txid_to_bytes',
     'btck_witness_stack_copy', 'btck_witness_stack_count_items',
     'btck_witness_stack_destroy', 'btck_witness_stack_get_item_at',
-    'int32_t', 'int64_t', 'size_t', 'struct_btck_Block',
-    'struct_btck_BlockHash', 'struct_btck_BlockHeader',
-    'struct_btck_BlockSpentOutputs', 'struct_btck_BlockTreeEntry',
-    'struct_btck_BlockValidationState', 'struct_btck_Chain',
-    'struct_btck_ChainParameters', 'struct_btck_ChainstateManager',
+    'btck_wtxid_copy', 'btck_wtxid_destroy', 'btck_wtxid_equals',
+    'btck_wtxid_to_bytes', 'int32_t', 'int64_t', 'size_t',
+    'struct_btck_Block', 'struct_btck_BlockHash',
+    'struct_btck_BlockHeader', 'struct_btck_BlockSpentOutputs',
+    'struct_btck_BlockTreeEntry', 'struct_btck_BlockValidationState',
+    'struct_btck_Chain', 'struct_btck_ChainParameters',
+    'struct_btck_ChainstateManager',
     'struct_btck_ChainstateManagerOptions', 'struct_btck_Coin',
     'struct_btck_ConsensusParams', 'struct_btck_Context',
     'struct_btck_ContextOptions', 'struct_btck_LoggingConnection',
@@ -1274,4 +1331,5 @@ __all__ = \
     'struct_btck_TransactionSpentOutputs',
     'struct_btck_TxValidationState', 'struct_btck_Txid',
     'struct_btck_ValidationInterfaceCallbacks',
-    'struct_btck_WitnessStack', 'uint32_t', 'uint64_t']
+    'struct_btck_WitnessStack', 'struct_btck_Wtxid', 'uint32_t',
+    'uint64_t']

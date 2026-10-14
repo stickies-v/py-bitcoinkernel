@@ -86,6 +86,13 @@ def test_transaction() -> None:
     for tx_input in tx.inputs:
         assert tx_input.sequence == 0xFFFFFFFE
 
+    assert tx.version == 1
+    assert not tx.has_witness
+    # Without witness data, the wtxid commits to the same bytes as the txid.
+    assert bytes(tx.wtxid) == bytes(tx.txid)
+    assert tx.wtxid == tx.wtxid
+    assert tx.wtxid != tx.txid  # a Wtxid never equals a Txid
+
     # The first input's scriptSig is 0x6b (107) bytes, starting at byte 42.
     assert tx.inputs[0].script_sig == ser_tx[42 : 42 + 0x6B]
     for tx_input in tx.inputs:
@@ -210,8 +217,14 @@ def test_transaction_witness() -> None:
     tx = pbk.Transaction(raw)
 
     assert bytes(tx) == raw
-    # The txid commits to the transaction without its witness.
+    assert tx.version == 3
+    assert tx.has_witness
+    # The txid commits to the transaction without its witness, the wtxid with it.
     assert bytes(tx.txid) == _sha256d(bytes.fromhex(no_witness_hex))
+    assert bytes(tx.wtxid) == _sha256d(raw)
+    assert str(tx.wtxid) == _sha256d(raw)[::-1].hex()
+    assert repr(tx.wtxid) == f"Wtxid({_sha256d(raw)!r})"
+    assert hash(tx.wtxid) == hash(_sha256d(raw))
 
     tx_input = tx.inputs[0]
     assert tx_input.script_sig == b""
@@ -223,8 +236,10 @@ def test_transaction_witness() -> None:
     assert witness_stack[-1] == witness_items[-1]
     assert repr(witness_stack) == "<WitnessStack items=2>"
 
-    # A detached witness stack outlives its transaction.
+    # A detached witness stack and wtxid outlive their transaction.
     witness_stack.detach()
+    wtxid = tx.wtxid.detach()
     del tx, tx_input
     gc.collect()
     assert list(witness_stack) == witness_items
+    assert bytes(wtxid) == _sha256d(raw)
