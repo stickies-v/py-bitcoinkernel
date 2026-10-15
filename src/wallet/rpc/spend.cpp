@@ -26,6 +26,7 @@
 
 using common::FeeModeFromString;
 using common::FeeModesDetail;
+using common::FeeReasons;
 using common::InvalidEstimateModeErrorMessage;
 using common::StringForFeeReason;
 using common::TransactionErrorString;
@@ -272,7 +273,7 @@ RPCMethod sendtoaddress()
                         RPCResult::Type::OBJ, "", "",
                         {
                             {RPCResult::Type::STR_HEX, "txid", "The transaction id."},
-                            {RPCResult::Type::STR, "fee_reason", "The reason the wallet selected this fee rate (e.g. fee rate estimator, mempool minimum, fallback, or minimum required)."}
+                            {RPCResult::Type::STR, "fee_reason", "The reason the wallet selected this fee rate (\"" + FeeReasons("\", \"") + "\")."}
                         },
                     },
                 },
@@ -382,7 +383,7 @@ RPCMethod sendmany()
                         {
                             {RPCResult::Type::STR_HEX, "txid", "The transaction id for the send. Only 1 transaction is created regardless of\n"
                 "the number of addresses."},
-                            {RPCResult::Type::STR, "fee_reason", "The reason the wallet selected this fee rate (e.g. fee rate estimator, mempool minimum, fallback, or minimum required)."}
+                            {RPCResult::Type::STR, "fee_reason", "The reason the wallet selected this fee rate (\"" + FeeReasons("\", \"") + "\")."}
                         },
                     },
                 },
@@ -1387,7 +1388,7 @@ RPCMethod sendall()
             PreventOutdatedOptions(options);
 
 
-            std::set<std::string> addresses_without_amount;
+            std::set<CTxDestination> addresses_without_amount;
             UniValue recipient_key_value_pairs(UniValue::VARR);
             const UniValue& recipients{request.params[0]};
             for (unsigned int i = 0; i < recipients.size(); ++i) {
@@ -1396,7 +1397,9 @@ RPCMethod sendall()
                     UniValue rkvp(UniValue::VOBJ);
                     rkvp.pushKV(recipient.get_str(), 0);
                     recipient_key_value_pairs.push_back(std::move(rkvp));
-                    addresses_without_amount.insert(recipient.get_str());
+                    // Store the decoded destination, so it matches the outputs below
+                    // also when the address was given in another case (e.g. uppercase bech32)
+                    addresses_without_amount.insert(DecodeDestination(recipient.get_str()));
                 } else {
                     recipient_key_value_pairs.push_back(recipient);
                 }
@@ -1517,10 +1520,14 @@ RPCMethod sendall()
             }
             const CAmount fee_from_size{fee_rate.GetFee(tx_size.vsize)};
             const std::optional<CAmount> total_bump_fees{pwallet->chain().calculateCombinedBumpFee(outpoints_spent, fee_rate)};
-            CAmount effective_value = total_input_value - fee_from_size - total_bump_fees.value_or(0);
+            const CAmount actual_fee{fee_from_size + total_bump_fees.value_or(0)};
+            CAmount effective_value = total_input_value - actual_fee;
 
-            if (fee_from_size > pwallet->m_default_max_tx_fee) {
+            if (actual_fee > pwallet->m_max_tx_fee) {
                 throw JSONRPCError(RPC_WALLET_ERROR, TransactionErrorString(TransactionError::MAX_FEE_EXCEEDED).original);
+            }
+            if (actual_fee > pwallet->m_max_tx_fee_rate.GetFee(tx_size.vsize)) {
+                throw JSONRPCError(RPC_WALLET_ERROR, TransactionErrorString(TransactionError::MAX_FEE_RATE_EXCEEDED).original);
             }
 
             if (effective_value <= 0) {
@@ -1556,8 +1563,7 @@ RPCMethod sendall()
             for (CTxOut& out : rawTx.vout) {
                 CTxDestination dest;
                 ExtractDestination(out.scriptPubKey, dest);
-                std::string addr{EncodeDestination(dest)};
-                if (addresses_without_amount.contains(addr)) {
+                if (addresses_without_amount.contains(dest)) {
                     out.nValue = per_output_without_amount;
                     if (!gave_remaining_to_first) {
                         out.nValue += remainder % addresses_without_amount.size();
@@ -1570,7 +1576,7 @@ RPCMethod sendall()
                 } else {
                     if (IsDust(out, pwallet->chain().relayDustFee())) {
                         // Specified output amount is dust
-                        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Specified output amount to %s is below dust threshold.", addr));
+                        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Specified output amount to %s is below dust threshold.", EncodeDestination(dest)));
                     }
                 }
             }

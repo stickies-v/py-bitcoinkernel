@@ -30,6 +30,7 @@
 #include <sync.h>
 #include <uint256.h>
 #include <util/check.h>
+#include <util/not_null.h>
 #include <util/sock.h>
 #include <util/threadinterrupt.h>
 
@@ -684,7 +685,7 @@ class CNode
 public:
     /** Transport serializer/deserializer. The receive side functions are only called under cs_vRecv, while
      * the sending side functions are only called under cs_vSend. */
-    const std::unique_ptr<Transport> m_transport;
+    const util::NotNullUniquePtr<Transport> m_transport;
 
     const NetPermissionFlags m_permission_flags;
 
@@ -1167,11 +1168,11 @@ public:
 
     ~CConnman();
 
-    bool Start(CScheduler& scheduler, const Options& options) EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !m_added_nodes_mutex, !m_addr_fetches_mutex, !mutexMsgProc);
+    bool Start(CScheduler& scheduler, const Options& options) EXCLUSIVE_LOCKS_REQUIRED(!m_total_bytes_sent_mutex, !m_added_nodes_mutex, !m_addr_fetches_mutex, !mutexMsgProc, !m_anchors_mutex);
 
     void StopThreads();
-    void StopNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_reconnections_mutex);
-    void Stop() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_reconnections_mutex)
+    void StopNodes() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_reconnections_mutex, !m_anchors_mutex);
+    void Stop() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_reconnections_mutex, !m_anchors_mutex)
     {
         AssertLockNotHeld(m_nodes_mutex);
         AssertLockNotHeld(m_reconnections_mutex);
@@ -1182,7 +1183,7 @@ public:
     void Interrupt() EXCLUSIVE_LOCKS_REQUIRED(!mutexMsgProc);
     bool GetNetworkActive() const { return fNetworkActive; };
     bool GetUseAddrmanOutgoing() const { return m_use_addrman_outgoing; };
-    void SetNetworkActive(bool active);
+    void SetNetworkActive(bool active) EXCLUSIVE_LOCKS_REQUIRED(!m_anchors_mutex, !m_nodes_mutex);
 
     /**
      * Open a new P2P connection and initialize it with the PeerManager at `m_msgproc`.
@@ -1385,7 +1386,7 @@ public:
     uint32_t GetMappedAS(const CNetAddr& addr) const;
     void GetNodeStats(std::vector<CNodeStats>& vstats) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     bool DisconnectNode(std::string_view node) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
-    bool DisconnectNode(const CSubNet& subnet) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    bool DisconnectNode(const CSubNet& subnet, bool disconnect_private_broadcast = true) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     bool DisconnectNode(const CNetAddr& addr) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     bool DisconnectNode(NodeId id) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
 
@@ -1469,7 +1470,8 @@ private:
                                  !m_addr_fetches_mutex,
                                  !m_nodes_mutex,
                                  !m_reconnections_mutex,
-                                 !m_unused_i2p_sessions_mutex);
+                                 !m_unused_i2p_sessions_mutex,
+                                 !m_anchors_mutex);
 
     /// \anchor msghand
     void ThreadMessageHandler() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !mutexMsgProc);
@@ -1743,10 +1745,12 @@ private:
     BanMan* m_banman;
 
     /**
-     * Addresses that were saved during the previous clean shutdown. We'll
-     * attempt to make block-relay-only connections to them.
+     * Addresses that were saved during the previous clean shutdown or when
+     * the network was deactivated. We'll attempt to make block-relay-only
+     * connections to them once the network is active.
      */
-    std::vector<CAddress> m_anchors;
+    mutable Mutex m_anchors_mutex;
+    std::vector<CAddress> m_anchors GUARDED_BY(m_anchors_mutex);
 
     /** SipHasher seeds for deterministic randomness */
     const uint64_t nSeed0, nSeed1;

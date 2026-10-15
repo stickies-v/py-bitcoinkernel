@@ -9,6 +9,7 @@
 #include <ipc/capnp/protocol.h>
 #include <ipc/process.h>
 #include <ipc/protocol.h>
+#include <ipc/types.h>
 #include <tinyformat.h>
 #include <util/fs.h>
 #include <util/log.h>
@@ -19,6 +20,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -74,12 +76,12 @@ public:
     bool startSpawnedProcess(int argc, char* argv[], int& exit_status) override
     {
         exit_status = EXIT_FAILURE;
-        mp::SocketId socket{mp::SocketError};
-        if (!m_process->checkSpawned(argc, argv, socket)) {
+        std::optional<mp::SocketId> socket{m_process->checkSpawned(argc, argv)};
+        if (!socket) {
             return false;
         }
         IgnoreCtrlC(strprintf("[%s] SIGINT received — waiting for parent to shut down.\n", m_exe_name));
-        m_protocol->serve(m_init, [&] { return m_protocol->makeStream(socket); } );
+        m_protocol->serve(m_init, [&] { return m_protocol->makeStream(*socket); } );
         exit_status = EXIT_SUCCESS;
         return true;
     }
@@ -110,10 +112,10 @@ public:
         }
         return m_protocol->connect(m_protocol->makeStream(fd));
     }
-    void listenAddress(std::string& address) override
+    void listenAddress(ListenAddress& listen_address) override
     {
-        mp::SocketId fd = m_process->bind(gArgs.GetDataDirNet(), m_exe_name, address);
-        m_protocol->listen(fd, m_init);
+        mp::SocketId fd = m_process->bind(gArgs.GetDataDirNet(), m_exe_name, listen_address.address);
+        m_protocol->listen(fd, m_init, listen_address.max_connections);
     }
     void disconnectIncoming() override
     {
