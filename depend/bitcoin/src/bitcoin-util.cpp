@@ -14,6 +14,7 @@
 #include <common/system.h>
 #include <compat/compat.h>
 #include <core_io.h>
+#include <crypto/sha256.h>
 #include <streams.h>
 #include <univalue.h>
 #include <util/exception.h>
@@ -165,7 +166,7 @@ static int GetChainParams(const std::vector<std::string>& args, std::string& str
     UniValue result{UniValue::VOBJ};
     result.pushKV("chain", params.GetChainTypeString());
     result.pushKV("test_chain", params.IsTestChain());
-    result.pushKV("genesis", HexStr(consensus.hashGenesisBlock));
+    result.pushKV("genesis", consensus.hashGenesisBlock.GetHex());
     result.pushKV("subsidy_halving_interval", consensus.nSubsidyHalvingInterval);
 
     if (consensus.signet_blocks) {
@@ -213,6 +214,7 @@ MAIN_FUNCTION
 {
     ArgsManager& args = gArgs;
     SetupEnvironment();
+    SHA256AutoDetect();
 
     try {
         int ret = AppInitUtil(args, argc, argv);

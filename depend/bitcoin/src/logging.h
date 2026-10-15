@@ -61,11 +61,11 @@ struct LogCategory {
 };
 
 namespace BCLog {
-    constexpr auto DEFAULT_LOG_LEVEL{Level::Debug};
-    constexpr size_t DEFAULT_MAX_LOG_BUFFER{1'000'000}; // buffer up to 1MB of log data prior to StartLogging
-    constexpr uint64_t RATELIMIT_MAX_BYTES{1_MiB}; // maximum number of bytes per source location that can be logged within the RATELIMIT_WINDOW
-    constexpr auto RATELIMIT_WINDOW{1h}; // time window after which log ratelimit stats are reset
-    constexpr bool DEFAULT_LOGRATELIMIT{true};
+    inline constexpr auto DEFAULT_LOG_LEVEL{Level::Debug};
+    inline constexpr size_t DEFAULT_MAX_LOG_BUFFER{1'000'000}; // buffer up to 1MB of log data prior to StartLogging
+    inline constexpr uint64_t RATELIMIT_MAX_BYTES{1_MiB}; // maximum number of bytes per source location that can be logged within the RATELIMIT_WINDOW
+    inline constexpr auto RATELIMIT_WINDOW{1h}; // time window after which log ratelimit stats are reset
+    inline constexpr bool DEFAULT_LOGRATELIMIT{true};
 
     //! Fixed window rate limiter for logging.
     class LogRateLimiter
@@ -202,12 +202,6 @@ namespace BCLog {
             m_print_callbacks.erase(it);
         }
 
-        size_t NumConnections() EXCLUSIVE_LOCKS_REQUIRED(!m_cs)
-        {
-            STDLOCK(m_cs);
-            return m_print_callbacks.size();
-        }
-
         /** Start logging (and flush all buffered messages) */
         bool StartLogging() EXCLUSIVE_LOCKS_REQUIRED(!m_cs);
         /** Only for testing */
@@ -222,7 +216,6 @@ namespace BCLog {
         /** Disable logging
          * This offers a slight speedup and slightly smaller memory usage
          * compared to leaving the logging system in its default state.
-         * Mostly intended for libbitcoin-kernel apps that don't want any logging.
          * Should be used instead of StartLogging().
          */
         void DisableLogging() EXCLUSIVE_LOCKS_REQUIRED(!m_cs);
