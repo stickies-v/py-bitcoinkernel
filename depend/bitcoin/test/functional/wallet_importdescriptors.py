@@ -19,7 +19,7 @@ import concurrent.futures
 import threading
 import time
 
-from test_framework.address import key_to_p2sh_p2wpkh, key_to_p2wpkh, script_to_p2wsh
+from test_framework.address import key_to_p2pkh, key_to_p2sh_p2wpkh, key_to_p2wpkh, script_to_p2wsh
 from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.descriptors import descsum_create
@@ -170,6 +170,25 @@ class ImportDescriptorsTest(BitcoinTestFramework):
             assert_equal(result["success"], expected[i][0])
             if not result["success"]:
                 assert_equal(result["error"]["message"], expected[i][1])
+
+    def test_keypool_range_bound(self):
+        self.log.info("Test that a -keypool larger than the descriptor range is rejected on import")
+        # Without an explicit range the import falls back to -keypool, which is only
+        # bounded below. A value past the int32_t range_end used to be truncated to a
+        # negative range, aborting the node during keypool top up.
+        self.restart_node(1, extra_args=self.extra_args[1] + ["-keypool=3000000000"])
+        node = self.nodes[1]
+        node.createwallet(wallet_name="keypool_bound", blank=True)
+        wrpc = node.get_wallet_rpc("keypool_bound")
+        desc = descsum_create("wpkh(tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK/0h/0h/*)")
+        self.test_importdesc({"desc": desc, "timestamp": "now"},
+                             success=False, error_code=-8, error_message='End of range is too high',
+                             warnings=['Range not given, using default keypool range'], wallet=wrpc)
+        # The node survived and no descriptor was added to the wallet.
+        assert_equal(wrpc.listdescriptors()['descriptors'], [])
+        wrpc.unloadwallet()
+        self.restart_node(1, extra_args=self.extra_args[1])
+        self.connect_nodes(0, 1)
 
     def test_rescan_fails_import(self):
         xpriv = ExtendedPrivateKey.generate().to_string()
@@ -547,6 +566,14 @@ class ImportDescriptorsTest(BitcoinTestFramework):
         self.test_importdesc({"desc": descsum_create(desc), "timestamp": "now", "range": [0, 1000001]},
                               success=False, error_code=-8, error_message='Range is too large')
 
+        # The wallet stores the descriptor range as int32_t and range_end is exclusive,
+        # so an inclusive endpoint of 2^31-1 has no representable end. It used to be
+        # truncated to a negative range_end, which aborted the node during keypool top up.
+        # Use an xpub: w1 rejects the xpriv above before the descriptor is added.
+        self.test_importdesc({"desc": descsum_create("wpkh(" + xpub + "/0/*)"), "timestamp": "now",
+                              "range": [2**31 - 1, 2**31 - 1]},
+                              success=False, error_code=-8, error_message='End of range is too high')
+
         self.log.info("Verify we can only extend descriptor's range")
         range_request = {"desc": descsum_create(desc), "timestamp": "now", "range": [5, 10], 'active': True}
         self.test_importdesc(range_request, wallet=wpriv, success=True)
@@ -583,28 +610,24 @@ class ImportDescriptorsTest(BitcoinTestFramework):
         # Make sure ranged imports import keys in order
         w1 = self.nodes[1].get_wallet_rpc('w1')
         self.log.info('Key ranges should be imported in order')
-        xpub = "tpubDAXcJ7s7ZwicqjprRaEWdPoHKrCS215qxGYxpusRLLmJuT69ZSicuGdSfyvyKpvUNYBW1s2U3NSrT6vrCYB9e6nZUEvrqnwXPF8ArTCRXMY"
-        addresses = [
-            'bcrt1qtmp74ayg7p24uslctssvjm06q5phz4yrxucgnv', # m/0'/0'/0
-            'bcrt1q8vprchan07gzagd5e6v9wd7azyucksq2xc76k8', # m/0'/0'/1
-            'bcrt1qtuqdtha7zmqgcrr26n2rqxztv5y8rafjp9lulu', # m/0'/0'/2
-            'bcrt1qau64272ymawq26t90md6an0ps99qkrse58m640', # m/0'/0'/3
-            'bcrt1qsg97266hrh6cpmutqen8s4s962aryy77jp0fg0', # m/0'/0'/4
-        ]
-
-        self.test_importdesc({'desc': descsum_create('wpkh([80002067/0h/0h]' + xpub + '/*)'),
+        root_xprv = ExtendedPrivateKey.generate()
+        root_fingerprint = root_xprv._fingerprint().hex()
+        xprv = root_xprv.derive_path("m/0'/0'")
+        xpub = xprv.pubkey().to_string()
+        addresses = [key_to_p2wpkh(xprv.derive_path(f"m/{i}").pubkey().pubkey.get_bytes()) for i in range(0, 5)]
+        self.test_importdesc({'desc': descsum_create(f'wpkh([{root_fingerprint}/0h/0h]{xpub}/*)'),
                               'active': True,
                               'range' : [0, 2],
                               'timestamp': 'now'
                              },
                              success=True)
-        self.test_importdesc({'desc': descsum_create('sh(wpkh([abcdef12/0h/0h]' + xpub + '/*))'),
+        self.test_importdesc({'desc': descsum_create(f'sh(wpkh([{root_fingerprint}/0h/0h]{xpub}/*))'),
                               'active': True,
                               'range' : [0, 2],
                               'timestamp': 'now'
                              },
                              success=True)
-        self.test_importdesc({'desc': descsum_create('pkh([12345678/0h/0h]' + xpub + '/*)'),
+        self.test_importdesc({'desc': descsum_create(f'pkh([{root_fingerprint}/0h/0h]{xpub}/*)'),
                               'active': True,
                               'range' : [0, 2],
                               'timestamp': 'now'
@@ -616,16 +639,18 @@ class ImportDescriptorsTest(BitcoinTestFramework):
             received_addr = w1.getnewaddress('', 'bech32')
             assert_raises_rpc_error(-4, 'This wallet has no available keys', w1.getrawchangeaddress, 'bech32')
             assert_equal(received_addr, expected_addr)
+
+            key_origin = f'[{root_fingerprint}/0h/0h/{i}]'
             bech32_addr_info = w1.getaddressinfo(received_addr)
-            assert_equal(bech32_addr_info['desc'][:23], 'wpkh([80002067/0h/0h/{}]'.format(i))
+            assert_equal(bech32_addr_info['desc'].startswith(f'wpkh({key_origin}'), True)
 
             shwpkh_addr = w1.getnewaddress('', 'p2sh-segwit')
             shwpkh_addr_info = w1.getaddressinfo(shwpkh_addr)
-            assert_equal(shwpkh_addr_info['desc'][:26], 'sh(wpkh([abcdef12/0h/0h/{}]'.format(i))
+            assert_equal(shwpkh_addr_info['desc'].startswith(f'sh(wpkh({key_origin}'), True)
 
             pkh_addr = w1.getnewaddress('', 'legacy')
             pkh_addr_info = w1.getaddressinfo(pkh_addr)
-            assert_equal(pkh_addr_info['desc'][:22], 'pkh([12345678/0h/0h/{}]'.format(i))
+            assert_equal(pkh_addr_info['desc'].startswith(f'pkh({key_origin}'), True)
 
             assert_equal(w1.getwalletinfo()['keypoolsize'], 4 * 3) # After retrieving a key, we don't refill the keypool again, so it's one less for each address type
         w1.keypoolrefill()
@@ -682,7 +707,7 @@ class ImportDescriptorsTest(BitcoinTestFramework):
                               },
                              success=True)
         address = w1.getrawchangeaddress('legacy')
-        assert_equal(address, "mpA2Wh9dvZT7yfELq1UnrUmAoc5qCkMetg")
+        assert_equal(address, key_to_p2pkh(xprv.derive_path("m/0").pubkey().pubkey.get_bytes()))
 
         self.log.info('Check can deactivate active descriptor')
         self.test_importdesc({'desc': descsum_create('pkh([12345678]' + xpub + '/*)'),
@@ -1148,6 +1173,7 @@ class ImportDescriptorsTest(BitcoinTestFramework):
         self.test_import_unused_key_existing()
         self.test_import_unused_noprivs()
         self.test_per_item_errors_are_reported_in_order()
+        self.test_keypool_range_bound()
         self.test_rescan_fails_import()
 
 if __name__ == '__main__':

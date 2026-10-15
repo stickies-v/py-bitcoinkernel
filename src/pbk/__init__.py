@@ -1,3 +1,5 @@
+# Forwards kernel logs to Python logging on import.
+from pbk import log as log
 from pbk.block import (
     Block,
     BlockCheckFlags,
@@ -24,17 +26,6 @@ from pbk.exceptions import (
     KernelException,
     ProcessBlockException,
     ProcessBlockHeaderException,
-)
-from pbk.log import (
-    KernelLogViewer,
-    LogCategory,
-    LoggingConnection,
-    LoggingOptions,
-    LogLevel,
-    disable_log_category,
-    enable_log_category,
-    logging_set_options,
-    set_log_level_category,
 )
 from pbk.notifications import NotificationInterfaceCallbacks
 from pbk.script import (
@@ -92,11 +83,6 @@ __all__ = [
     "Context",
     "ContextOptions",
     "KernelException",
-    "KernelLogViewer",
-    "LogCategory",
-    "LogLevel",
-    "LoggingConnection",
-    "LoggingOptions",
     "NotificationInterfaceCallbacks",
     "PrecomputedTransactionData",
     "ProcessBlockException",
@@ -121,11 +107,7 @@ __all__ = [
     "ValidationMode",
     "WitnessStack",
     "Wtxid",
-    "disable_log_category",
-    "enable_log_category",
     "load_chainman",
-    "logging_set_options",
     "make_context",
-    "set_log_level_category",
     "set_mock_time",
 ]

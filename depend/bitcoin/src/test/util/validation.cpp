@@ -6,7 +6,10 @@
 
 #include <coins.h>
 #include <consensus/consensus.h>
+#include <index/base.h>
+#include <node/block_template_manager.h>
 #include <node/blockstorage.h>
+#include <node/context.h>
 #include <node/mining_types.h>
 #include <test/util/mining.h>
 #include <test/util/script.h>
@@ -110,6 +113,7 @@ std::vector<std::pair<COutPoint, CAmount>> ResetChainmanAndMempool(TestingSetup&
     node_clock.set(setup.m_node.chainman->GetParams().GenesisBlock().Time());
 
     bilingual_str error{};
+    setup.m_node.block_template_manager.reset();
     setup.m_node.mempool.reset();
     setup.m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(setup.m_node), error);
     Assert(error.empty());
@@ -117,6 +121,7 @@ std::vector<std::pair<COutPoint, CAmount>> ResetChainmanAndMempool(TestingSetup&
     setup.m_node.chainman.reset();
     setup.m_make_chainman();
     setup.LoadVerifyActivateChainstate();
+    setup.CreateBlockTemplateManager();
 
     node::BlockCreateOptions options;
     options.coinbase_output_script = P2WSH_OP_TRUE;
@@ -131,4 +136,10 @@ std::vector<std::pair<COutPoint, CAmount>> ResetChainmanAndMempool(TestingSetup&
         }
     }
     return mature_coinbase;
+}
+
+void StopIndex(BaseIndex& index, node::NodeContext& node)
+{
+    Assert(node.validation_signals)->SyncWithValidationInterfaceQueue();
+    index.Stop();
 }

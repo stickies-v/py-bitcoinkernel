@@ -14,7 +14,6 @@ from concurrent.futures import ThreadPoolExecutor
 import pbk
 
 logging.basicConfig(level=logging.INFO)
-log = pbk.KernelLogViewer()
 
 MAX_WORKERS = 1
 READ_N_LAST_BLOCKS = 1000

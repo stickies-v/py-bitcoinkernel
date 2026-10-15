@@ -151,6 +151,7 @@ BASE_SCRIPTS = [
     'p2p_sendheaders.py',
     'feature_config_args.py',
     'wallet_listtransactions.py',
+    'wallet_listrawtransactions.py',
     'wallet_miniscript.py',
     # vv Tests less than 30s vv
     'wallet_deprecated_rbf.py',
@@ -202,6 +203,7 @@ BASE_SCRIPTS = [
     'mempool_reorg.py',
     'p2p_block_sync.py --v1transport',
     'p2p_block_sync.py --v2transport',
+    'p2p_block_times.py',
     'wallet_createwallet.py --usecli',
     'wallet_createwallet.py',
     'wallet_reindex.py',
@@ -321,6 +323,7 @@ BASE_SCRIPTS = [
     'feature_minchainwork.py',
     'rpc_estimatefee.py',
     'p2p_private_broadcast.py',
+    'p2p_private_broadcast_completion.py',
     'p2p_private_broadcast_cap.py',
     'rpc_getblockstats.py',
     'feature_port.py',
@@ -356,6 +359,7 @@ BASE_SCRIPTS = [
     'rpc_deriveaddresses.py',
     'rpc_deriveaddresses.py --usecli',
     'p2p_ping.py',
+    'p2p_ping_ibd.py',
     'p2p_tx_privacy.py',
     'rpc_getdescriptoractivity.py',
     'rpc_scanblocks.py',
@@ -395,6 +399,7 @@ BASE_SCRIPTS = [
     'p2p_handshake.py',
     'p2p_handshake.py --v2transport',
     'interface_ipc_cli.py',
+    'interface_ipc_init.py',
     'feature_dirsymlinks.py',
     'feature_help.py',
     'feature_framework_startup_failures.py',
@@ -553,6 +558,11 @@ def main():
         # Remove it, and expand it for each bench in the list
         test_list.remove(TOOL_BENCH_SANITY_CHECK)
         bench_cmd = Binaries(get_binary_paths(config), bin_dir=None).bench_argv() + ["-list"]
+        bench_cmd = [
+            sys.executable,
+            pathlib.Path(config["environment"]["BUILDDIR"]) / "test" / "with_sanitizer_env.py",
+            *bench_cmd,
+        ]
         bench_list = subprocess.check_output(bench_cmd, text=True).splitlines()
         bench_list = [f"{TOOL_BENCH_SANITY_CHECK} --bench={b}" for b in bench_list]
         # Start with special scripts (variable, unknown runtime)

@@ -1,33 +1,30 @@
+import atexit
 import ctypes
-import inspect
 import logging
-import re
 import threading
 import typing
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
-from datetime import datetime, timezone
+import warnings
 from enum import IntEnum
 from pathlib import Path
 
 import pbk.capi.bindings as k
 from pbk.capi import KernelOpaquePtr
 
-# bitcoinkernel's logging setters require external synchronization
-LOGGING_LOCK = threading.RLock()
+LOGGER_NAME = "btck"
+"""Name of the Python logger that receives kernel log entries."""
 
 
 # TODO: add enum auto-generation or testing to ensure it remains in
 # sync with bitcoinkernel.h
 class LogCategory(IntEnum):
-    """Logging categories for kernel messages.
+    """A collection of logging categories that may be encountered by kernel code.
 
-    These categories allow fine-grained control over which types of log
-    messages are enabled. Categories can be individually enabled or disabled.
+    Entries go to the `btck.<NAME>` logger of their category. Entries with
+    category NONE go to the `btck` logger.
     """
 
-    ALL = 0
-    """All log categories"""
+    NONE = 0
+    """Not tied to a specific category, e.g. most INFO, WARNING and ERROR entries."""
 
     BENCH = 1
     """Benchmarking and performance metrics"""
@@ -59,19 +56,20 @@ class LogCategory(IntEnum):
     KERNEL = 10
     """General kernel operations"""
 
+    TXPACKAGES = 11
+    """Transaction package operations"""
+
+    LOCK = 12
+    """Lock contention"""
+
 
 # TODO: add enum auto-generation or testing to ensure it remains in
 # sync with bitcoinkernel.h
 class LogLevel(IntEnum):
-    """Log severity levels.
+    """The severity of a log statement."""
 
-    These levels control the minimum severity of messages that will be logged.
-    Setting a level filters out messages below that severity.
-
-    Note:
-        The TRACE level from bitcoinkernel is not exposed, as it is not
-        natively supported by Python's logging library.
-    """
+    TRACE = 0
+    """Very detailed messages, more verbose than DEBUG"""
 
     DEBUG = 1
     """Debug-level messages with detailed information"""
@@ -79,372 +77,183 @@ class LogLevel(IntEnum):
     INFO = 2
     """Informational messages about normal operations"""
 
+    WARNING = 3
+    """Unexpected events that do not prevent operation"""
+
+    ERROR = 4
+    """Errors that prevent an operation from completing"""
+
 
 KERNEL_LEVEL_TO_PYTHON = {  # numeric value
-    LogLevel.INFO: logging.INFO,  # 20
+    LogLevel.TRACE: logging.DEBUG - 5,  # 5
     LogLevel.DEBUG: logging.DEBUG,  # 10
+    LogLevel.INFO: logging.INFO,  # 20
+    LogLevel.WARNING: logging.WARNING,  # 30
+    LogLevel.ERROR: logging.ERROR,  # 40
+}
+
+# Control characters and the characters that str.splitlines() treats as line
+# breaks, so that every message is printable and fits on one line.
+_ESCAPES = {
+    **{c: f"\\x{c:02x}" for c in [*range(0x20), *range(0x7F, 0xA0)]},
+    ord("\n"): "\\n",
+    ord("\r"): "\\r",
+    ord("\t"): "\\t",
+    0x2028: "\\u2028",
+    0x2029: "\\u2029",
 }
 
 
-def btck_level_from_python(python_level: int) -> LogLevel:
-    """Convert a Python logging level to a kernel LogLevel."""
-    if python_level > KERNEL_LEVEL_TO_PYTHON[LogLevel.DEBUG]:
-        return LogLevel.INFO
-    return LogLevel.DEBUG
+def _escape(message: str) -> str:
+    """Escape control characters and line breaks in a log message."""
+    return message.translate(_ESCAPES)
 
 
-class LoggingOptions(k.btck_LoggingOptions):
-    """Configuration options for log message formatting.
-
-    These options control which metadata is included in log messages, such
-    as timestamps, thread names, and source locations.
-    """
-
-    def __init__(
-        self,
-        log_timestamps: bool = True,
-        log_time_micros: bool = False,
-        log_threadnames: bool = False,
-        log_sourcelocations: bool = False,
-        always_print_category_levels: bool = False,
-    ):
-        """Create logging format options.
-
-        Args:
-            log_timestamps: If True, prepend a timestamp to log messages.
-            log_time_micros: If True, use microsecond precision for timestamps.
-            log_threadnames: If True, prepend the thread name to log messages.
-            log_sourcelocations: If True, prepend the source file location to log messages.
-            always_print_category_levels: If True, prepend the category and level to log messages.
-        """
-        super().__init__()
-        self.log_timestamps = log_timestamps
-        self.log_time_micros = log_time_micros
-        self.log_threadnames = log_threadnames
-        self.log_sourcelocations = log_sourcelocations
-        self.always_print_category_levels = always_print_category_levels
-
-    @property
-    def _as_parameter_(self) -> ctypes.c_void_p:
-        """Return the ctypes reference for passing to C functions."""
-        return ctypes.byref(self)  # ty: ignore[invalid-return-type]
+def _decode(ptr: typing.Any, length: int) -> str:
+    """Copy a non-null-terminated C string into a Python string."""
+    return ctypes.string_at(ptr, length).decode("utf-8", errors="replace")
 
 
-def is_valid_log_callback(fn: typing.Any) -> bool:
-    """Validate that a function matches the log callback signature.
-
-    Performs a best-effort check that the function is callable and accepts
-    exactly one parameter. Does not inspect parameter or return types.
+def _make_log_record(logger_name: str, entry: k.btck_LogEntry) -> logging.LogRecord:
+    """Convert a kernel log entry into a Python LogRecord.
 
     Args:
-        fn: The function to validate.
-
-    Returns:
-        True if the function appears to be a valid log callback.
-    """
-    if not callable(fn):
-        return False
-
-    fn_sig = inspect.signature(fn)
-    return len(fn_sig.parameters) == 1
-
-
-def logging_set_options(options: LoggingOptions) -> None:
-    """Set formatting options for the global internal logger.
-
-    This changes global settings that affect all existing LoggingConnection
-    instances. The changes take effect immediately.
-
-    Args:
-        options: Logging format options to apply.
-    """
-    with LOGGING_LOCK:
-        k.btck_logging_set_options(options)
-
-
-def set_log_level_category(category: LogCategory, level: LogLevel) -> None:
-    """Set the minimum log level for a category.
-
-    This changes the minimum severity of messages that will be logged for
-    the specified category. Affects all existing LoggingConnection instances.
-
-    Note:
-        This does not enable categories. Use `enable_log_category()` to start
-        logging from a category. If LogCategory.ALL is chosen, sets both the
-        global fallback log level and the level for the ALL category itself.
-
-    Args:
-        category: The log category to configure.
-        level: The minimum log level for this category.
-    """
-    with LOGGING_LOCK:
-        k.btck_logging_set_level_category(category, level)
-
-
-def enable_log_category(category: LogCategory) -> None:
-    """Enable logging for a category.
-
-    Once enabled, log messages from this category will be passed to all
-    LoggingConnection callbacks. If LogCategory.ALL is chosen, all
-    categories will be enabled.
-
-    Args:
-        category: The log category to enable.
-    """
-    with LOGGING_LOCK:
-        k.btck_logging_enable_category(category)
-
-
-def disable_log_category(category: LogCategory) -> None:
-    """Disable logging for a category.
-
-    Once disabled, log messages from this category will no longer be passed
-    to LoggingConnection callbacks. If LogCategory.ALL is chosen, all
-    categories will be disabled.
-
-    Args:
-        category: The log category to disable.
-    """
-    with LOGGING_LOCK:
-        k.btck_logging_disable_category(category)
-
-
-class LoggingConnection(KernelOpaquePtr):
-    """Connection that receives kernel log messages via a callback.
-
-    A logging connection invokes a callback function for every log message
-    produced by the kernel. The connection can be destroyed to stop receiving
-    messages. Messages logged before the first connection is created are
-    buffered (up to 1MB) and delivered when the connection is established.
-    """
-
-    _create_fn = k.btck_logging_connection_create
-    _destroy_fn = k.btck_logging_connection_destroy
-
-    def __init__(self, cb: Callable[[str], None]):
-        """Create a logging connection with a callback.
-
-        Args:
-            cb: Callback function that accepts a single string parameter
-                (the log message) and returns None.
-
-        Raises:
-            TypeError: If the callback doesn't have the correct signature.
-            RuntimeError: If the C constructor fails (propagated from base class).
-        """
-        if not is_valid_log_callback(cb):
-            raise TypeError(
-                "Log callback must be a callable with 1 string parameter and no return value."
-            )
-        self._cb = self._wrap_log_fn(cb)  # ensure lifetime
-        super().__init__(self._cb, ctypes.c_void_p(), k.btck_DestroyCallback())
-
-    @staticmethod
-    def _wrap_log_fn(fn: Callable[[str], None]) -> k.btck_LogCallback:  # ty: ignore[invalid-type-form]
-        """Wrap a Python callback for use with the C logging API.
-
-        Args:
-            fn: Python callback function accepting a string.
-
-        Returns:
-            A C-compatible callback function.
-        """
-
-        def wrapped(_user_data: None, message: bytes, message_len: int) -> None:
-            """C callback wrapper that decodes the message and calls the Python function."""
-            return fn(ctypes.string_at(message, message_len).decode("utf-8"))
-
-        return k.btck_LogCallback(wrapped)
-
-
-class KernelLogViewer:
-    """Integration between bitcoinkernel logging and Python's logging module.
-
-    KernelLogViewer bridges bitcoinkernel's logging system with Python's
-    standard logging module. It creates a LoggingConnection that parses
-    kernel log messages and forwards them to a Python Logger instance.
-
-    Messages are organized by category, with each category getting its own
-    child logger. For example, VALIDATION messages go to a logger named
-    "bitcoinkernel.VALIDATION".
-
-    Note:
-        To see debug messages, both the kernel category must be enabled
-        (via the `categories` parameter) and the Python logger level must
-        be set to DEBUG or lower.
-    """
-
-    def __init__(
-        self,
-        name: str = "bitcoinkernel",
-        categories: list[LogCategory] | None = None,
-    ):
-        """Create a log viewer that forwards kernel logs to Python logging.
-
-        Args:
-            name: Name for the root logger. Defaults to "bitcoinkernel".
-            categories: List of log categories to enable. If None or empty,
-                no categories are enabled by default.
-        """
-        self.name = name
-        self.categories = categories or []
-        self._logger = logging.getLogger(name)
-
-        # To simplify things, just set the level for to DEBUG for all
-        # log categories. This shouldn't have any effect until categories
-        # are actually enabled with enable_log_category.
-        set_log_level_category(LogCategory.ALL, LogLevel.DEBUG)
-        if categories is None:
-            categories = []
-        for category in categories:
-            enable_log_category(category)
-        self.conn = self._create_log_connection()
-
-    def getLogger(self, category: LogCategory | None = None) -> logging.Logger:
-        """Get the Python logger for a specific category.
-
-        Args:
-            category: The log category to get a logger for. If None, returns
-                the root logger.
-
-        Returns:
-            A logging.Logger instance for the specified category.
-        """
-        if category:
-            return self._logger.getChild(category.name.upper())
-        return self._logger
-
-    @contextmanager
-    def temporary_categories(self, categories: list[LogCategory]) -> Iterator[None]:
-        """Context manager to temporarily enable log categories.
-
-        Enables the specified categories for the duration of the context,
-        then disables them when exiting. Categories that were enabled during
-        initialization remain enabled.
-
-        Args:
-            categories: List of categories to temporarily enable.
-
-        Yields:
-            None
-        """
-        [enable_log_category(category) for category in categories]
-        try:
-            yield
-        finally:
-            [
-                disable_log_category(category)
-                for category in categories
-                if category not in self.categories
-            ]
-
-    def _create_log_connection(self) -> LoggingConnection:
-        """Create the internal logging connection.
-
-        Sets up logging options and creates a connection that parses and
-        forwards kernel messages to Python loggers.
-
-        Returns:
-            A LoggingConnection instance.
-        """
-        # TODO: avoid logging stuff the user doesn't need
-        log_opts = LoggingOptions(
-            log_timestamps=True,
-            log_time_micros=False,
-            log_threadnames=True,
-            log_sourcelocations=True,
-            always_print_category_levels=True,
-        )
-        logging_set_options(log_opts)
-        conn = LoggingConnection(cb=self._create_log_callback(self.getLogger()))
-        return conn
-
-    @staticmethod
-    def _create_log_callback(logger: logging.Logger) -> Callable[[str], None]:
-        """Create a callback that parses kernel logs and forwards to Python logger.
-
-        Args:
-            logger: The Python logger to forward parsed messages to.
-
-        Returns:
-            A callback function that accepts kernel log messages.
-        """
-
-        def callback(msg: str) -> None:
-            """Parse and forward a kernel log message to the Python logger."""
-            try:
-                record = parse_btck_log_string(logger.name, msg)
-                logger.handle(record)
-            except ValueError:
-                logging.getLogger().error(f"Failed to parse log message: {msg}")
-
-        return callback
-
-
-def parse_btck_log_string(logger_name: str, log_string: str) -> logging.LogRecord:
-    """Parse a bitcoinkernel log message into a Python LogRecord.
-
-    Extracts metadata from the kernel's log format and creates a Python
-    LogRecord with appropriate fields set. The kernel log format includes
-    timestamp, thread name, source location, function name, category, level,
-    and message.
-
-    Args:
-        logger_name: Base name for the logger. Category will be appended.
-        log_string: The raw log message string from the kernel.
+        logger_name: Name of the logger that handles the record.
+        entry: The kernel log entry. Only valid during the logging callback.
 
     Returns:
         A LogRecord suitable for handling by Python's logging system.
-
-    Raises:
-        ValueError: If the log message doesn't match the expected format.
     """
-    pattern = r"""
-        ^([\d-]+T[\d:]+Z)              # timestamp
-        \s+\[([^\]]+)\]                # threadname
-        \s+\[([^\]]+)\]                # filepath:lineno
-        \s+\[(.+)\]                    # filename/function
-        \s+\[([^:]+):([^\]]+)\]        # category:level
-        \s+(.+)$                       # message
-    """
-    match = re.match(pattern, log_string, re.VERBOSE)
-    if not match:
-        raise ValueError(f"Log pattern matching failed: {log_string}")
-    timestamp, thread_name, source_loc, func_name, category, level, message = (
-        match.groups()
-    )
-    pathname, lineno = (
-        source_loc.rsplit(":", 1) if ":" in source_loc else (source_loc, 0)
-    )
-    filename = Path(pathname).name
-    if category.upper() != "ALL":
-        logger_name += f".{category.upper()}"
-    created = (
-        datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
-        .replace(tzinfo=timezone.utc)
-        .timestamp()
-    )
-    levels = {
-        "debug": logging.DEBUG,
-        "info": logging.INFO,
-        "warning": logging.WARNING,
-        "error": logging.ERROR,
-    }
-
+    level = LogLevel(entry.level)
+    file_name = _decode(entry.file_name, entry.file_name_len)
+    path = Path(file_name)
     record = logging.makeLogRecord(
         {
             "name": logger_name,
-            "levelno": levels.get(level.lower(), 0),
-            "levelname": level.upper(),
-            "filename": filename,
-            "pathname": pathname,
-            "lineno": int(lineno) if lineno and lineno.isdigit() else 0,
-            "msg": message,
+            "levelno": KERNEL_LEVEL_TO_PYTHON[level],
+            "levelname": level.name,
+            "pathname": file_name,
+            "filename": path.name,
+            "module": path.stem,
+            "lineno": entry.line,
+            "msg": _escape(_decode(entry.message, entry.message_len)),
             "args": (),
             "exc_info": None,
-            "funcName": func_name,
-            "created": created,
-            "threadName": thread_name,
+            "funcName": _decode(entry.function_name, entry.function_name_len),
+            "created": entry.timestamp_ns / 1e9,
+            "msecs": (entry.timestamp_ns // 1_000_000) % 1000,
+            "btck_category": LogCategory(entry.category).name,
+            "btck_timestamp_ns": entry.timestamp_ns,
+            "btck_mocktime_s": entry.mocktime_s,
         }
     )
+    # The kernel only names the threads that it starts. On other threads, the
+    # Python thread name that makeLogRecord() sets is the useful one.
+    if thread_name := _decode(entry.thread_name, entry.thread_name_len):
+        record.threadName = thread_name
     return record
+
+
+def _kernel_level(python_level: int) -> LogLevel:
+    """Return the lowest kernel level that a Python logger at `python_level` handles."""
+    for level in LogLevel:
+        if KERNEL_LEVEL_TO_PYTHON[level] >= python_level:
+            return level
+    return LogLevel.ERROR
+
+
+class _LoggingConnection(KernelOpaquePtr):
+    """Owned btck_LoggingConnection handle."""
+
+    _destroy_fn = k.btck_logging_connection_destroy
+
+
+class _PythonLoggingBridge:
+    """Forwards kernel log entries to the `btck` Python loggers.
+
+    The kernel only filters on one global minimum level. To prevent entries
+    that no Python logger handles from reaching Python, the bridge keeps that
+    level at the lowest level that any `btck` logger is enabled for. Python
+    has no public hook for level changes, so the bridge wraps
+    `Manager._clear_cache()`, which every level change calls to invalidate
+    the `isEnabledFor()` cache.
+    """
+
+    def __init__(self):
+        """Connect to the kernel and start to follow the Python levels."""
+        root = logging.getLogger(LOGGER_NAME)
+        root.addHandler(logging.NullHandler())
+        self._loggers = {
+            category: root
+            if category == LogCategory.NONE
+            else root.getChild(category.name)
+            for category in LogCategory
+        }
+        self._lock = threading.Lock()
+        self.kernel_level: LogLevel | None = None
+        if self._install_level_hook():
+            self.sync_kernel_level()
+        else:
+            warnings.warn(
+                "Cannot follow Python logging level changes, so all kernel log "
+                "entries are passed to Python. This can slow down validation.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            self._set_kernel_level(LogLevel.TRACE)
+        self._cb = k.btck_LogCallback(self._forward)  # ensure lifetime
+        self._connection: _LoggingConnection | None = _LoggingConnection._from_handle(
+            k.btck_logging_connection_create(
+                self._cb, ctypes.c_void_p(), k.btck_DestroyCallback()
+            )
+        )
+
+    def _install_level_hook(self) -> bool:
+        """Sync the kernel level after each Python level change.
+
+        Returns:
+            False if the Python logging internals are not as expected.
+        """
+        manager = logging.Logger.manager
+        clear_cache = getattr(manager, "_clear_cache", None)
+        if not callable(clear_cache):
+            return False
+
+        def clear_cache_and_sync() -> None:
+            """Clear the Python logging cache, then sync the kernel level."""
+            clear_cache()
+            self.sync_kernel_level()
+
+        manager._clear_cache = clear_cache_and_sync  # ty: ignore[unresolved-attribute]
+        return True
+
+    def _set_kernel_level(self, level: LogLevel) -> None:
+        """Set and remember the kernel minimum level."""
+        with self._lock:
+            self.kernel_level = level
+            k.btck_logging_set_min_level(level)
+
+    def sync_kernel_level(self) -> None:
+        """Set the kernel level to the lowest level that a `btck` logger handles."""
+        lowest = min(logger.getEffectiveLevel() for logger in self._loggers.values())
+        disabled_up_to = logging.Logger.manager.disable
+        self._set_kernel_level(_kernel_level(max(lowest, disabled_up_to + 1)))
+
+    def _forward(self, _user_data: None, entry_ptr: typing.Any) -> None:
+        """C callback that forwards an entry to the logger of its category.
+
+        Entries that the logger does not handle are dropped before they are
+        decoded, because that is most of the cost.
+        """
+        entry = entry_ptr.contents
+        logger = self._loggers[entry.category]
+        if logger.isEnabledFor(KERNEL_LEVEL_TO_PYTHON[entry.level]):
+            logger.handle(_make_log_record(logger.name, entry))
+
+    def close(self) -> None:
+        """Disconnect from the kernel, so kernel threads stop calling into Python."""
+        self._connection = None
+
+
+_bridge = _PythonLoggingBridge()
+atexit.register(_bridge.close)

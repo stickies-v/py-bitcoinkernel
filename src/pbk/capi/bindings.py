@@ -118,14 +118,6 @@ class Union(ctypes.Union, AsDictMixin):
 
 
 
-c_int128 = ctypes.c_ubyte*16
-c_uint128 = c_int128
-void = None
-if ctypes.sizeof(ctypes.c_longdouble) == 8:
-    c_long_double_t = ctypes.c_longdouble
-else:
-    c_long_double_t = ctypes.c_ubyte*8
-
 def string_cast(char_pointer, encoding='utf-8', errors='strict'):
     value = ctypes.cast(char_pointer, ctypes.c_char_p).value
     if value is not None and encoding is not None:
@@ -142,6 +134,16 @@ def char_pointer_cast(string, encoding='utf-8'):
             pass
     string = ctypes.c_char_p(string)
     return ctypes.cast(string, ctypes.POINTER(ctypes.c_char))
+
+
+
+c_int128 = ctypes.c_ubyte*16
+c_uint128 = c_int128
+void = None
+if ctypes.sizeof(ctypes.c_longdouble) == 8:
+    c_long_double_t = ctypes.c_longdouble
+else:
+    c_long_double_t = ctypes.c_ubyte*8
 
 
 class struct_btck_Transaction(Structure):
@@ -250,7 +252,31 @@ class struct_btck_BlockHeader(Structure):
 btck_BlockHeader = struct_btck_BlockHeader
 btck_SynchronizationState = ctypes.c_ubyte
 btck_Warning = ctypes.c_ubyte
-btck_LogCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(ctypes.c_char), ctypes.c_uint64)
+btck_LogCategory = ctypes.c_ubyte
+btck_LogLevel = ctypes.c_ubyte
+class struct_btck_LogEntry(Structure):
+    pass
+
+struct_btck_LogEntry._pack_ = 1 # source:False
+struct_btck_LogEntry._fields_ = [
+    ('message', ctypes.POINTER(ctypes.c_char)),
+    ('message_len', ctypes.c_uint64),
+    ('thread_name', ctypes.POINTER(ctypes.c_char)),
+    ('thread_name_len', ctypes.c_uint64),
+    ('timestamp_ns', ctypes.c_int64),
+    ('mocktime_s', ctypes.c_int64),
+    ('file_name', ctypes.POINTER(ctypes.c_char)),
+    ('file_name_len', ctypes.c_uint64),
+    ('function_name', ctypes.POINTER(ctypes.c_char)),
+    ('function_name_len', ctypes.c_uint64),
+    ('line', ctypes.c_uint32),
+    ('level', ctypes.c_ubyte),
+    ('category', ctypes.c_ubyte),
+    ('PADDING_0', ctypes.c_ubyte * 2),
+]
+
+btck_LogEntry = struct_btck_LogEntry
+btck_LogCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.POINTER(struct_btck_LogEntry))
 btck_DestroyCallback = ctypes.CFUNCTYPE(None, ctypes.POINTER(None))
 btck_NotifyBlockTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.POINTER(struct_btck_BlockTreeEntry), ctypes.c_double)
 btck_NotifyHeaderTip = ctypes.CFUNCTYPE(None, ctypes.POINTER(None), ctypes.c_ubyte, ctypes.c_int64, ctypes.c_int64, ctypes.c_int32)
@@ -298,21 +324,6 @@ struct_btck_NotificationInterfaceCallbacks._fields_ = [
 ]
 
 btck_NotificationInterfaceCallbacks = struct_btck_NotificationInterfaceCallbacks
-btck_LogCategory = ctypes.c_ubyte
-btck_LogLevel = ctypes.c_ubyte
-class struct_btck_LoggingOptions(Structure):
-    pass
-
-struct_btck_LoggingOptions._pack_ = 1 # source:False
-struct_btck_LoggingOptions._fields_ = [
-    ('log_timestamps', ctypes.c_int32),
-    ('log_time_micros', ctypes.c_int32),
-    ('log_threadnames', ctypes.c_int32),
-    ('log_sourcelocations', ctypes.c_int32),
-    ('always_print_category_levels', ctypes.c_int32),
-]
-
-btck_LoggingOptions = struct_btck_LoggingOptions
 btck_ScriptVerifyStatus = ctypes.c_ubyte
 btck_ScriptVerificationFlags = ctypes.c_uint32
 btck_ChainType = ctypes.c_ubyte
@@ -506,33 +517,9 @@ try:
 except AttributeError:
     pass
 try:
-    btck_logging_disable = BITCOINKERNEL_LIB.btck_logging_disable
-    btck_logging_disable.restype = None
-    btck_logging_disable.argtypes = []
-except AttributeError:
-    pass
-try:
-    btck_logging_set_options = BITCOINKERNEL_LIB.btck_logging_set_options
-    btck_logging_set_options.restype = None
-    btck_logging_set_options.argtypes = [btck_LoggingOptions]
-except AttributeError:
-    pass
-try:
-    btck_logging_set_level_category = BITCOINKERNEL_LIB.btck_logging_set_level_category
-    btck_logging_set_level_category.restype = None
-    btck_logging_set_level_category.argtypes = [btck_LogCategory, btck_LogLevel]
-except AttributeError:
-    pass
-try:
-    btck_logging_enable_category = BITCOINKERNEL_LIB.btck_logging_enable_category
-    btck_logging_enable_category.restype = None
-    btck_logging_enable_category.argtypes = [btck_LogCategory]
-except AttributeError:
-    pass
-try:
-    btck_logging_disable_category = BITCOINKERNEL_LIB.btck_logging_disable_category
-    btck_logging_disable_category.restype = None
-    btck_logging_disable_category.argtypes = [btck_LogCategory]
+    btck_logging_set_min_level = BITCOINKERNEL_LIB.btck_logging_set_min_level
+    btck_logging_set_min_level.restype = None
+    btck_logging_set_min_level.argtypes = [btck_LogLevel]
 except AttributeError:
     pass
 try:
@@ -1195,7 +1182,7 @@ __all__ = \
     'btck_ChainstateManagerOptions', 'btck_Coin',
     'btck_ConsensusParams', 'btck_Context', 'btck_ContextOptions',
     'btck_DestroyCallback', 'btck_LogCallback', 'btck_LogCategory',
-    'btck_LogLevel', 'btck_LoggingConnection', 'btck_LoggingOptions',
+    'btck_LogEntry', 'btck_LogLevel', 'btck_LoggingConnection',
     'btck_NotificationInterfaceCallbacks', 'btck_NotifyBlockTip',
     'btck_NotifyFatalError', 'btck_NotifyFlushError',
     'btck_NotifyHeaderTip', 'btck_NotifyProgress',
@@ -1272,9 +1259,7 @@ __all__ = \
     'btck_context_options_set_notifications',
     'btck_context_options_set_validation_interface',
     'btck_logging_connection_create',
-    'btck_logging_connection_destroy', 'btck_logging_disable',
-    'btck_logging_disable_category', 'btck_logging_enable_category',
-    'btck_logging_set_level_category', 'btck_logging_set_options',
+    'btck_logging_connection_destroy', 'btck_logging_set_min_level',
     'btck_precomputed_transaction_data_copy',
     'btck_precomputed_transaction_data_create',
     'btck_precomputed_transaction_data_destroy',
@@ -1321,8 +1306,8 @@ __all__ = \
     'struct_btck_ChainstateManager',
     'struct_btck_ChainstateManagerOptions', 'struct_btck_Coin',
     'struct_btck_ConsensusParams', 'struct_btck_Context',
-    'struct_btck_ContextOptions', 'struct_btck_LoggingConnection',
-    'struct_btck_LoggingOptions',
+    'struct_btck_ContextOptions', 'struct_btck_LogEntry',
+    'struct_btck_LoggingConnection',
     'struct_btck_NotificationInterfaceCallbacks',
     'struct_btck_PrecomputedTransactionData',
     'struct_btck_ScriptPubkey', 'struct_btck_Transaction',
