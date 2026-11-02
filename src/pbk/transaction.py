@@ -368,7 +368,7 @@ class Transaction(KernelOpaquePtr):
         Raises:
             RuntimeError: If parsing the transaction data fails (propagated from base class).
         """
-        super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
+        super().__init__((ctypes.c_ubyte * len(data)).from_buffer_copy(data), len(data))
 
     def _get_input_at(self, index: int) -> TransactionInput:
         """Get the transaction input at the given index."""
