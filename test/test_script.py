@@ -1,6 +1,8 @@
 # Test are copied from https://github.com/TheCharlatan/rust-bitcoinkernel/blob/e91264a877576297f4345d68196c15e0a2a5846e/tests/test.rs#L332-L374
 
 
+import pytest
+
 import pbk
 
 
@@ -41,6 +43,46 @@ def test_valid_scripts() -> None:
         "010000000001011f97548fbbe7a0db7588a66e18d803d0089315aa7d4cc28360b6ec50ef36718a0100000000ffffffff02df1776000000000017a9146c002a686959067f4866b8fb493ad7970290ab728757d29f0000000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220565d170eed95ff95027a69b313758450ba84a01224e1f7f130dda46e94d13f8602207bdd20e307f062594022f12ed5017bbf4a055a06aea91c10110a0e3bb23117fc014730440220647d2dc5b15f60bc37dc42618a370b2a1490293f9e5c8464f53ec4fe1dfe067302203598773895b4b16d37485cbe21b337f4e4b650739880098c592553add7dd4355016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000",
         0,
     )
+
+
+def test_verify_block_spends(chainman_regtest: pbk.ChainstateManager) -> None:
+    entry = chainman_regtest.get_active_chain().block_tree_entries[202]
+    block = chainman_regtest.blocks[entry]
+    block_spent_outputs = chainman_regtest.block_spent_outputs[entry]
+    flags = pbk.ScriptVerificationFlags.ALL
+
+    # The spent outputs exclude the coinbase transaction.
+    for tx, tx_spent_outputs in zip(
+        block.transactions[1:],
+        block_spent_outputs.transactions,
+        strict=True,
+    ):
+        spent_outputs = [coin.output for coin in tx_spent_outputs.coins]
+        txdata = pbk.PrecomputedTransactionData(tx, spent_outputs)
+        for input_index, spent_output in enumerate(spent_outputs):
+            assert spent_output.script_pubkey.verify(
+                spent_output.amount,
+                tx,
+                txdata,
+                input_index,
+                flags,
+            )
+
+    tx = block.transactions[1]
+    spent_outputs = [coin.output for coin in block_spent_outputs.transactions[0].coins]
+    spent_output = spent_outputs[0]
+    txdata = pbk.PrecomputedTransactionData(tx, spent_outputs)
+    spk = spent_output.script_pubkey
+    with pytest.raises(ValueError, match="spent_outputs has"):
+        pbk.PrecomputedTransactionData(tx, spent_outputs * 2)
+    for input_index in (len(tx.inputs), -1):
+        with pytest.raises(IndexError, match="out of range"):
+            spk.verify(spent_output.amount, tx, txdata, input_index, flags)
+    # Bit 20 is above the highest flag. On Python 3.11 and later, the mask
+    # ~ScriptVerificationFlags.ALL does not include it.
+    for unknown_flag in (1 << 5, 1 << 20):
+        with pytest.raises(ValueError, match="unknown script verification flags"):
+            spk.verify(spent_output.amount, tx, txdata, 0, flags | unknown_flag)
 
 
 def test_invalid_scripts() -> None:

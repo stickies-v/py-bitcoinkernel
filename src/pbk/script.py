@@ -121,7 +121,16 @@ class PrecomputedTransactionData(KernelOpaquePtr):
             tx_to: The transaction to precompute data for.
             spent_outputs: The outputs spent by the transaction. Required for taproot
                 verification, can be None for non-taproot verification.
+
+        Raises:
+            ValueError: If `spent_outputs` is not empty and its length is not
+                the number of inputs of `tx_to`.
         """
+        if spent_outputs and len(spent_outputs) != len(tx_to.inputs):
+            raise ValueError(
+                f"spent_outputs has {len(spent_outputs)} items, "
+                f"transaction has {len(tx_to.inputs)} inputs"
+            )
         spent_outputs_array = (
             (ctypes.POINTER(k.btck_TransactionOutput) * len(spent_outputs))(
                 *[output._as_parameter_ for output in spent_outputs]
@@ -204,10 +213,20 @@ class ScriptPubkey(KernelOpaquePtr):
             True if the input spends the script pubkey validly, False otherwise.
 
         Raises:
+            ValueError: If `flags` has bits that are not in
+                `ScriptVerificationFlags.ALL`.
+            IndexError: If `input_index` is not the index of an input in `tx_to`.
             ScriptVerifyException: If the verification could not run, e.g.
                 because the flags were combined in an invalid way. The
                 exception contains the status code.
         """
+        unknown_flags = int(flags) & ~ScriptVerificationFlags.ALL.value
+        if unknown_flags:
+            raise ValueError(f"unknown script verification flags: {unknown_flags:#x}")
+        if not 0 <= input_index < len(tx_to.inputs):
+            raise IndexError(
+                f"input_index {input_index} out of range for {len(tx_to.inputs)} inputs"
+            )
         k_status = k.btck_ScriptVerifyStatus(ScriptVerifyStatus.OK)
         success = k.btck_script_pubkey_verify(
             self,
