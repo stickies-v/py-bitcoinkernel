@@ -49,9 +49,10 @@ class ChainParameters(KernelOpaquePtr):
             chain_type: The Bitcoin network type to configure.
 
         Raises:
+            ValueError: If `chain_type` is not a `ChainType` value.
             RuntimeError: If the C constructor fails (propagated from base class).
         """
-        super().__init__(chain_type)
+        super().__init__(ChainType(chain_type))
 
     @classmethod
     def create_signet(cls, challenge: bytes) -> "ChainParameters":

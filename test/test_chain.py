@@ -1,3 +1,4 @@
+import typing
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,8 @@ from pbk.exceptions import ProcessBlockException
 def test_chain_type() -> None:
     for chain_type in pbk.ChainType:
         pbk.ChainParameters(chain_type)
+    with pytest.raises(ValueError, match="not a valid ChainType"):
+        pbk.ChainParameters(typing.cast(pbk.ChainType, len(pbk.ChainType)))
 
 
 def test_create_signet() -> None:
