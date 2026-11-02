@@ -1,4 +1,5 @@
 import logging
+import typing
 from datetime import datetime, timezone
 
 import pytest
@@ -36,6 +37,17 @@ def test_level_category() -> None:
     pbk.disable_log_category(
         pbk.LogCategory.BLOCKSTORAGE
     )  # Same operation twice should succeed
+
+    unknown_category = typing.cast(pbk.LogCategory, len(pbk.LogCategory))
+    unknown_level = typing.cast(pbk.LogLevel, max(pbk.LogLevel) + 1)
+    with pytest.raises(ValueError, match="not a valid LogCategory"):
+        pbk.set_log_level_category(unknown_category, pbk.LogLevel.INFO)
+    with pytest.raises(ValueError, match="not a valid LogLevel"):
+        pbk.set_log_level_category(pbk.LogCategory.ALL, unknown_level)
+    with pytest.raises(ValueError, match="not a valid LogCategory"):
+        pbk.enable_log_category(unknown_category)
+    with pytest.raises(ValueError, match="not a valid LogCategory"):
+        pbk.disable_log_category(unknown_category)
 
 
 def test_kernel_log_viewer(caplog: pytest.LogCaptureFixture) -> None:

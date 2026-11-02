@@ -176,9 +176,13 @@ def set_log_level_category(category: LogCategory, level: LogLevel) -> None:
     Args:
         category: The log category to configure.
         level: The minimum log level for this category.
+
+    Raises:
+        ValueError: If `category` is not a `LogCategory` value or `level` is
+            not a `LogLevel` value.
     """
     with LOGGING_LOCK:
-        k.btck_logging_set_level_category(category, level)
+        k.btck_logging_set_level_category(LogCategory(category), LogLevel(level))
 
 
 def enable_log_category(category: LogCategory) -> None:
@@ -190,9 +194,12 @@ def enable_log_category(category: LogCategory) -> None:
 
     Args:
         category: The log category to enable.
+
+    Raises:
+        ValueError: If `category` is not a `LogCategory` value.
     """
     with LOGGING_LOCK:
-        k.btck_logging_enable_category(category)
+        k.btck_logging_enable_category(LogCategory(category))
 
 
 def disable_log_category(category: LogCategory) -> None:
@@ -204,9 +211,12 @@ def disable_log_category(category: LogCategory) -> None:
 
     Args:
         category: The log category to disable.
+
+    Raises:
+        ValueError: If `category` is not a `LogCategory` value.
     """
     with LOGGING_LOCK:
-        k.btck_logging_disable_category(category)
+        k.btck_logging_disable_category(LogCategory(category))
 
 
 class LoggingConnection(KernelOpaquePtr):
