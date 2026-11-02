@@ -158,7 +158,7 @@ class ScriptPubkey(KernelOpaquePtr):
         Raises:
             RuntimeError: If the C constructor fails (propagated from base class).
         """
-        super().__init__((ctypes.c_ubyte * len(data))(*data), len(data))
+        super().__init__((ctypes.c_ubyte * len(data)).from_buffer_copy(data), len(data))
 
     def __bytes__(self) -> bytes:
         """Serialize the script pubkey to bytes.

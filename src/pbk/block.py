@@ -346,7 +346,10 @@ class Block(KernelOpaquePtr):
         Raises:
             RuntimeError: If parsing the block data fails (propagated from base class).
         """
-        super().__init__((ctypes.c_ubyte * len(raw_block))(*raw_block), len(raw_block))
+        super().__init__(
+            (ctypes.c_ubyte * len(raw_block)).from_buffer_copy(raw_block),
+            len(raw_block),
+        )
 
     @property
     def block_hash(self) -> BlockHash:
